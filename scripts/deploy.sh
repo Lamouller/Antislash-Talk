@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# 🎙️ Talk-2-Web Deployment Script
+# 🎙️ Antislash Talk Deployment Script
 # Automated deployment for various platforms
 
 set -e  # Exit on any error
@@ -19,7 +19,7 @@ DOCKER_IMAGE="talk2web:latest"
 
 # Functions
 print_header() {
-    echo -e "${BLUE}🎙️ Talk-2-Web Deployment Script${NC}"
+    echo -e "${BLUE}🎙️ Antislash Talk Deployment Script${NC}"
     echo -e "${BLUE}=================================${NC}\n"
 }
 
@@ -131,7 +131,7 @@ setup_environment() {
     if [ ! -f ".env.local" ]; then
         print_step "Creating .env.local from template..."
         cat > .env.local << EOF
-# 🎙️ Talk-2-Web Environment Configuration
+# 🎙️ Antislash Talk Environment Configuration
 # Copy this file and add your actual values
 
 # Supabase Configuration (Required)
@@ -167,7 +167,7 @@ run_tests() {
 
 show_help() {
     cat << EOF
-🎙️ Talk-2-Web Deployment Script
+🎙️ Antislash Talk Deployment Script
 
 Usage: $0 [OPTION]
 
@@ -187,7 +187,7 @@ Examples:
     $0 compose      # Full stack with Docker Compose
     $0 build        # Build for production
 
-For more information, visit: https://github.com/yourusername/Talk-2-Web
+For more information, visit: https://github.com/yourusername/Antislash Talk
 EOF
 }
 
