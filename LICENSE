@@ -1,8 +1,19 @@
+# 📄 Antislash Talk - Dual License
+
+**Antislash Talk - AI-Powered Meeting Transcription & Analysis Platform**
+Repository: https://github.com/Lamouller/Antislash-Talk
+
+This software is available under **two licensing options**:
+
+---
+
+## 🆓 COMMUNITY LICENSE (MIT)
+
+**For open source projects, personal use, and small businesses**
+
 MIT License
 
 Copyright (c) 2024 Antislash Studio
-Project: Antislash Talk - AI-Powered Meeting Transcription & Analysis Platform
-Repository: https://github.com/Lamouller/Antislash-Talk
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -22,34 +33,108 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-## Additional Information
-
-### Third-Party Services and APIs
-This software may integrate with third-party services including but not limited to:
-- OpenAI API (Whisper models)
-- Mistral AI API (Voxtral models) 
-- Google AI API (Gemini models)
-- Anthropic API (Claude models)
-- Supabase (Database and Authentication)
-
-Users are responsible for complying with the terms of service of any third-party 
-APIs they choose to use with this software.
-
-### AI Models and Data Processing
-- Local AI processing (Whisper, Moonshine) operates entirely on user devices
-- Cloud AI services may process audio data according to their respective privacy policies
-- Users should review the privacy policies of any cloud services they enable
-- No audio data is stored by Antislash Talk unless explicitly saved by the user
-
-### Trademark Notice
-"Antislash Talk" is a trademark of Antislash Studio. While the source code is open source
-under this MIT License, the trademark and branding elements may have additional restrictions.
-
-### Support and Contact
-For questions about this license or the software:
-- GitHub Issues: https://github.com/Lamouller/Antislash-Talk/issues
-- Website: https://antislash.studio
-- Email: contact@antislash.studio
+**Community Edition includes:**
+- ✅ Local transcription (Whisper, Moonshine models)
+- ✅ Basic meeting management
+- ✅ Simple exports (JSON, TXT)
+- ✅ Self-hosted deployment
+- ✅ Community support via GitHub Issues
+- ✅ Full source code access
 
 ---
-© 2024 Antislash Studio. Made with ❤️ for the AI community.
+
+## 💼 ENTERPRISE LICENSE (Commercial)
+
+**For commercial use, enterprise deployments, and white-label solutions**
+
+Enterprise licenses include additional features and commercial support:
+
+**Enterprise Edition includes everything in Community plus:**
+- 🚀 Cloud AI providers (OpenAI, Mistral, Google Cloud, Anthropic)
+- 🚀 Advanced analytics & reporting dashboards
+- 🚀 Team collaboration & workspace management
+- 🚀 SSO/SAML authentication integration
+- 🚀 Priority support with SLA guarantees
+- 🚀 Custom integrations & API extensions
+- 🚀 White-label & rebranding options
+- 🚀 Compliance features (GDPR, SOC2, HIPAA)
+- 🚀 Multi-tenant architecture
+- 🚀 Advanced user management & permissions
+
+**Commercial License Benefits:**
+- 📞 Direct technical support
+- 🛡️ Commercial warranty & liability coverage
+- 🔒 Confidential deployment assistance
+- 🎨 Custom branding & white-labeling
+- ⚡ Priority feature requests
+- 📋 Professional services & consulting
+
+**Contact for Enterprise License:**
+- 📧 Email: enterprise@antislash.studio
+- 🌐 Website: https://antislash.studio/enterprise
+- 💬 Schedule a demo: https://calendly.com/antislash-studio
+
+---
+
+## 🎨 TRADEMARK & BRANDING
+
+**Protected Elements:**
+- "Antislash Talk" name and logo
+- Antislash Studio branding
+- Official documentation design
+
+**Usage Rights:**
+- Community License: Attribution required
+- Enterprise License: Custom branding allowed
+
+---
+
+## 🤝 THIRD-PARTY SERVICES DISCLOSURE
+
+This software may integrate with third-party AI services:
+- **OpenAI** (GPT models) - Subject to OpenAI Terms
+- **Mistral AI** (Voxtral models) - Subject to Mistral Terms  
+- **Google Cloud** (Speech-to-Text) - Subject to Google Terms
+- **Anthropic** (Claude models) - Subject to Anthropic Terms
+- **Supabase** (Backend services) - Subject to Supabase Terms
+
+**Privacy Commitment:**
+- 🔒 Local processing options available (Community & Enterprise)
+- 🔐 Cloud processing is optional and clearly disclosed
+- 📋 Users maintain full control over data routing
+- 🛡️ Enterprise licenses include enhanced privacy controls
+
+---
+
+## 📋 LICENSE SELECTION GUIDE
+
+| Use Case | Recommended License |
+|----------|-------------------|
+| Personal projects | Community (MIT) |
+| Open source projects | Community (MIT) |
+| Academic research | Community (MIT) |
+| Startups & SMEs | Community (MIT) |
+| Large corporations | Enterprise |
+| White-label products | Enterprise |
+| No attribution desired | Enterprise |
+| Priority support needed | Enterprise |
+
+---
+
+## 📞 SUPPORT & CONTACT
+
+**Community Support:**
+- 🐛 GitHub Issues: https://github.com/Lamouller/Antislash-Talk/issues
+- 💬 Discussions: https://github.com/Lamouller/Antislash-Talk/discussions
+- 📚 Documentation: https://github.com/Lamouller/Antislash-Talk/wiki
+
+**Enterprise Support:**
+- 📧 Email: enterprise@antislash.studio
+- 📱 Priority hotline: Available with Enterprise license
+- 🎯 Professional services: Custom implementations available
+
+---
+
+**© 2024 Antislash Studio. Made with ❤️ for the AI community.**
+
+*Choose the license that best fits your needs. When in doubt, start with Community and upgrade to Enterprise as your requirements grow.*
