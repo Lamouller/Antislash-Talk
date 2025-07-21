@@ -18,7 +18,7 @@ import TabsIndex from './pages/(tabs)';
 import MeetingsScreen from './pages/(tabs)/meetings';
 import RecordScreen from './pages/(tabs)/record';
 import SettingsScreen from './pages/(tabs)/settings';
-import MeetingDetailPage from './pages/meeting/[id]';
+import MeetingDetailPage from './pages/(tabs)/meeting/[id]';
 
 import ReportIndexScreen from './pages/report';
 import GenerateReportScreen from './pages/report/generate';

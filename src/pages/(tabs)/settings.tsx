@@ -6,6 +6,9 @@ import { Card } from '../../components/ui/Card';
 import { ApiKey } from '../../lib/schemas';
 import toast from 'react-hot-toast';
 import { useLocalTranscription } from '../../hooks/useLocalTranscription';
+import { useLicense, licenseManager } from '../../lib/licensing';
+import { FeatureGate, EnterpriseBadge, FeatureComparison } from '../../components/ui/FeatureGate';
+import { Settings } from 'lucide-react';
 
 type LlmProvider = 'openai' | 'anthropic' | 'google' | 'mistral';
 type SttTtsProvider = 'openai' | 'google' | 'mistral' | 'local';
@@ -215,6 +218,8 @@ export default function SettingsScreen() {
 
   const [apiKeyInputs, setApiKeyInputs] = useState({ openai: '', anthropic: '', google: '', mistral: '' });
 
+  const { license, hasFeature, isEnterprise, upgradeUrl } = useLicense();
+  
   useEffect(() => {
     fetchProfileAndKeys();
   }, []);
@@ -396,52 +401,234 @@ export default function SettingsScreen() {
   if (loading) return <div className="p-8 text-center">Loading settings...</div>;
 
   return (
-    <div className="max-w-4xl mx-auto p-4 sm:p-6 lg:p-8 space-y-8">
-        {/* Model Settings */}
-        <Card>
-          <div className="p-6">
-            <h2 className="text-xl font-bold">Model Settings</h2>
-            <p className="mt-1 text-sm text-gray-500">Choose the AI models for different tasks.</p>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-gray-900 dark:via-slate-800 dark:to-gray-900">
+      <div className="relative overflow-hidden pt-8 pb-16">
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-600/10 via-purple-600/10 to-indigo-600/10"></div>
+        <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          
+          {/* Header */}
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center px-4 py-2 rounded-full bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-gray-200/50 dark:border-gray-700/50 shadow-lg mb-6">
+              <Settings className="w-5 h-5 text-blue-500 mr-2" />
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Application Settings</span>
+            </div>
+            <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-purple-800 dark:from-white dark:via-blue-200 dark:to-purple-200 bg-clip-text text-transparent mb-4">
+              Settings
+            </h1>
+            <div className="flex items-center justify-center gap-3">
+              {isEnterprise() ? (
+                <span className="inline-flex items-center px-4 py-2 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-sm font-medium shadow-lg">
+                  🚀 Enterprise Edition
+                </span>
+              ) : (
+                <span className="inline-flex items-center px-4 py-2 rounded-full bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 text-gray-800 dark:text-gray-200 text-sm font-medium shadow-lg">
+                  🆓 Community Edition
+                </span>
+              )}
+            </div>
           </div>
-          <div className="p-6 pt-0 space-y-6">
-             {/* LLM */}
-            <SettingSelectRow
-              title="Primary LLM"
-              selectedProvider={selectedLlmProvider}
-              setSelectedProvider={(p) => setSelectedLlmProvider(p as LlmProvider)}
-              providers={Object.keys(llmModels)}
-              selectedModel={selectedLlmModel}
-              setSelectedModel={setSelectedLlmModel}
-              models={llmModels}
-            />
-             {/* Transcription */}
-            <SettingSelectRow 
-              title="Transcription Settings"
-              selectedProvider={preferredTranscriptionProvider}
-              setSelectedProvider={(p) => setPreferredTranscriptionProvider(p as SttTtsProvider)}
-              providers={['openai', 'google', 'mistral', 'local']}
-              selectedModel={preferredTranscriptionModel}
-              setSelectedModel={setPreferredTranscriptionModel}
-              models={{
-                ...transcriptionModels,
-                local: preferredTranscriptionProvider === 'local' ? getRecommendedModels() : transcriptionModels.local
-              }}
-            />
-             {/* TTS */}
-            <SettingSelectRow
-              title="Text-to-Speech"
-              selectedProvider={selectedTtsProvider}
-              setSelectedProvider={(p) => setSelectedTtsProvider(p as SttTtsProvider)}
-              providers={Object.keys(ttsModels)}
-              selectedModel={selectedTtsModel}
-              setSelectedModel={setSelectedTtsModel}
-              models={ttsModels}
-            />
-          </div>
-        </Card>
 
-        {/* Prompt Settings */}
-        <Card>
+          <div className="space-y-8">
+
+          {!isEnterprise() && (
+            <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200 dark:border-blue-700/50 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                    🚀 Want more features?
+                  </h3>
+                  <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+                    Upgrade to Enterprise for cloud AI, team collaboration, and priority support
+                  </p>
+                </div>
+                <button
+                  onClick={() => window.open(upgradeUrl, '_blank')}
+                  className="px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white text-sm font-medium rounded-lg transition-colors"
+                >
+                  Upgrade
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* License Information */}
+          <div className="mb-8 p-6 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-xl border border-gray-200/50 dark:border-gray-700/50 shadow-xl">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+              📄 License Information
+            </h2>
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">License Type</div>
+                <div className="font-medium text-gray-900 dark:text-white">
+                  {license.type === 'enterprise' ? '💼 Enterprise' : '🆓 Community (MIT)'}
+                </div>
+              </div>
+              <div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">Support Level</div>
+                <div className="font-medium text-gray-900 dark:text-white">
+                  {license.metadata?.supportLevel === 'premium' ? '🚀 Priority Support' : '👥 Community Support'}
+                </div>
+              </div>
+              {license.metadata?.organizationId && (
+                <div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">Organization</div>
+                  <div className="font-medium text-gray-900 dark:text-white">{license.metadata.organizationId}</div>
+                </div>
+              )}
+              {license.metadata?.licenseKey && (
+                <div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">License Key</div>
+                  <div className="font-mono text-sm text-gray-700 dark:text-gray-300">
+                    {license.metadata.licenseKey.slice(0, 8)}...{license.metadata.licenseKey.slice(-4)}
+                  </div>
+                </div>
+              )}
+            </div>
+            {!isEnterprise() && (
+              <div className="mt-4 pt-4 border-t border-gray-200/50 dark:border-gray-700/50">
+                <div className="text-sm text-gray-600 dark:text-gray-400">
+                  📋 Want to see what Enterprise includes? 
+                  <a href={upgradeUrl} target="_blank" rel="noopener noreferrer" className="ml-1 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium">
+                    View comparison →
+                  </a>
+                </div>
+              </div>
+            )}
+          </div>
+
+                     {/* Existing Transcription Settings */}
+           <Card>
+             <div className="p-6">
+               <h2 className="text-xl font-bold">🎙️ Model Settings</h2>
+               <p className="mt-1 text-sm text-gray-500">Choose the AI models for different tasks.</p>
+               
+               {/* Show enterprise status */}
+               <div className="mt-4 mb-6 p-3 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
+                 <div className="flex items-center justify-between">
+                   <div className="text-sm">
+                     <span className="font-medium text-gray-900 dark:text-white">License: </span>
+                     {isEnterprise() ? (
+                       <span className="text-blue-600 dark:text-blue-400 font-medium">💼 Enterprise</span>
+                     ) : (
+                       <span className="text-gray-600 dark:text-gray-300">🆓 Community (MIT)</span>
+                     )}
+                   </div>
+                   {!isEnterprise() && (
+                     <button
+                       onClick={() => window.open(upgradeUrl, '_blank')}
+                       className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded-lg transition-colors"
+                     >
+                       Upgrade
+                     </button>
+                   )}
+                 </div>
+               </div>
+             </div>
+             
+             <div className="p-6 pt-0 space-y-6">
+               {/* Transcription */}
+               <div>
+                 <SettingSelectRow
+                   title="Transcription Settings"
+                   selectedProvider={preferredTranscriptionProvider}
+                   setSelectedProvider={(p) => setPreferredTranscriptionProvider(p as SttTtsProvider)}
+                   providers={['openai', 'google', 'mistral', 'local']}
+                   selectedModel={preferredTranscriptionModel}
+                   setSelectedModel={setPreferredTranscriptionModel}
+                   models={{
+                     ...transcriptionModels,
+                     local: preferredTranscriptionProvider === 'local' ? getRecommendedModels() : transcriptionModels.local
+                   }}
+                 />
+                 
+                 {/* Feature gate for cloud providers */}
+                 {preferredTranscriptionProvider !== 'local' && (
+                   <FeatureGate feature="cloudAIProviders">
+                     <div className="mt-3 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700/50 rounded-lg">
+                       <p className="text-sm text-green-800 dark:text-green-200">
+                         🎉 Enterprise cloud AI features enabled!
+                       </p>
+                     </div>
+                   </FeatureGate>
+                 )}
+               </div>
+
+               {/* LLM with enterprise gating */}
+               <FeatureGate feature="cloudAIProviders" showUpgradePrompt={false}>
+                 <SettingSelectRow
+                   title="Primary LLM"
+                   selectedProvider={selectedLlmProvider}
+                   setSelectedProvider={(p) => setSelectedLlmProvider(p as LlmProvider)}
+                   providers={Object.keys(llmModels)}
+                   selectedModel={selectedLlmModel}
+                   setSelectedModel={setSelectedLlmModel}
+                   models={llmModels}
+                 />
+               </FeatureGate>
+
+               {/* TTS with enterprise gating */}
+               <FeatureGate feature="cloudAIProviders" showUpgradePrompt={false}>
+                 <SettingSelectRow
+                   title="Text-to-Speech"
+                   selectedProvider={selectedTtsProvider}
+                   setSelectedProvider={(p) => setSelectedTtsProvider(p as SttTtsProvider)}
+                   providers={Object.keys(ttsModels)}
+                   selectedModel={selectedTtsModel}
+                   setSelectedModel={setSelectedTtsModel}
+                   models={ttsModels}
+                 />
+               </FeatureGate>
+             </div>
+           </Card>
+
+           {/* Enterprise Features */}
+           <FeatureGate feature="advancedAnalytics">
+             <Card>
+               <div className="p-6">
+                 <h3 className="text-lg font-semibold text-gray-900">📊 Advanced Analytics</h3>
+                 <p className="text-sm text-gray-500 mt-1">Enterprise analytics and monitoring</p>
+                 <div className="mt-4 grid md:grid-cols-2 gap-4">
+                   <label className="flex items-center space-x-2">
+                     <input type="checkbox" className="rounded border-gray-300" />
+                     <span className="text-sm text-gray-700">Enable usage analytics</span>
+                   </label>
+                   <label className="flex items-center space-x-2">
+                     <input type="checkbox" className="rounded border-gray-300" />
+                     <span className="text-sm text-gray-700">Performance monitoring</span>
+                   </label>
+                 </div>
+               </div>
+             </Card>
+           </FeatureGate>
+
+           <FeatureGate feature="teamCollaboration">
+             <Card>
+               <div className="p-6">
+                 <h3 className="text-lg font-semibold text-gray-900">👥 Team Collaboration</h3>
+                 <p className="text-sm text-gray-500 mt-1">Enterprise team features</p>
+                 <div className="mt-4 space-y-3">
+                   <div>
+                     <label className="block text-sm font-medium text-gray-700 mb-2">
+                       Default Sharing
+                     </label>
+                     <select className="w-full p-2 border border-gray-300 rounded-lg">
+                       <option value="private">🔒 Private</option>
+                       <option value="team">👥 Team Only</option>
+                       <option value="organization">🏢 Organization</option>
+                     </select>
+                   </div>
+                 </div>
+               </div>
+             </Card>
+           </FeatureGate>
+
+          {/* Feature Comparison Table */}
+          <div className="mt-8">
+            <FeatureComparison />
+          </div>
+
+          {/* Prompt Settings */}
+          <Card>
             <div className="p-6">
                 <h2 className="text-xl font-bold">Prompt Settings</h2>
                 <p className="mt-1 text-sm text-gray-500">Customize the prompts used for AI analysis. These will be used by the transcription function.</p>
@@ -451,11 +638,11 @@ export default function SettingsScreen() {
                 <PromptTextarea label="Summary Prompt" value={promptSummary} onChange={setPromptSummary} />
                 <PromptTextarea label="Transcript & Diarization Prompt" value={promptTranscript} onChange={setPromptTranscript} />
             </div>
-        </Card>
-        
-        {/* API Keys */}
-        <Card>
-           <div className="p-6">
+          </Card>
+          
+          {/* API Keys */}
+          <Card>
+            <div className="p-6">
                 <h2 className="text-xl font-bold">API Keys</h2>
                 <p className="mt-1 text-sm text-gray-500">Keys are stored securely and never exposed on the client-side.</p>
             </div>
@@ -471,102 +658,105 @@ export default function SettingsScreen() {
                 />
               )}
             </div>
-        </Card>
-        
-        {/* Device Performance Section */}
-        {preferredTranscriptionProvider === 'local' && (
-          <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-6 rounded-lg border">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold text-gray-900">🔬 Device Performance</h2>
-              <button
-                onClick={handleRunBenchmark}
-                disabled={isBenchmarking}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-              >
-                {isBenchmarking ? '🔄 Testing...' : '🔬 Run Test'}
-              </button>
+          </Card>
+          
+          {/* Device Performance Section */}
+          {preferredTranscriptionProvider === 'local' && (
+            <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm p-6 rounded-xl border border-gray-200/50 dark:border-gray-700/50 shadow-xl">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">🔬 Device Performance</h2>
+                <button
+                  onClick={handleRunBenchmark}
+                  disabled={isBenchmarking}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {isBenchmarking ? '🔄 Testing...' : '🔬 Run Test'}
+                </button>
+              </div>
+              
+              {benchmark && (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-white dark:bg-gray-700 p-3 rounded-lg">
+                      <div className="text-sm text-gray-600 dark:text-gray-400">Device Class</div>
+                      <div className="font-semibold capitalize text-lg text-gray-900 dark:text-white">
+                        {benchmark.deviceClass === 'high-end' && '🚀 High-End'}
+                        {benchmark.deviceClass === 'mid-range' && '⚡ Mid-Range'}
+                        {benchmark.deviceClass === 'low-end' && '💻 Low-End'}
+                      </div>
+                    </div>
+                    <div className="bg-white dark:bg-gray-700 p-3 rounded-lg">
+                      <div className="text-sm text-gray-600 dark:text-gray-400">WebGPU Support</div>
+                      <div className="font-semibold text-lg text-gray-900 dark:text-white">
+                        {benchmark.webGPUSupported ? '✅ Supported' : '❌ Not Available'}
+                      </div>
+                    </div>
+                    <div className="bg-white dark:bg-gray-700 p-3 rounded-lg">
+                      <div className="text-sm text-gray-600 dark:text-gray-400">Estimated Memory</div>
+                      <div className="font-semibold text-lg text-gray-900 dark:text-white">{benchmark.estimatedMemoryGB}GB</div>
+                    </div>
+                    <div className="bg-white dark:bg-gray-700 p-3 rounded-lg">
+                      <div className="text-sm text-gray-600 dark:text-gray-400">CPU Cores</div>
+                      <div className="font-semibold text-lg text-gray-900 dark:text-white">{benchmark.cpuCores}</div>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg border border-green-200 dark:border-green-700/50">
+                    <div className="flex items-start space-x-2">
+                      <span className="text-green-600 dark:text-green-400">🎯</span>
+                      <div>
+                        <div className="font-semibold text-green-800 dark:text-green-200">Recommended Model</div>
+                        <div className="text-green-700 dark:text-green-300">
+                          {transcriptionModels.local.find(m => m.id === benchmark.recommendedModel)?.name || benchmark.recommendedModel}
+                        </div>
+                        <div className="text-sm text-green-600 dark:text-green-400 mt-1">
+                          Optimized for your {benchmark.deviceClass} device
+                          {benchmark.webGPUSupported && ' with Apple Silicon GPU acceleration'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Local Processing Info */}
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-700/50">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <span className="text-lg">🔒</span>
+                      <h3 className="font-semibold text-blue-900 dark:text-blue-200">100% Local Processing</h3>
+                    </div>
+                    <p className="text-sm text-blue-800 dark:text-blue-200 mb-2">
+                      Your recommended model runs completely locally for maximum privacy:
+                    </p>
+                    <ul className="text-xs text-blue-700 dark:text-blue-300 space-y-1 ml-4">
+                      <li>• 🔒 Zero data sent to external servers</li>
+                      <li>• ⚡ No internet required after model download</li>
+                      <li>• 🆓 No API costs or usage limits</li>
+                      <li>• 🛡️ Complete privacy and security</li>
+                      <li>• 📱 Optimized for your device capabilities</li>
+                    </ul>
+                    <div className="mt-3 text-xs text-blue-600 dark:text-blue-400">
+                      💡 Want advanced features? Voxtral is available as a cloud option with API key!
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {!benchmark && !isBenchmarking && (
+                <div className="text-gray-600 dark:text-gray-400">
+                  Run a performance test to get personalized model recommendations for your device.
+                </div>
+              )}
             </div>
-            
-            {benchmark && (
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-white p-3 rounded-lg">
-                    <div className="text-sm text-gray-600">Device Class</div>
-                    <div className="font-semibold capitalize text-lg">
-                      {benchmark.deviceClass === 'high-end' && '🚀 High-End'}
-                      {benchmark.deviceClass === 'mid-range' && '⚡ Mid-Range'}
-                      {benchmark.deviceClass === 'low-end' && '💻 Low-End'}
-                    </div>
-                  </div>
-                  <div className="bg-white p-3 rounded-lg">
-                    <div className="text-sm text-gray-600">WebGPU Support</div>
-                    <div className="font-semibold text-lg">
-                      {benchmark.webGPUSupported ? '✅ Supported' : '❌ Not Available'}
-                    </div>
-                  </div>
-                  <div className="bg-white p-3 rounded-lg">
-                    <div className="text-sm text-gray-600">Estimated Memory</div>
-                    <div className="font-semibold text-lg">{benchmark.estimatedMemoryGB}GB</div>
-                  </div>
-                  <div className="bg-white p-3 rounded-lg">
-                    <div className="text-sm text-gray-600">CPU Cores</div>
-                    <div className="font-semibold text-lg">{benchmark.cpuCores}</div>
-                  </div>
-                </div>
-                
-                <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                  <div className="flex items-start space-x-2">
-                    <span className="text-green-600">🎯</span>
-                    <div>
-                      <div className="font-semibold text-green-800">Recommended Model</div>
-                      <div className="text-green-700">
-                        {transcriptionModels.local.find(m => m.id === benchmark.recommendedModel)?.name || benchmark.recommendedModel}
-                      </div>
-                      <div className="text-sm text-green-600 mt-1">
-                        Optimized for your {benchmark.deviceClass} device
-                        {benchmark.webGPUSupported && ' with Apple Silicon GPU acceleration'}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Local Processing Info */}
-                <div className="bg-gradient-to-r from-green-50 to-blue-50 p-4 rounded-lg border border-green-200">
-                  <div className="flex items-center space-x-2 mb-2">
-                    <span className="text-lg">🔒</span>
-                    <h3 className="font-semibold text-green-900">100% Local Processing</h3>
-                  </div>
-                  <p className="text-sm text-green-700 mb-2">
-                    Your recommended model runs completely locally for maximum privacy:
-                  </p>
-                  <ul className="text-xs text-green-600 space-y-1 ml-4">
-                    <li>• 🔒 Zero data sent to external servers</li>
-                    <li>• ⚡ No internet required after model download</li>
-                    <li>• 🆓 No API costs or usage limits</li>
-                    <li>• 🛡️ Complete privacy and security</li>
-                    <li>• 🎯 Optimized for your device capabilities</li>
-                  </ul>
-                  <div className="mt-3 text-xs text-green-500">
-                    💡 Want advanced features? Voxtral is available as a cloud option with API key!
-                  </div>
-                </div>
-              </div>
-            )}
-            
-            {!benchmark && !isBenchmarking && (
-              <div className="text-gray-600">
-                Run a performance test to get personalized model recommendations for your device.
-              </div>
-            )}
-          </div>
-        )}
+          )}
 
-        <div className="flex justify-between items-center">
-            <Button onClick={handleSaveModelSettings} disabled={!hasChanges || loading}>
-                {hasChanges ? 'Save Changes' : 'Saved'}
-            </Button>
-            <Button onClick={handleLogout} variant="danger">Logout</Button>
+          <div className="flex justify-between items-center">
+              <Button onClick={handleSaveModelSettings} disabled={!hasChanges || loading}>
+                  {hasChanges ? 'Save Changes' : 'Saved'}
+              </Button>
+              <Button onClick={handleLogout} variant="danger">Logout</Button>
+          </div>
+          </div>
         </div>
+      </div>
     </div>
   );
 }
@@ -574,11 +764,11 @@ export default function SettingsScreen() {
 function PromptTextarea({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void; }) {
     return (
         <div>
-            <label className="block text-sm font-medium mb-1">{label}</label>
+            <label className="block text-sm font-medium text-gray-900 dark:text-white mb-1">{label}</label>
             <textarea
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
-                className="w-full p-2 border rounded bg-white"
+                className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 rows={4}
             />
         </div>
@@ -601,10 +791,10 @@ function SettingSelectRow({ title, selectedProvider, setSelectedProvider, provid
 
   return (
     <div>
-      <h3 className="text-lg font-medium">{title}</h3>
+      <h3 className="text-lg font-medium text-gray-900 dark:text-white">{title}</h3>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
         <div>
-          <label className="block text-sm font-medium mb-1">Provider</label>
+          <label className="block text-sm font-medium text-gray-900 dark:text-white mb-1">Provider</label>
           <select
             value={selectedProvider}
             onChange={(e) => {
@@ -612,7 +802,7 @@ function SettingSelectRow({ title, selectedProvider, setSelectedProvider, provid
               setSelectedProvider(newProvider);
               setSelectedModel(models[newProvider][0].id);
             }}
-            className="w-full p-2 border rounded bg-white"
+            className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
             {providers.map((p: string) => (
               <option key={p} value={p} className="capitalize">
@@ -622,11 +812,11 @@ function SettingSelectRow({ title, selectedProvider, setSelectedProvider, provid
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium mb-1">Model</label>
+          <label className="block text-sm font-medium text-gray-900 dark:text-white mb-1">Model</label>
           <select
             value={selectedModel || ''}
             onChange={(e) => setSelectedModel(e.target.value)}
-            className="w-full p-2 border rounded bg-white"
+            className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50"
             disabled={!selectedProvider}
           >
             {selectedProvider && models[selectedProvider].map((m: Model) => (
@@ -638,9 +828,9 @@ function SettingSelectRow({ title, selectedProvider, setSelectedProvider, provid
         </div>
       </div>
       <div className="mt-2 space-y-1">
-        <p className="text-sm text-gray-600">{selectedModelDesc}</p>
+        <p className="text-sm text-gray-600 dark:text-gray-400">{selectedModelDesc}</p>
         {isLocal && selectedModelData && (
-          <div className="text-xs text-gray-500 space-y-1">
+          <div className="text-xs text-gray-500 dark:text-gray-400 space-y-1">
             {selectedModelData.size && (
               <div>📦 <strong>Size:</strong> {selectedModelData.size}</div>
             )}
@@ -648,17 +838,17 @@ function SettingSelectRow({ title, selectedProvider, setSelectedProvider, provid
               <div>🌍 <strong>Languages:</strong> {selectedModelData.languages}</div>
             )}
             {selectedProvider === 'local' && (
-              <div className="text-blue-600">
+              <div className="text-blue-800 dark:text-blue-200 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700/50 p-2 rounded">
                 ℹ️ <strong>Privacy:</strong> Runs entirely in your browser. No data sent to external servers.
               </div>
             )}
             {selectedProvider === 'local' && (
               <div className="space-y-2">
-                <div className="text-amber-600 bg-amber-50 p-2 rounded">
+                <div className="text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/50 p-2 rounded">
                   💡 <strong>Tip:</strong> Start with "Moonshine Tiny" (50MB, English) or "Whisper Tiny" (39MB, multilingual). 
                   For longer audio, try "Distil-Whisper Large v3.5" (756MB). If AI fails, use cloud transcription (OpenAI/Google).
                 </div>
-                <div className="text-blue-600 bg-blue-50 p-2 rounded">
+                <div className="text-blue-800 dark:text-blue-200 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700/50 p-2 rounded">
                   🍎 <strong>Apple Silicon Performance:</strong> Your app automatically detects and uses WebGPU to leverage your M1/M2/M3/M4 chip's GPU for ultra-fast transcription. No configuration needed!
                 </div>
               </div>
@@ -716,9 +906,9 @@ function ApiKeyInputRow({ provider, hasKey, value, onChange, onSave }: {
 
   return (
     <div>
-      <label className="block text-sm font-medium">{providerInfo.name}</label>
+      <label className="block text-sm font-medium text-gray-900 dark:text-white">{providerInfo.name}</label>
       {providerInfo.description && (
-        <p className="text-xs text-gray-500 mt-1">{providerInfo.description}</p>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{providerInfo.description}</p>
       )}
       <div className="flex items-center space-x-2 mt-2">
         <input
@@ -726,7 +916,7 @@ function ApiKeyInputRow({ provider, hasKey, value, onChange, onSave }: {
           placeholder={providerInfo.placeholder}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full p-2 border rounded"
+          className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         />
         <Button onClick={onSave} disabled={!value}>Save</Button>
       </div>

@@ -4,14 +4,12 @@ import SideBar from '../../components/layout/SideBar';
 
 export default function TabsLayout() {
   return (
-    <div className="min-h-screen flex bg-gray-100 dark:bg-gray-900">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-gray-900 dark:via-slate-800 dark:to-gray-900">
       <SideBar />
-      <div className="flex-1 flex flex-col">
+      <div className="md:ml-64 flex flex-col">
         <NavBar />
         <main className="flex-1">
-          <div className="py-6">
-            <Outlet />
-          </div>
+          <Outlet />
         </main>
       </div>
     </div>
