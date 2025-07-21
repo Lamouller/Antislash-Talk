@@ -1,0 +1,46 @@
+functionsDirectory = "/Users/trystanlamouller/Github_Lamouller/Talk-2-Web/netlify/functions"
+functionsDirectoryOrigin = "config-v1"
+headersOrigin = "config"
+plugins = []
+redirects = []
+
+[build]
+publish = "/Users/trystanlamouller/Github_Lamouller/Talk-2-Web/dist"
+publishOrigin = "config"
+commandOrigin = "config"
+base = "/Users/trystanlamouller/Github_Lamouller/Talk-2-Web"
+command = "npm run build"
+functions = "/Users/trystanlamouller/Github_Lamouller/Talk-2-Web/netlify/functions"
+
+[build.environment]
+
+[build.processing]
+
+[build.processing.css]
+
+[build.processing.html]
+
+[build.processing.images]
+
+[build.processing.js]
+
+[build.services]
+
+[functions]
+
+[functions."*"]
+node_bundler = "nft"
+
+[[headers]]
+for = "/*"
+
+[headers.values]
+Cross-Origin-Embedder-Policy = "require-corp"
+Cross-Origin-Opener-Policy = "same-origin"
+
+[[headers]]
+for = "/*.wasm"
+
+[headers.values]
+Content-Type = "application/wasm"
+Cross-Origin-Resource-Policy = "cross-origin"
