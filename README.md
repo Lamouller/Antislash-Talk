@@ -1,10 +1,10 @@
-# 🎙️ Talk-2-Web
+# 🎙️ Antislash Talk
 
 **AI-Powered Meeting Transcription & Analysis Platform**
 
 Transform your voice recordings into intelligent insights with advanced AI transcription, semantic understanding, and automated analysis.
 
-![Talk-2-Web Interface](https://img.shields.io/badge/TypeScript-React-blue) ![AI Powered](https://img.shields.io/badge/AI-Voxtral%20%7C%20Whisper-green) ![Privacy](https://img.shields.io/badge/Privacy-100%25%20Local%20Option-orange)
+![Antislash Talk Interface](https://img.shields.io/badge/TypeScript-React-blue) ![AI Powered](https://img.shields.io/badge/AI-Voxtral%20%7C%20Whisper-green) ![Privacy](https://img.shields.io/badge/Privacy-100%25%20Local%20Option-orange)
 
 ## 🌟 Features
 
@@ -38,8 +38,8 @@ Transform your voice recordings into intelligent insights with advanced AI trans
 ### 1. Clone & Install
 
 ```bash
-git clone https://github.com/yourusername/Talk-2-Web.git
-cd Talk-2-Web
+git clone https://github.com/Lamouller/Antislash-Talk.git
+cd Antislash-Talk
 npm install
 ```
 
@@ -179,7 +179,7 @@ Add your API keys in **Settings → API Keys** or via environment variables:
 ### Project Structure
 
 ```
-Talk-2-Web/
+Antislash-Talk/
 ├── src/
 │   ├── components/       # Reusable UI components
 │   ├── hooks/           # Custom React hooks
@@ -311,13 +311,13 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🆘 Support
 
-- **📚 Documentation**: [Wiki](https://github.com/yourusername/Talk-2-Web/wiki)
-- **🐛 Bug Reports**: [Issues](https://github.com/yourusername/Talk-2-Web/issues)
-- **💬 Discussions**: [GitHub Discussions](https://github.com/yourusername/Talk-2-Web/discussions)
+- **📚 Documentation**: [Wiki](https://github.com/Lamouller/Antislash-Talk/wiki)
+- **🐛 Bug Reports**: [Issues](https://github.com/Lamouller/Antislash-Talk/issues)
+- **💬 Discussions**: [GitHub Discussions](https://github.com/Lamouller/Antislash-Talk/discussions)
 - **📧 Email**: support@talk2web.com
 
 ---
 
-**Built with ❤️ by the Talk-2-Web Team**
+**Built with ❤️ by Antislash Studio**
 
 *Transform conversations into insights with the power of AI*
