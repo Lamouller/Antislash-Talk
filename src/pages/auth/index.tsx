@@ -111,7 +111,7 @@ export default function AuthIndex() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 w-full">
             <div className="text-center">
               <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <Shield size={24} className="text-white" />
+                <Shield size={24} className="text-white flex-shrink-0" />
               </div>
               <h3 className="font-semibold text-gray-900 dark:text-white mb-2">100% Local</h3>
               <p className="text-sm text-gray-600 dark:text-gray-400">Privacy-first AI processing</p>
@@ -119,7 +119,7 @@ export default function AuthIndex() {
             
             <div className="text-center">
               <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <Github size={24} className="text-white" />
+                <Github size={24} className="text-white flex-shrink-0" />
               </div>
               <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Open Source</h3>
               <p className="text-sm text-gray-600 dark:text-gray-400">MIT licensed, transparent</p>
@@ -127,7 +127,7 @@ export default function AuthIndex() {
             
             <div className="text-center">
               <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <Heart size={24} className="text-white" />
+                <Heart size={24} className="text-white flex-shrink-0" />
               </div>
               <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Free Forever</h3>
               <p className="text-sm text-gray-600 dark:text-gray-400">No hidden costs or limits</p>

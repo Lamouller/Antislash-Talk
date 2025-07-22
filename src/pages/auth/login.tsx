@@ -99,24 +99,24 @@ export default function LoginScreen() {
               {/* Features Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-12">
                 <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
-                  <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center mb-4">
-                    <Shield size={24} className="text-white" />
+                  <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center mb-4 mx-auto">
+                    <Shield size={24} className="text-white flex-shrink-0" />
                   </div>
                   <h3 className="font-semibold text-gray-900 dark:text-white mb-2">100% Local</h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400">Your data never leaves your device</p>
                 </div>
                 
                 <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
-                  <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl flex items-center justify-center mb-4">
-                    <Globe size={24} className="text-white" />
+                  <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl flex items-center justify-center mb-4 mx-auto">
+                    <Globe size={24} className="text-white flex-shrink-0" />
                   </div>
                   <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Open Source</h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400">MIT licensed, free forever</p>
                 </div>
                 
                 <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
-                  <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-600 rounded-xl flex items-center justify-center mb-4">
-                    <Zap size={24} className="text-white" />
+                  <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-600 rounded-xl flex items-center justify-center mb-4 mx-auto">
+                    <Zap size={24} className="text-white flex-shrink-0" />
                   </div>
                   <h3 className="font-semibold text-gray-900 dark:text-white mb-2">AI-Powered</h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400">Cutting-edge Whisper models</p>

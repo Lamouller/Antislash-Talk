@@ -89,32 +89,32 @@ export default function HomeScreen() {
           {/* Features Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 w-full">
             <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
-              <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl flex items-center justify-center mb-4">
-                <Shield size={24} className="text-white" />
+              <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl flex items-center justify-center mb-4 mx-auto">
+                <Shield size={24} className="text-white flex-shrink-0" />
               </div>
               <h3 className="font-semibold text-gray-900 dark:text-white mb-2">100% Local</h3>
               <p className="text-sm text-gray-600 dark:text-gray-400">Your conversations never leave your device. Complete privacy guaranteed.</p>
             </div>
             
             <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
-              <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center mb-4">
-                <Globe size={24} className="text-white" />
+              <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center mb-4 mx-auto">
+                <Globe size={24} className="text-white flex-shrink-0" />
               </div>
               <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Open Source</h3>
               <p className="text-sm text-gray-600 dark:text-gray-400">MIT licensed, transparent, and built by the community for everyone.</p>
             </div>
             
             <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
-              <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-600 rounded-xl flex items-center justify-center mb-4">
-                <Users size={24} className="text-white" />
+              <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-600 rounded-xl flex items-center justify-center mb-4 mx-auto">
+                <Users size={24} className="text-white flex-shrink-0" />
               </div>
               <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Community Driven</h3>
               <p className="text-sm text-gray-600 dark:text-gray-400">Join thousands of developers building the future of AI transcription.</p>
             </div>
             
             <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
-              <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-red-600 rounded-xl flex items-center justify-center mb-4">
-                <Zap size={24} className="text-white" />
+              <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-red-600 rounded-xl flex items-center justify-center mb-4 mx-auto">
+                <Zap size={24} className="text-white flex-shrink-0" />
               </div>
               <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Lightning Fast</h3>
               <p className="text-sm text-gray-600 dark:text-gray-400">WebGPU acceleration delivers real-time transcription performance.</p>
