@@ -58,4 +58,6 @@ Thumbs.db
 ehthumbs.db
 Desktop.ini
 $RECYCLE.BIN/
+# Ignore docs/ except screenshots for GitHub README
 docs/
+!docs/screenshots/
