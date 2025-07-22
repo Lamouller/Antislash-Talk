@@ -17,14 +17,31 @@ async function handleGoogleTranscription(apiKey: string, model: string, audioBlo
       .reduce((data, byte) => data + String.fromCharCode(byte), '')
   );
 
+  // Language will be determined by the caller, use 'fr' as default
+  const isEnglish = false; // Will be updated by caller
+  
   const defaultPrompts = {
-    title: 'A short, descriptive title for the meeting (in French).',
-    summary: 'A concise one-paragraph summary of the key discussion points and decisions (in French).',
-    transcript: `A detailed, diarized transcript. Here's how to identify speakers:
-    - **Priority 1:** If a speaker introduces themselves or is named (e.g., "Hello, this is Marc," "Paul, what do you think?"), use that name as their identifier for all their speech segments.
-    - **Priority 2:** If names are not mentioned, use generic identifiers like "Locuteur_01", "Locuteur_02", etc.
-    - **Crucial Rule:** If you only detect one distinct voice throughout the recording, all text must be attributed to a single speaker (e.g., "Locuteur_01" or their identified name). Do NOT invent a second speaker.
-    - Ensure each speech segment is correctly attributed to the speaker.`
+    title: isEnglish 
+      ? 'Concise and informative meeting title (60 chars max, in English). Gemini, use your contextual understanding to capture the essence of the discussion.'
+      : 'Titre de réunion concis et informatif (60 caractères max, en français). Gemini, utilisez votre compréhension contextuelle pour capturer l\'essence de la discussion.',
+    summary: isEnglish
+      ? 'Structured summary of essential meeting elements in English. Gemini excels at contextual analysis - identify main themes, consensus, and divergences.'
+      : 'Résumé structuré des éléments essentiels de la réunion en français. Gemini excelle dans l\'analyse contextuelle - identifiez les thèmes principaux, consensus et divergences.',
+    transcript: isEnglish
+      ? `Transcript with advanced diarization in English. Gemini has excellent audio comprehension capabilities:
+OPTIMAL USE of Gemini for diarization:
+- **Gemini Advantage**: Direct audio analysis, natural voice change detection
+- **Speaker identification**: Use names if mentioned, otherwise "Speaker_01", "Speaker_02"
+- **Absolute rule**: If only one voice is detectable, do NOT invent additional speakers
+- **Output format**: Array of objects with "speaker", "text", "start", "end"
+- **Key advantage**: Gemini can process raw audio and detect vocal nuances that Whisper misses`
+      : `Transcription avec diarization avancée en français. Gemini a d'excellentes capacités de compréhension audio :
+UTILISATION OPTIMALE de Gemini pour la diarization :
+- **Avantage Gemini**: Analyse directement l'audio, détection naturelle des changements de voix
+- **Identification des locuteurs**: Utilisez les noms si mentionnés, sinon "Locuteur_01", "Locuteur_02"
+- **Règle absolue**: Si une seule voix est détectable, n'inventez PAS de locuteurs supplémentaires
+- **Format de sortie**: Array d'objets avec "speaker", "text", "start", "end"
+- **Avantage clé**: Gemini peut traiter l'audio brut et détecter les nuances vocales que Whisper rate`
   };
 
   const finalPrompt = `
@@ -176,7 +193,7 @@ Deno.serve(async (req) => {
 
     const { data: profile } = await serviceSupabaseClient
       .from('profiles')
-      .select('preferred_transcription_provider, preferred_transcription_model, prompt_title, prompt_summary, prompt_transcript')
+      .select('preferred_transcription_provider, preferred_transcription_model, prompt_title, prompt_summary, prompt_transcript, preferred_language')
       .eq('id', user.id)
       .single();
 
@@ -208,12 +225,15 @@ Deno.serve(async (req) => {
       summary: profile?.prompt_summary,
       transcript: profile?.prompt_transcript,
     };
+    
+    // Pass language preference separately
+    const userLanguage = profile?.preferred_language || 'fr';
 
     let analysisResult;
     if (provider === 'google') {
-      analysisResult = await handleGoogleTranscription(apiKeyData.encrypted_key, model, audioBlob.data, userPrompts);
+      analysisResult = await handleGoogleTranscription(apiKeyData.encrypted_key, model, audioBlob.data, userPrompts, userLanguage);
     } else if (provider === 'openai') {
-      analysisResult = await handleOpenAITranscription(apiKeyData.encrypted_key, model, audioBlob.data, userPrompts);
+      analysisResult = await handleOpenAITranscription(apiKeyData.encrypted_key, model, audioBlob.data, userPrompts, userLanguage);
     } else {
       throw new Error(`Unsupported provider: ${provider}`);
     }

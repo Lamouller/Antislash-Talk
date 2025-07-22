@@ -1,16 +1,15 @@
-functionsDirectory = "/Users/trystanlamouller/Github_Lamouller/Talk-2-Web/netlify/functions"
+functionsDirectory = "/Users/trystanlamouller/Github_Lamouller/Antislash-Talk/netlify/functions"
 functionsDirectoryOrigin = "config-v1"
 headersOrigin = "config"
 plugins = []
 redirects = []
 
 [build]
-publish = "/Users/trystanlamouller/Github_Lamouller/Talk-2-Web/dist"
+publish = "/Users/trystanlamouller/Github_Lamouller/Antislash-Talk/dist"
 publishOrigin = "config"
 commandOrigin = "config"
-base = "/Users/trystanlamouller/Github_Lamouller/Talk-2-Web"
 command = "npm run build"
-functions = "/Users/trystanlamouller/Github_Lamouller/Talk-2-Web/netlify/functions"
+functions = "/Users/trystanlamouller/Github_Lamouller/Antislash-Talk/netlify/functions"
 
 [build.environment]
 

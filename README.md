@@ -27,6 +27,54 @@ Transform your voice recordings into intelligent insights with advanced AI trans
 - **Encrypted API storage** - Secure cloud options when needed
 - **No vendor lock-in** - Open-source with flexible deployment
 
+## 📸 Screenshots
+
+### 🏠 **Main Interface**
+
+<div align="center">
+
+| Page d'inscription "Coming Soon" | Page de connexion |
+|:---:|:---:|
+| ![Register Coming Soon](docs/screenshots/02-register-coming-soon.png) | ![Login Page](docs/screenshots/03-login.png) |
+| *Nouveau design d'attente élégant* | *Interface de connexion sécurisée* |
+
+</div>
+
+### 🎙️ **Core Features**
+
+<div align="center">
+
+| Page d'enregistrement | Détail d'une réunion |
+|:---:|:---:|
+| ![Recording Page](docs/screenshots/05-record-page.png) | ![Meeting Detail](docs/screenshots/06-meeting-detail.png) |
+| *Contrôles d'enregistrement + paramètres IA* | *Transcript avec speakers + export multi-format* |
+
+</div>
+
+### ⚙️ **Advanced Features**
+
+<div align="center">
+
+| Paramètres et API Keys | Export multi-format |
+|:---:|:---:|
+| ![Settings](docs/screenshots/07-settings.png) | ![Export Modal](docs/screenshots/10-export-modal.png) |
+| *Configuration des modèles IA* | *PDF, JSON, CSV, TXT avec design* |
+
+</div>
+
+### 📱 **Mobile Experience**
+
+<div align="center">
+
+| Mobile Recording | Mobile Meeting Detail |
+|:---:|:---:|
+| ![Mobile Record](docs/screenshots/08-mobile-record.png) | ![Mobile Meeting](docs/screenshots/09-mobile-meeting.png) |
+| *Interface mobile optimisée* | *Transcript responsive* |
+
+</div>
+
+> 💡 **Note**: Captures d'écran de la version déployée sur [talk.antislash.studio](https://talk.antislash.studio)
+
 ## 🚀 Quick Start
 
 ### Prerequisites

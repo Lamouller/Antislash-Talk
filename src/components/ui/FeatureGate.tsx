@@ -15,7 +15,7 @@ export function FeatureGate({
   fallback, 
   showUpgradePrompt = true 
 }: FeatureGateProps) {
-  const { hasFeature, isEnterprise, upgradeUrl } = useLicense();
+  const { hasFeature, upgradeUrl } = useLicense();
 
   // If user has access to the feature, render children
   if (hasFeature(feature)) {

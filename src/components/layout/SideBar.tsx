@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react';
-import { NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { Home, ListMusic, FilePlus, Settings, LogOut, User, Mic, Sparkles } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { Button } from '../ui/Button';
 
 export default function SideBar() {
   const navigate = useNavigate();
-  const location = useLocation();
   const [user, setUser] = useState<any>(null);
 
   const navItems = [
@@ -59,26 +58,13 @@ export default function SideBar() {
         <nav className="flex-1 px-4 pb-4 space-y-2">
           {navItems.map((item) => {
             const IconComponent = item.icon;
-            // Logique de navigation améliorée
-            const isActive = (() => {
-              if (item.href === '/tabs') {
-                // Dashboard actif SEULEMENT sur la page d'accueil
-                return location.pathname === '/tabs' || location.pathname === '/tabs/';
-              } else if (item.href === '/tabs/meetings') {
-                // Meetings actif sur la liste ET les pages de détail
-                return location.pathname === '/tabs/meetings' || location.pathname.startsWith('/tabs/meeting/');
-              } else {
-                // Autres menus : actifs sur leurs pages exactes
-                return location.pathname === item.href;
-              }
-            })();
             
             return (
               <NavLink
                 key={item.label}
                 to={item.href}
-                className={({ isActive: linkIsActive }) => {
-                  const active = isActive; // Utiliser SEULEMENT notre logique custom
+                               className={({ isActive }) => {
+                 const active = isActive; // Utiliser SEULEMENT notre logique custom
                   return `group flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 ${
                     active
                       ? 'bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 text-blue-700 dark:text-blue-300 shadow-md border border-blue-200/50 dark:border-blue-700/50'
@@ -86,8 +72,8 @@ export default function SideBar() {
                   }`;
                 }}
               >
-                {({ isActive: linkIsActive }) => {
-                  const active = isActive; // Utiliser SEULEMENT notre logique custom
+                               {({ isActive }) => {
+               const active = isActive; // Utiliser SEULEMENT notre logique custom
                   return (
                     <>
                       <div className={`p-2 rounded-lg mr-3 transition-all duration-200 ${

@@ -1,94 +1,8 @@
 
-import { useState } from 'react';
-import { supabase } from '../../lib/supabase';
 import { Link } from 'react-router-dom';
-import { Eye, EyeOff, Mail, Lock, ArrowRight, AlertCircle, CheckCircle, User, Mic2, Users, Code, Heart, Github, Star } from 'lucide-react';
+import { Mail, ArrowRight, CheckCircle, Mic2, Users, Code, Heart, Github, Star } from 'lucide-react';
 
 export default function RegisterScreen() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
-
-  const validatePassword = (pass: string) => {
-    return pass.length >= 8;
-  };
-
-  const handleRegister = async () => {
-    setError('');
-    
-    if (!validatePassword(password)) {
-      setError('Password must be at least 8 characters long.');
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      setError('Passwords do not match.');
-      return;
-    }
-
-    setLoading(true);
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-    });
-
-    if (error) {
-      setError(error.message);
-    } else {
-      setSuccess(true);
-    }
-    setLoading(false);
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    handleRegister();
-  };
-
-  if (success) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center">
-        <div className="max-w-md w-full mx-4">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 text-center">
-            <div className="mb-6">
-              <div className="w-16 h-16 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center mx-auto mb-4">
-                <CheckCircle size={32} className="text-green-600 dark:text-green-400" />
-              </div>
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-                Welcome to Antislash Talk!
-              </h2>
-              <p className="text-gray-600 dark:text-gray-400">
-                Your account has been created successfully.
-              </p>
-            </div>
-            
-            <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4 mb-6">
-              <h3 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">
-                📧 Check Your Email
-              </h3>
-              <p className="text-sm text-blue-700 dark:text-blue-300">
-                We've sent a confirmation email to <strong>{email}</strong>. 
-                Please click the link in the email to activate your account.
-              </p>
-            </div>
-
-            <Link
-              to="/auth/login"
-              className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold rounded-xl transition-all duration-200"
-            >
-              Continue to Sign In
-              <ArrowRight size={16} className="ml-2" />
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-600 via-emerald-600 to-teal-600">
@@ -138,20 +52,20 @@ export default function RegisterScreen() {
                 <div className="mb-6">
                 <div className="inline-flex items-center px-4 py-2 rounded-full bg-white/20 text-white text-sm font-medium mb-6">
                   <Star size={16} className="mr-2" />
-                  Join the Privacy-First AI Revolution
+                  Privacy-First AI Revolution
                 </div>
                 
                                 <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4">
-                  Join Our{' '}
+                  Amazing Things{' '}
                   <span className="text-emerald-200">
-                    Community
+                    Coming
                   </span>
                   <br />
-                  Today
+                  Soon
                 </h1>
                 
                 <p className="text-lg text-emerald-100 mb-8 leading-relaxed">
-                  Be part of the privacy-first AI revolution. Create your <strong>free account</strong> and start transcribing with 100% local processing.
+                  We're upgrading the platform to bring you an even better experience. <strong>New registrations</strong> will be available very soon with exciting features.
                 </p>
               </div>
 
@@ -173,201 +87,138 @@ export default function RegisterScreen() {
                 </div>
               </div>
 
-              {/* Community Stats - Compact */}
+              {/* Platform Stats - Compact */}
               <div className="grid grid-cols-3 gap-3 text-center">
                 <div className="bg-white/20 backdrop-blur-sm rounded-lg p-3">
-                  <div className="text-xl font-bold text-white">1K+</div>
-                  <div className="text-emerald-100 text-xs">Members</div>
+                  <div className="text-xl font-bold text-white">🚀</div>
+                  <div className="text-emerald-100 text-xs">Upgrading</div>
                 </div>
                 <div className="bg-white/20 backdrop-blur-sm rounded-lg p-3">
                   <div className="text-xl font-bold text-white">∞</div>
-                  <div className="text-emerald-100 text-xs">Free</div>
+                  <div className="text-emerald-100 text-xs">Still Free</div>
                 </div>
                 <div className="bg-white/20 backdrop-blur-sm rounded-lg p-3">
-                  <div className="text-xl font-bold text-white">24/7</div>
+                  <div className="text-xl font-bold text-white">Soon</div>
                   <div className="text-emerald-100 text-xs">Available</div>
                 </div>
               </div>
               </div>
             </div>
 
-            {/* Right Side - Registration Form */}
+            {/* Right Side - Coming Soon */}
             <div className="flex items-center justify-center min-h-screen">
               <div className="w-full max-w-md mx-4 lg:mx-8 bg-white dark:bg-gray-800 rounded-3xl shadow-2xl p-8 border border-gray-200 dark:border-gray-700">
-                {/* Form Header */}
-                <div className="text-center mb-8">
-                  <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                    <User size={32} className="text-white" />
-                  </div>
-                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Create Your Account</h2>
-                  <p className="text-gray-600 dark:text-gray-400">Join the community and start transcribing with privacy-first AI</p>
-                </div>
                 
-                {error && (
-                  <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl">
-                    <div className="flex items-center">
-                      <AlertCircle size={20} className="text-red-500 mr-2" />
-                      <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
+                {/* Coming Soon Header */}
+                <div className="text-center mb-8">
+                  <div className="w-20 h-20 bg-gradient-to-r from-orange-500 to-amber-600 rounded-3xl flex items-center justify-center mx-auto mb-6 animate-pulse">
+                    <span className="text-3xl">🚀</span>
+                  </div>
+                  <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-3">Coming Soon</h2>
+                  <p className="text-lg text-gray-600 dark:text-gray-400">New registrations are temporarily paused</p>
+                </div>
+
+                {/* Status Information */}
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-2xl p-6 mb-6 border border-blue-200/50 dark:border-blue-700/50">
+                  <div className="text-center">
+                    <div className="flex items-center justify-center mb-3">
+                      <div className="w-3 h-3 bg-blue-500 rounded-full mr-2 animate-pulse"></div>
+                      <span className="text-sm font-semibold text-blue-900 dark:text-blue-100">Platform Enhancement</span>
+                    </div>
+                    <h3 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">
+                      🛠️ Upgrading Our Infrastructure
+                    </h3>
+                    <p className="text-sm text-blue-700 dark:text-blue-300 leading-relaxed">
+                      We're working hard to improve your experience with better performance, 
+                      enhanced security, and exciting new features.
+                    </p>
+                  </div>
+                </div>
+
+                {/* What's Coming */}
+                <div className="space-y-4 mb-8">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white text-center mb-4">
+                    What's Coming Next
+                  </h3>
+                  
+                  <div className="space-y-3">
+                    <div className="flex items-center p-3 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-200 dark:border-green-800">
+                      <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center mr-3">
+                        <CheckCircle size={16} className="text-white" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-green-800 dark:text-green-200">Enhanced AI Models</p>
+                        <p className="text-xs text-green-600 dark:text-green-400">Better transcription accuracy</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center p-3 bg-purple-50 dark:bg-purple-900/20 rounded-xl border border-purple-200 dark:border-purple-800">
+                      <div className="w-8 h-8 bg-purple-500 rounded-lg flex items-center justify-center mr-3">
+                        <Users size={16} className="text-white" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-purple-800 dark:text-purple-200">Team Collaboration</p>
+                        <p className="text-xs text-purple-600 dark:text-purple-400">Share and collaborate on meetings</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center p-3 bg-orange-50 dark:bg-orange-900/20 rounded-xl border border-orange-200 dark:border-orange-800">
+                      <div className="w-8 h-8 bg-orange-500 rounded-lg flex items-center justify-center mr-3">
+                        <Star size={16} className="text-white" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-orange-800 dark:text-orange-200">Premium Features</p>
+                        <p className="text-xs text-orange-600 dark:text-orange-400">Advanced export & integrations</p>
+                      </div>
                     </div>
                   </div>
-                )}
+                </div>
 
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  {/* Email Field */}
-        <div>
-                    <label htmlFor="email" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-            Email Address
-          </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <Mail size={20} className="text-gray-400" />
-                      </div>
-          <input
-            id="email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@example.com"
-            autoCapitalize="none"
-                        required
-                        className="block w-full pl-10 pr-3 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 sm:text-sm text-gray-900 dark:text-white transition-all"
-          />
-        </div>
+                {/* Notify Me Section */}
+                <div className="bg-gradient-to-r from-gray-50 to-slate-50 dark:from-gray-700 dark:to-slate-700 rounded-2xl p-6 mb-6">
+                  <div className="text-center">
+                    <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
+                      📧 Get Notified
+                    </h4>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                      Want to be the first to know when registrations reopen?
+                    </p>
+                    <a 
+                      href="mailto:hello@antislash.studio?subject=Antislash Talk - Notify Me&body=Hi! I'd like to be notified when new registrations are available for Antislash Talk."
+                      className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl"
+                    >
+                      <Mail size={16} className="mr-2" />
+                      Notify Me by Email
+                    </a>
                   </div>
+                </div>
 
-                  {/* Password Field */}
-        <div>
-                    <label htmlFor="password" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-            Password
-          </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <Lock size={20} className="text-gray-400" />
-                      </div>
-          <input
-            id="password"
-                        type={showPassword ? 'text' : 'password'}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-                        placeholder="At least 8 characters"
-                        required
-                        className="block w-full pl-10 pr-12 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 sm:text-sm text-gray-900 dark:text-white transition-all"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                      >
-                        {showPassword ? (
-                          <EyeOff size={20} className="text-gray-400 hover:text-gray-600" />
-                        ) : (
-                          <Eye size={20} className="text-gray-400 hover:text-gray-600" />
-                        )}
-                      </button>
-                    </div>
-                    {password && (
-                      <div className="mt-2">
-                        <div className={`text-xs ${validatePassword(password) ? 'text-green-600' : 'text-red-600'}`}>
-                          {validatePassword(password) ? '✓ Password strength: Good' : '⚠ Password too short (minimum 8 characters)'}
-                        </div>
-                      </div>
-                    )}
-        </div>
-
-                  {/* Confirm Password Field */}
-        <div>
-                    <label htmlFor="confirm-password" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-            Confirm Password
-          </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <Lock size={20} className="text-gray-400" />
-                      </div>
-          <input
-            id="confirm-password"
-                        type={showConfirmPassword ? 'text' : 'password'}
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-                        placeholder="Repeat your password"
-                        required
-                        className="block w-full pl-10 pr-12 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 sm:text-sm text-gray-900 dark:text-white transition-all"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                        className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                      >
-                        {showConfirmPassword ? (
-                          <EyeOff size={20} className="text-gray-400 hover:text-gray-600" />
-                        ) : (
-                          <Eye size={20} className="text-gray-400 hover:text-gray-600" />
-                        )}
-                      </button>
-                    </div>
-                    {confirmPassword && (
-                      <div className="mt-2">
-                        <div className={`text-xs ${password === confirmPassword ? 'text-green-600' : 'text-red-600'}`}>
-                          {password === confirmPassword ? '✓ Passwords match' : '⚠ Passwords do not match'}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Terms Notice */}
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
-                    By creating an account, you agree to our{' '}
-                    <Link to="/terms" className="text-green-600 hover:text-green-500 dark:text-green-400 dark:hover:text-green-300 font-medium">
-                      Terms of Service
-                    </Link>{' '}
-                    and{' '}
-                    <Link to="/privacy" className="text-green-600 hover:text-green-500 dark:text-green-400 dark:hover:text-green-300 font-medium">
-                      Privacy Policy
-                    </Link>
-                    .
-        </div>
-
-                  {/* Create Account Button */}
-        <button
-                    type="submit"
-                    disabled={loading || !email || !password || !confirmPassword || password !== confirmPassword}
-                    className="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-semibold text-white bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-                  >
-                    {loading ? (
-                      <div className="flex items-center">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        Creating your account...
-                      </div>
-                    ) : (
-                      <div className="flex items-center">
-                        <User size={16} className="mr-2" />
-                        Create Free Account
-                        <ArrowRight size={16} className="ml-2" />
-                      </div>
-                    )}
-        </button>
-                </form>
-
-                {/* Sign In Link */}
-                <div className="mt-8 text-center">
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-                Already have an account?{' '}
+                {/* Alternative Actions */}
+                <div className="space-y-4">
+                  <div className="text-center">
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                      Already have an account?
+                    </p>
                     <Link 
                       to="/auth/login" 
-                      className="font-semibold text-green-600 hover:text-green-500 dark:text-green-400 dark:hover:text-green-300 transition-colors"
+                      className="inline-flex items-center px-6 py-3 bg-white dark:bg-gray-700 border-2 border-green-200 dark:border-green-700 hover:border-green-300 dark:hover:border-green-600 text-green-700 dark:text-green-300 font-semibold rounded-xl transition-all duration-200 hover:bg-green-50 dark:hover:bg-green-900/20"
                     >
-                      Sign in here
-                </Link>
-            </p>
-        </div>
+                      <ArrowRight size={16} className="mr-2" />
+                      Sign In Here
+                    </Link>
+                  </div>
 
-                {/* Privacy Notice */}
-                <div className="mt-6 p-4 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-gray-700 dark:to-gray-600 rounded-xl border border-green-200 dark:border-gray-600">
-                  <div className="text-center">
-                    <h4 className="text-sm font-semibold text-green-800 dark:text-green-300 mb-1">
-                      🔒 Privacy First
-                    </h4>
-                    <p className="text-xs text-green-700 dark:text-green-400">
-                      Your transcriptions are processed locally. We only store account info and optional meeting metadata.
+                  <div className="text-center pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Follow our progress on{' '}
+                      <a 
+                        href="https://github.com/Lamouller/Antislash-Talk" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-green-600 hover:text-green-500 dark:text-green-400 dark:hover:text-green-300 font-medium"
+                      >
+                        GitHub
+                      </a>
                     </p>
                   </div>
                 </div>

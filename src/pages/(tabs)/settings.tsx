@@ -6,8 +6,8 @@ import { Card } from '../../components/ui/Card';
 import { ApiKey } from '../../lib/schemas';
 import toast from 'react-hot-toast';
 import { useLocalTranscription } from '../../hooks/useLocalTranscription';
-import { useLicense, licenseManager } from '../../lib/licensing';
-import { FeatureGate, EnterpriseBadge, FeatureComparison } from '../../components/ui/FeatureGate';
+import { useLicense } from '../../lib/licensing';
+import { FeatureGate, FeatureComparison } from '../../components/ui/FeatureGate';
 import { Settings } from 'lucide-react';
 
 type LlmProvider = 'openai' | 'anthropic' | 'google' | 'mistral';
@@ -216,9 +216,15 @@ export default function SettingsScreen() {
   const [promptSummary, setPromptSummary] = useState('');
   const [promptTranscript, setPromptTranscript] = useState('');
 
+  // Recording Behavior State
+  const [autoTranscribeAfterRecording, setAutoTranscribeAfterRecording] = useState(true);
+  
+  // Language Preference State
+  const [preferredLanguage, setPreferredLanguage] = useState<'fr' | 'en'>('fr');
+
   const [apiKeyInputs, setApiKeyInputs] = useState({ openai: '', anthropic: '', google: '', mistral: '' });
 
-  const { license, hasFeature, isEnterprise, upgradeUrl } = useLicense();
+  const { license, isEnterprise, upgradeUrl } = useLicense();
   
   useEffect(() => {
     fetchProfileAndKeys();
@@ -226,7 +232,7 @@ export default function SettingsScreen() {
 
   useEffect(() => {
     if(!loading) setHasChanges(true);
-  }, [selectedLlmProvider, selectedLlmModel, preferredTranscriptionProvider, preferredTranscriptionModel, selectedTtsProvider, selectedTtsModel, promptTitle, promptSummary, promptTranscript]);
+  }, [selectedLlmProvider, selectedLlmModel, preferredTranscriptionProvider, preferredTranscriptionModel, selectedTtsProvider, selectedTtsModel, promptTitle, promptSummary, promptTranscript, autoTranscribeAfterRecording, preferredLanguage]);
   
 
   async function fetchProfileAndKeys() {
@@ -240,7 +246,7 @@ export default function SettingsScreen() {
 
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
-        .select(`*`)
+        .select(`*, auto_transcribe_after_recording, preferred_language`)
         .eq('id', user.id)
         .single();
 
@@ -267,6 +273,12 @@ export default function SettingsScreen() {
 - **Priority 2:** If names are not mentioned, use generic identifiers like "Locuteur_01", "Locuteur_02", etc.
 - **Crucial Rule:** If you only detect one distinct voice throughout the recording, all text must be attributed to a single speaker (e.g., "Locuteur_01" or their identified name). Do NOT invent a second speaker.
 - - Ensure each speech segment is correctly attributed to the speaker.`);
+
+      // Set recording behavior preference
+      setAutoTranscribeAfterRecording(profileData.auto_transcribe_after_recording ?? true);
+      
+      // Set language preference
+      setPreferredLanguage(profileData.preferred_language || 'fr');
       
       const { data: keysData, error: keysError } = await supabase
         .from('api_keys')
@@ -316,9 +328,11 @@ export default function SettingsScreen() {
       preferred_transcription_model: preferredTranscriptionModel,
       preferred_tts_provider: selectedTtsProvider,
       preferred_tts_model: selectedTtsModel,
-      prompt_title: promptTitle,
-      prompt_summary: promptSummary,
-      prompt_transcript: promptTranscript,
+              prompt_title: promptTitle,
+        prompt_summary: promptSummary,
+        prompt_transcript: promptTranscript,
+        auto_transcribe_after_recording: autoTranscribeAfterRecording,
+        preferred_language: preferredLanguage,
     };
 
     const { error } = await supabase.from('profiles').upsert(updates);
@@ -578,6 +592,63 @@ export default function SettingsScreen() {
                    models={ttsModels}
                  />
                </FeatureGate>
+             </div>
+           </Card>
+
+           {/* Recording Behavior Settings */}
+           <Card>
+             <div className="p-6">
+               <h2 className="text-xl font-bold">🎬 Recording Behavior</h2>
+               <p className="mt-1 text-sm text-gray-500">Control how the app behaves after recording audio.</p>
+             </div>
+             <div className="p-6 pt-0">
+               <div className="flex items-center justify-between p-4 bg-gray-50/50 dark:bg-gray-700/30 rounded-xl border border-gray-200/30 dark:border-gray-600/30">
+                 <div className="flex-1">
+                   <h3 className="text-sm font-medium text-gray-900 dark:text-white">
+                     Auto-transcribe after recording
+                   </h3>
+                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                     {autoTranscribeAfterRecording 
+                       ? "Automatically start transcription when recording stops" 
+                       : "Ask for confirmation before starting transcription"
+                     }
+                   </p>
+                 </div>
+                 <label className="relative inline-flex items-center cursor-pointer">
+                   <input
+                     type="checkbox"
+                     checked={autoTranscribeAfterRecording}
+                     onChange={(e) => setAutoTranscribeAfterRecording(e.target.checked)}
+                     className="sr-only peer"
+                   />
+                   <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                 </label>
+               </div>
+               
+               <div className="mt-4 p-4 bg-gray-50/50 dark:bg-gray-700/30 rounded-xl border border-gray-200/30 dark:border-gray-600/30">
+                 <div>
+                   <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
+                     🌍 Preferred Language / Langue préférée
+                   </h3>
+                   <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                     Language for titles, summaries, and default prompts • Langue pour les titres, résumés et prompts par défaut
+                   </p>
+                   <select
+                     value={preferredLanguage}
+                     onChange={(e) => setPreferredLanguage(e.target.value as 'fr' | 'en')}
+                     className="w-full p-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                   >
+                     <option value="fr">🇫🇷 Français</option>
+                     <option value="en">🇬🇧 English</option>
+                   </select>
+                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                     {preferredLanguage === 'fr' 
+                       ? "Les prompts seront optimisés pour chaque LLM en français" 
+                       : "Prompts will be optimized for each LLM in English"
+                     }
+                   </p>
+                 </div>
+               </div>
              </div>
            </Card>
 

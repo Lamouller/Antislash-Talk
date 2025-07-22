@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabase';
 import { MeetingCard } from '../../components/meetings/MeetingCard';
 import { Link } from 'react-router-dom';
 import { Meeting } from '../../lib/schemas';
-import { FilePlus, ListMusic, Search, Filter, Calendar, Clock, Mic, Sparkles } from 'lucide-react';
+import { ListMusic, Search, Filter, Clock, Mic, Sparkles } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 
 export default function MeetingsScreen() {

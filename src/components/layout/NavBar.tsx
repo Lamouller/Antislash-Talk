@@ -1,9 +1,8 @@
 import { useState } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import { Home, ListMusic, FilePlus, Settings, Menu, X, Mic } from 'lucide-react';
 
 export default function NavBar() {
-  const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const navItems = [
@@ -51,26 +50,13 @@ export default function NavBar() {
           <div className="px-2 pt-2 pb-3 space-y-2 sm:px-3">
             {navItems.map((item) => {
               const IconComponent = item.icon;
-              // Logique de navigation améliorée
-              const isActive = (() => {
-                if (item.href === '/tabs') {
-                  // Dashboard actif SEULEMENT sur la page d'accueil
-                  return location.pathname === '/tabs' || location.pathname === '/tabs/';
-                } else if (item.href === '/tabs/meetings') {
-                  // Meetings actif sur la liste ET les pages de détail
-                  return location.pathname === '/tabs/meetings' || location.pathname.startsWith('/tabs/meeting/');
-                } else {
-                  // Autres menus : actifs sur leurs pages exactes
-                  return location.pathname === item.href;
-                }
-              })();
               
               return (
                 <NavLink
                   key={item.label}
                   to={item.href}
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className={({ isActive: linkIsActive }) => {
+                  className={({ isActive }) => {
                     const active = isActive; // Utiliser SEULEMENT notre logique custom
                     return `group flex items-center px-4 py-3 rounded-xl text-base font-medium transition-all duration-200 ${
                       active
@@ -79,7 +65,7 @@ export default function NavBar() {
                     }`;
                   }}
                 >
-                                        {({ isActive: linkIsActive }) => {
+                                        {({ isActive }) => {
                         const active = isActive; // Utiliser SEULEMENT notre logique custom
                     return (
                       <>

@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useDebouncedCallback } from 'use-debounce';
-import { FilePlus, ListMusic, Calendar, Clock, Users, Mic, TrendingUp, BarChart3, Activity } from 'lucide-react';
-import { Card } from '../../components/ui/Card';
+import { FilePlus, ListMusic, Clock, Users, Mic, BarChart3, Activity } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { supabase } from '../../lib/supabase';
@@ -132,7 +131,7 @@ export default function TabsIndex() {
 
           {/* Stats Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-            {summaryStats.map((stat, index) => {
+            {summaryStats.map((stat) => {
               const IconComponent = stat.icon;
               return (
                 <div

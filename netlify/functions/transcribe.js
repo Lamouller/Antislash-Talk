@@ -77,10 +77,10 @@ const handler = async (event) => {
   try {
     const transcriptionProvider = await getTranscriptionProvider(user_id, provider, modelId);
     
-    // 1. Get user profile to fetch custom prompts
+    // 1. Get user profile to fetch custom prompts and language
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('prompt_title, prompt_summary, prompt_transcript')
+      .select('prompt_title, prompt_summary, prompt_transcript, preferred_language')
       .eq('id', user_id)
       .single();
 
@@ -123,25 +123,46 @@ const handler = async (event) => {
             },
         };
 
-        const defaultTitlePrompt = "A short, descriptive title for the meeting in French.";
-        const defaultSummaryPrompt = "A concise one-paragraph summary of the key discussion points and decisions, in French.";
-        const defaultTranscriptPrompt = `Follow these rules for the "transcript" field:
-1. Speaker Identification:
-    - Priority 1: If a speaker introduces themselves or is named (e.g., "Hello, this is Marc," "Paul, what do you think?"), use that name as their identifier for all their speech segments.
-    - Priority 2: If names are not mentioned, use generic identifiers like "Locuteur_01", "Locuteur_02", etc.
-    - Crucial Rule: If you only detect one distinct voice, all text must be attributed to a single speaker.
-2. Accuracy: Ensure each speech segment is correctly attributed and transcribed accurately.
-3. Timestamps: Provide 'start' and 'end' times in seconds for each segment.`;
+        // Adaptive prompts for Google Gemini based on language
+        const language = profile?.preferred_language || 'fr';
+        const isEnglish = language === 'en';
+        
+        const adaptivePrompts = {
+          title: profile?.prompt_title || (isEnglish 
+            ? "Concise and informative meeting title (60 chars max, in English). Gemini, use your contextual understanding to capture the essence of the discussion."
+            : "Titre de réunion concis et informatif (60 caractères max, en français). Gemini, utilisez votre compréhension contextuelle pour capturer l'essence de la discussion."
+          ),
+          summary: profile?.prompt_summary || (isEnglish
+            ? "Structured summary of essential meeting elements in English. Gemini excels at contextual analysis - identify main themes, consensus, and divergences."
+            : "Résumé structuré des éléments essentiels de la réunion en français. Gemini excelle dans l'analyse contextuelle - identifiez les thèmes principaux, consensus et divergences."
+          ),
+          transcript: profile?.prompt_transcript || (isEnglish
+            ? `Transcript with advanced diarization in English. Gemini has excellent audio comprehension capabilities:
+OPTIMAL USE of Gemini for diarization:
+- **Gemini Advantage**: Direct audio analysis, natural voice change detection
+- **Speaker identification**: Use names if mentioned, otherwise "Speaker_01", "Speaker_02"
+- **Absolute rule**: If only one voice is detectable, do NOT invent additional speakers
+- **Output format**: Array of objects with "speaker", "text", "start", "end"
+- **Key advantage**: Gemini can process raw audio and detect vocal nuances that Whisper misses`
+            : `Transcription avec diarization avancée en français. Gemini a d'excellentes capacités de compréhension audio :
+UTILISATION OPTIMALE de Gemini pour la diarization :
+- **Avantage Gemini**: Analyse directement l'audio, détection naturelle des changements de voix
+- **Identification des locuteurs**: Utilisez les noms si mentionnés, sinon "Locuteur_01", "Locuteur_02"
+- **Règle absolue**: Si une seule voix est détectable, n'inventez PAS de locuteurs supplémentaires
+- **Format de sortie**: Array d'objets avec "speaker", "text", "start", "end"
+- **Avantage clé**: Gemini peut traiter l'audio brut et détecter les nuances vocales que Whisper rate`
+          )
+        };
 
         const prompt = `Your task is to process the provided audio meeting and return a clean JSON object. Do not include any text outside of the JSON object. The JSON object must have the following structure:
 {
-  "title": "${profile?.prompt_title || defaultTitlePrompt}",
-  "summary": "${profile?.prompt_summary || defaultSummaryPrompt}",
+  "title": "${adaptivePrompts.title}",
+  "summary": "${adaptivePrompts.summary}",
   "transcript": [
-    { "start": 0.0, "end": 5.2, "speaker": "Locuteur_01", "text": "..." }
+    { "start": 0.0, "end": 5.2, "speaker": "${isEnglish ? 'Speaker_01' : 'Locuteur_01'}", "text": "..." }
   ]
 }
-${profile?.prompt_transcript || defaultTranscriptPrompt}`;
+${adaptivePrompts.transcript}`;
 
         const result = await model.generateContent([prompt, audio]);
         const geminiResponseText = result.response.text();
@@ -197,19 +218,34 @@ ${profile?.prompt_transcript || defaultTranscriptPrompt}`;
         
         console.log("OpenAI transcription result:", transcription);
         
+        // Use adaptive prompts for OpenAI/Whisper based on language
+        const language = profile?.preferred_language || 'fr';
+        const isEnglish = language === 'en';
+        
+        const whisperPrompts = {
+          title: profile?.prompt_title || (isEnglish 
+            ? "A short, descriptive meeting title (60 chars max, in English)"
+            : "Titre de réunion court et descriptif (60 caractères max, en français)"
+          ),
+          summary: profile?.prompt_summary || (isEnglish
+            ? "Concise summary of key discussion points and decisions (in English)"
+            : "Résumé concis des points de discussion et décisions clés (en français)"
+          )
+        };
+        
         // Structure the response similar to Gemini's format
         analysisResult = {
-            title: profile?.prompt_title || 'Meeting Transcription',
-            summary: profile?.prompt_summary || 'Summary not available for OpenAI transcription.',
+            title: whisperPrompts.title,
+            summary: whisperPrompts.summary,
             transcript: transcription.segments ? transcription.segments.map(seg => ({
                 start: seg.start,
                 end: seg.end,
-                speaker: `Locuteur_01`, // OpenAI doesn't provide speaker diarization by default
+                speaker: isEnglish ? 'Speaker_01' : 'Locuteur_01', // Whisper doesn't provide speaker diarization by default
                 text: seg.text
             })) : [{
                 start: 0,
                 end: transcription.duration || 0,
-                speaker: 'Locuteur_01',
+                speaker: isEnglish ? 'Speaker_01' : 'Locuteur_01',
                 text: transcription.text
             }]
         };

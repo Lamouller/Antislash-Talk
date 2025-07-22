@@ -10,6 +10,8 @@ export const ProfileSchema = z.object({
   preferred_transcription_model: z.string().nullable(),
   preferred_tts_provider: z.string().nullable(),
   preferred_tts_model: z.string().nullable(),
+  auto_transcribe_after_recording: z.boolean().nullable(),
+  preferred_language: z.enum(['fr', 'en']).nullable().default('fr'),
   updated_at: z.string().datetime().nullable(),
 });
 
