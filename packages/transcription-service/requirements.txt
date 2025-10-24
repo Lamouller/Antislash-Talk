@@ -1,0 +1,25 @@
+# Core API
+fastapi==0.109.2
+uvicorn[standard]==0.27.1
+pydantic==2.6.1
+python-multipart==0.0.9
+
+# Transcription - Whisper V3
+openai-whisper==20231117
+torch==2.2.0
+torchaudio==2.2.0
+numpy<2.0.0  # Downgrade NumPy for PyTorch 2.2.0 compatibility
+
+# Diarisation - pyannote
+pyannote.audio==3.1.1
+pyannote.core==5.0.0
+
+# Audio processing
+librosa==0.10.1
+soundfile==0.12.1
+pydub==0.25.1
+
+# Utilities
+httpx==0.26.0
+python-dotenv==1.0.1
+

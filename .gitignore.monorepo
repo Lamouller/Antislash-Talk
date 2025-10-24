@@ -1,0 +1,82 @@
+# 🎙️ Antislash Talk Monorepo - Git Ignore
+
+# Dependencies
+node_modules/
+.pnpm-store/
+.npm/
+.yarn/
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+*.tsbuildinfo
+
+# Environment files
+.env
+.env.local
+.env.*.local
+.env.monorepo
+!env.monorepo.example
+!.env.example
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Testing
+coverage/
+.nyc_output/
+*.lcov
+
+# Turbo
+.turbo/
+
+# Docker
+.docker/
+docker-compose.override.yml
+*.pid
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+*.backup
+
+# Generated files
+apps/web/dist/
+packages/types/src/database.ts.generated
+
+# Supabase
+.branches/
+.temp/
+supabase/.branches/
+supabase/.temp/
+
+# Scripts output
+start-local.sh
+stop-local.sh
+
+# Database backups
+*.sql
+*.dump
+
+# OS
+Thumbs.db
+.DS_Store
+

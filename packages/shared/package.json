@@ -1,0 +1,20 @@
+{
+  "name": "@antislash-talk/shared",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@antislash-talk/types": "workspace:*",
+    "@supabase/supabase-js": "^2.51.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "typescript": "~5.8.3"
+  }
+}
+

@@ -1,0 +1,154 @@
+╔═══════════════════════════════════════════════════════════════╗
+║                                                               ║
+║   🎙️  ANTISLASH TALK v2.0 - GUIDE DE DÉMARRAGE              ║
+║                                                               ║
+╚═══════════════════════════════════════════════════════════════╝
+
+🎉 TRANSFORMATION EN MONOREPO RÉUSSIE !
+
+Votre projet Antislash Talk a été transformé en un monorepo moderne
+avec Supabase self-hosted. Plus besoin de dépendre du cloud !
+
+═══════════════════════════════════════════════════════════════
+
+🚀 DÉMARRAGE RAPIDE (3 COMMANDES)
+
+  1. ./first-run.sh
+     OU
+     pnpm setup && pnpm deploy:local
+
+  2. Ouvrir : http://localhost:3000
+
+  3. Profiter ! 🎊
+
+═══════════════════════════════════════════════════════════════
+
+📚 DOCUMENTATION
+
+  QUICK_START.md       → Démarrage en 5 minutes
+  README.MONOREPO.md   → Guide complet (300+ lignes)
+  MIGRATION_GUIDE.md   → Migration v1 → v2
+  MONOREPO_SUMMARY.md  → Récapitulatif structure
+  DOCS_INDEX.md        → Index navigation
+
+═══════════════════════════════════════════════════════════════
+
+🌐 SERVICES DISPONIBLES
+
+  Web App:         http://localhost:3000      (Application)
+  Supabase Studio: http://localhost:54323     (Admin DB)
+  Email Testing:   http://localhost:54324     (Inbucket)
+  API Gateway:     http://localhost:54321     (Supabase API)
+
+═══════════════════════════════════════════════════════════════
+
+💻 COMMANDES ESSENTIELLES
+
+  # Développement
+  pnpm dev              → Web app (dev mode, rapide)
+  pnpm deploy:local     → Stack complète (12 services)
+
+  # Docker
+  pnpm docker:up        → Démarrer services
+  pnpm docker:down      → Arrêter services
+  pnpm docker:logs      → Voir logs
+  pnpm docker:rebuild   → Rebuild & restart
+
+  # Database
+  pnpm db:migrate       → Appliquer migrations
+  pnpm db:types         → Générer types TS
+  
+  # Build
+  pnpm build            → Build production
+  pnpm typecheck        → Vérifier types
+  pnpm lint             → Vérifier code
+
+═══════════════════════════════════════════════════════════════
+
+📦 STRUCTURE CRÉÉE
+
+  apps/
+    └── web/                 → Application React
+  
+  packages/
+    ├── supabase/            → Supabase self-hosted
+    ├── shared/              → Code partagé
+    ├── types/               → Types TypeScript
+    ├── ui/                  → Composants React
+    └── scripts/             → Automation
+
+═══════════════════════════════════════════════════════════════
+
+⚙️ CONFIGURATION
+
+  1. Copier : cp env.monorepo.example .env.monorepo
+  2. Éditer : nano .env.monorepo
+  3. Modifier :
+     - POSTGRES_PASSWORD (mot de passe DB)
+     - JWT_SECRET (clé JWT, min 32 chars)
+     - SITE_URL (pour production)
+
+═══════════════════════════════════════════════════════════════
+
+🐳 STACK DOCKER (12 Services)
+
+  ✅ PostgreSQL         (Base de données)
+  ✅ Kong               (API Gateway)
+  ✅ GoTrue             (Authentication)
+  ✅ PostgREST          (API REST)
+  ✅ Realtime           (WebSocket)
+  ✅ Storage            (Fichiers)
+  ✅ imgproxy           (Images)
+  ✅ pg_meta            (Métadonnées DB)
+  ✅ Studio             (Interface admin)
+  ✅ Inbucket           (Test emails)
+  ✅ Edge Runtime       (Fonctions)
+  ✅ Web App            (Application)
+
+═══════════════════════════════════════════════════════════════
+
+✨ NOUVEAUTÉS v2.0
+
+  ✅ Monorepo moderne (pnpm workspaces)
+  ✅ Supabase 100% self-hosted
+  ✅ Déploiement one-click
+  ✅ Build optimisé (Turbo)
+  ✅ Types partagés
+  ✅ Hot reload
+  ✅ Production-ready
+  ✅ Documentation complète
+
+═══════════════════════════════════════════════════════════════
+
+🎯 WORKFLOW DÉVELOPPEMENT
+
+  1. Démarrer stack : pnpm deploy:local
+  2. Développer : pnpm dev (auto-reload)
+  3. Tester : http://localhost:3000
+  4. Voir logs : pnpm docker:logs
+  5. Commit : git commit -m "feat: ..."
+  6. Arrêter : pnpm docker:down
+
+═══════════════════════════════════════════════════════════════
+
+🆘 AIDE & SUPPORT
+
+  • Docs : cat DOCS_INDEX.md
+  • Issues : github.com/Lamouller/Antislash-Talk/issues
+  • Troubleshooting : cat README.MONOREPO.md
+
+═══════════════════════════════════════════════════════════════
+
+💡 TIPS
+
+  • Utilisez pnpm dev pour dev rapide (sans Docker)
+  • Utilisez pnpm deploy:local pour stack complète
+  • Consultez DOCS_INDEX.md pour naviguer la doc
+  • Lisez QUICK_START.md pour commencer vite
+  • first-run.sh fait tout automatiquement !
+
+═══════════════════════════════════════════════════════════════
+
+        🎊 Bon développement avec Antislash Talk ! 🎊
+
+═══════════════════════════════════════════════════════════════

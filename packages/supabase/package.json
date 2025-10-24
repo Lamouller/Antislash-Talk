@@ -1,0 +1,15 @@
+{
+  "name": "@antislash-talk/supabase",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Supabase self-hosted configuration and migrations",
+  "scripts": {
+    "start": "supabase start",
+    "stop": "supabase stop",
+    "status": "supabase status",
+    "reset": "supabase db reset",
+    "migrate": "supabase db push",
+    "types": "supabase gen types typescript --local > ../types/src/database.ts"
+  }
+}
+

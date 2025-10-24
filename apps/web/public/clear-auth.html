@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nettoyage de l'authentification</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 400px;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 1rem;
+        }
+        p {
+            color: #666;
+            margin-bottom: 1.5rem;
+        }
+        .status {
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 0.75rem 2rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #5568d3;
+        }
+        .countdown {
+            font-size: 0.875rem;
+            color: #999;
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔄 Nettoyage de l'authentification</h1>
+        <p>Cette page va nettoyer toutes les données d'authentification et vous rediriger vers la page de connexion.</p>
+        
+        <div id="status" class="status info">
+            Nettoyage en cours...
+        </div>
+        
+        <div id="countdown" class="countdown"></div>
+        
+        <button id="loginBtn" style="display:none;" onclick="goToLogin()">
+            Se connecter maintenant
+        </button>
+    </div>
+
+    <script>
+        // Clear all storage
+        localStorage.clear();
+        sessionStorage.clear();
+        
+        // Clear all cookies
+        document.cookie.split(";").forEach(function(c) { 
+            document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
+        });
+        
+        // Clear IndexedDB
+        if (window.indexedDB) {
+            indexedDB.databases().then(dbs => {
+                dbs.forEach(db => indexedDB.deleteDatabase(db.name));
+            });
+        }
+        
+        // Update status
+        setTimeout(() => {
+            document.getElementById('status').className = 'status success';
+            document.getElementById('status').innerHTML = '✅ Nettoyage terminé !<br><small>Toutes les données d\'authentification ont été supprimées.</small>';
+            document.getElementById('loginBtn').style.display = 'inline-block';
+            
+            // Auto redirect after 3 seconds
+            let seconds = 3;
+            const countdownEl = document.getElementById('countdown');
+            countdownEl.textContent = `Redirection automatique dans ${seconds} secondes...`;
+            
+            const interval = setInterval(() => {
+                seconds--;
+                if (seconds > 0) {
+                    countdownEl.textContent = `Redirection automatique dans ${seconds} secondes...`;
+                } else {
+                    clearInterval(interval);
+                    goToLogin();
+                }
+            }, 1000);
+        }, 500);
+        
+        function goToLogin() {
+            window.location.href = '/auth/login';
+        }
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,12 @@
+{
+  "name": "@antislash-talk/scripts",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Deployment and utility scripts",
+  "bin": {
+    "setup": "./setup.mjs",
+    "deploy-local": "./deploy-local.mjs"
+  }
+}
+

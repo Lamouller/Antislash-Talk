@@ -61,3 +61,6 @@ $RECYCLE.BIN/
 # Ignore docs/ except screenshots for GitHub README
 docs/
 !docs/screenshots/
+
+# Dossiers obsolètes archivés
+.old/

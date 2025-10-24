@@ -1,0 +1,24 @@
+# 🎙️ Antislash Talk - Configuration COMPLÈTE (tous services actifs)
+# Cette version démarre TOUS les services automatiquement, incluant PyTorch et Ollama
+# Utilisez ce fichier si vous voulez toujours avoir PyTorch et Ollama actifs
+
+# Pour l'utiliser:
+# docker-compose -f docker-compose.full.yml up -d
+
+version: '3.8'
+
+# Import de tous les services depuis le fichier principal
+include:
+  - docker-compose.monorepo.yml
+
+# Override: Retirer les profils pour PyTorch et Ollama
+services:
+  # PyTorch démarre automatiquement (pas de profile)
+  transcription-pytorch:
+    profiles: []  # Vide = toujours actif
+    
+  # Ollama démarre automatiquement (pas de profile)  
+  ollama:
+    profiles: []  # Vide = toujours actif
+
+

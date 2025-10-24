@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Auth</title>
+</head>
+<body>
+    <h1>Test Authentification Antislash Talk</h1>
+    <button onclick="testAuth()">Test Connection</button>
+    <pre id="result"></pre>
+    
+    <script type="module">
+        import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+        
+        const supabase = createClient(
+            'http://localhost:54321',
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNzYxMjI1NDc5LCJleHAiOjE3OTI3NjE0Nzl9.CcIA6Gcp1eK1u_GvTfTTBwW8h-5BwLpyOPC6Qm0d4q8'
+        )
+        
+        window.testAuth = async function() {
+            const result = document.getElementById('result');
+            result.textContent = 'Testing...';
+            
+            try {
+                // 1. Login
+                const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
+                    email: 'test@antislash-talk.local',
+                    password: 'Test123456!'
+                });
+                
+                if (loginError) throw loginError;
+                
+                result.textContent = 'Login OK!\n';
+                result.textContent += 'User ID: ' + loginData.user.id + '\n';
+                result.textContent += 'Access Token: ' + loginData.session.access_token.substring(0, 50) + '...\n\n';
+                
+                // 2. Test edge function call
+                const response = await fetch('http://localhost:54321/functions/v1/start-transcription', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${loginData.session.access_token}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ meeting_id: 'test-456' })
+                });
+                
+                result.textContent += 'Edge Function Response: ' + response.status + '\n';
+                const data = await response.text();
+                result.textContent += 'Response: ' + data;
+                
+            } catch (error) {
+                result.textContent = 'Error: ' + error.message;
+            }
+        }
+    </script>
+</body>
+</html>

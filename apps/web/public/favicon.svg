@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <style>
+    .mic-emoji { font-size: 70px; font-family: Arial, sans-serif; }
+  </style>
+  <text x="50" y="70" text-anchor="middle" class="mic-emoji">🎙️</text>
+</svg> 

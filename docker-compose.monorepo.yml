@@ -1,0 +1,450 @@
+# 🎙️ Antislash Talk - Monorepo Docker Compose
+# Complete self-hosted stack with Supabase + Web App + API
+
+version: '3.8'
+
+services:
+  # ============================================
+  # Supabase Services
+  # ============================================
+  
+  # PostgreSQL Database
+  db:
+    image: supabase/postgres:15.1.1.78
+    container_name: antislash-talk-db
+    restart: unless-stopped
+    command:
+      - postgres
+      - -c
+      - config_file=/etc/postgresql/postgresql.conf
+      - -c
+      - log_min_messages=fatal
+    environment:
+      POSTGRES_HOST: /var/run/postgresql
+      PGPORT: ${POSTGRES_PORT:-5432}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-your-super-secret-and-long-postgres-password}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-your-super-secret-and-long-postgres-password}
+      PGDATABASE: ${POSTGRES_DB:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-postgres}
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-token-with-at-least-32-characters-long}
+      JWT_EXP: ${JWT_EXPIRY:-3600}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      # Scripts d'initialisation pour créer tous les utilisateurs et buckets Supabase
+      - ./packages/supabase/init-db.sql:/docker-entrypoint-initdb.d/01-init-db.sql:ro
+      - ./packages/supabase/init-complete.sql:/docker-entrypoint-initdb.d/02-init-complete.sql:ro
+    ports:
+      - ${POSTGRES_PORT:-54322}:${POSTGRES_PORT:-5432}
+    networks:
+      - antislash-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Kong API Gateway
+  kong:
+    image: kong:2.8.1
+    container_name: antislash-talk-kong
+    restart: unless-stopped
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /etc/kong/kong.yml
+      KONG_DNS_ORDER: LAST,A,CNAME
+      KONG_PLUGINS: request-transformer,cors,key-auth,acl,basic-auth
+      KONG_NGINX_PROXY_PROXY_BUFFER_SIZE: 160k
+      KONG_NGINX_PROXY_PROXY_BUFFERS: 64 160k
+      SUPABASE_ANON_KEY: ${ANON_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNjc5MDg2OTIwLCJleHAiOjE5OTQ2NjI5MjB9.VWXx6e0Gi-rHC0Gv7O2M38LAoIrBYsGLtC0TBvuRx6k}
+      SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJvbGUiOiJzZXJ2aWNlX3JvbGUiLCJpYXQiOjE2NzkwODY5MjAsImV4cCI6MTk5NDY2MjkyMH0.mFqWJEQz3pR2AyhqJqXVvNqlRVGVPLhV2J0W-7LGvpw}
+      DASHBOARD_USERNAME: ${DASHBOARD_USERNAME:-admin}
+      DASHBOARD_PASSWORD: ${DASHBOARD_PASSWORD:-password}
+    ports:
+      - ${KONG_HTTP_PORT:-54321}:8000
+      - ${KONG_HTTPS_PORT:-54320}:8443
+    volumes:
+      - ./packages/supabase/kong.yml:/etc/kong/kong.yml:ro
+    networks:
+      - antislash-network
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # GoTrue Auth
+  auth:
+    image: supabase/gotrue:v2.158.1
+    container_name: antislash-talk-auth
+    restart: unless-stopped
+    environment:
+      GOTRUE_API_HOST: 0.0.0.0
+      GOTRUE_API_PORT: 9999
+      API_EXTERNAL_URL: ${API_EXTERNAL_URL:-http://localhost:54321}
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${POSTGRES_PASSWORD:-your-super-secret-and-long-postgres-password}@db:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-postgres}
+      GOTRUE_SITE_URL: ${SITE_URL:-http://localhost:3000}
+      GOTRUE_URI_ALLOW_LIST: ${ADDITIONAL_REDIRECT_URLS:-http://localhost:3000,http://localhost:5173}
+      GOTRUE_DISABLE_SIGNUP: ${DISABLE_SIGNUP:-false}
+      GOTRUE_JWT_ADMIN_ROLES: service_role
+      GOTRUE_JWT_AUD: authenticated
+      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
+      GOTRUE_JWT_EXP: ${JWT_EXPIRY:-3600}
+      GOTRUE_JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-token-with-at-least-32-characters-long}
+      GOTRUE_EXTERNAL_EMAIL_ENABLED: ${ENABLE_EMAIL_SIGNUP:-true}
+      GOTRUE_MAILER_AUTOCONFIRM: ${ENABLE_EMAIL_AUTOCONFIRM:-true}
+      GOTRUE_SMTP_ADMIN_EMAIL: ${SMTP_ADMIN_EMAIL:-admin@antislash-talk.local}
+      GOTRUE_SMTP_HOST: ${SMTP_HOST:-inbucket}
+      GOTRUE_SMTP_PORT: ${SMTP_PORT:-2500}
+      GOTRUE_SMTP_SENDER_NAME: ${SMTP_SENDER_NAME:-Antislash Talk}
+      GOTRUE_MAILER_URLPATHS_INVITE: ${MAILER_URLPATHS_INVITE:-/auth/v1/verify}
+      GOTRUE_MAILER_URLPATHS_CONFIRMATION: ${MAILER_URLPATHS_CONFIRMATION:-/auth/v1/verify}
+      GOTRUE_MAILER_URLPATHS_RECOVERY: ${MAILER_URLPATHS_RECOVERY:-/auth/v1/verify}
+      GOTRUE_MAILER_URLPATHS_EMAIL_CHANGE: ${MAILER_URLPATHS_EMAIL_CHANGE:-/auth/v1/verify}
+    networks:
+      - antislash-network
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # PostgREST API
+  rest:
+    image: postgrest/postgrest:v12.0.2
+    container_name: antislash-talk-rest
+    restart: unless-stopped
+    environment:
+      PGRST_DB_URI: postgres://authenticator:${POSTGRES_PASSWORD:-your-super-secret-and-long-postgres-password}@db:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-postgres}
+      PGRST_DB_SCHEMAS: ${PGRST_DB_SCHEMAS:-public,storage,graphql_public}
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-token-with-at-least-32-characters-long}
+      PGRST_DB_USE_LEGACY_GUCS: "false"
+      PGRST_APP_SETTINGS_JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-token-with-at-least-32-characters-long}
+      PGRST_APP_SETTINGS_JWT_EXP: ${JWT_EXPIRY:-3600}
+    networks:
+      - antislash-network
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Realtime
+  realtime:
+    image: supabase/realtime:v2.28.32
+    container_name: antislash-talk-realtime
+    restart: unless-stopped
+    environment:
+      PORT: 4000
+      DB_HOST: db
+      DB_PORT: ${POSTGRES_PORT:-5432}
+      DB_USER: supabase_admin
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-your-super-secret-and-long-postgres-password}
+      DB_NAME: ${POSTGRES_DB:-postgres}
+      DB_AFTER_CONNECT_QUERY: 'SET search_path TO _realtime'
+      DB_ENC_KEY: supabaserealtime
+      API_JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-token-with-at-least-32-characters-long}
+      FLY_ALLOC_ID: fly123
+      FLY_APP_NAME: realtime
+      SECRET_KEY_BASE: UpNVntn3cDxHJpq99YMc1T1AQgQpc8kfYTuRgBiYa15BLrx8etQoXz3gZv1/u2oq
+      ERL_AFLAGS: -proto_dist inet_tcp
+      ENABLE_TAILSCALE: "false"
+      DNS_NODES: "''"
+    command: >
+      sh -c "/app/bin/migrate && /app/bin/realtime eval 'Realtime.Release.seeds(Realtime.Repo)' && /app/bin/server"
+    networks:
+      - antislash-network
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Storage
+  storage:
+    image: supabase/storage-api:v0.46.4
+    container_name: antislash-talk-storage
+    restart: unless-stopped
+    environment:
+      ANON_KEY: ${ANON_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNjc5MDg2OTIwLCJleHAiOjE5OTQ2NjI5MjB9.VWXx6e0Gi-rHC0Gv7O2M38LAoIrBYsGLtC0TBvuRx6k}
+      SERVICE_KEY: ${SERVICE_ROLE_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJvbGUiOiJzZXJ2aWNlX3JvbGUiLCJpYXQiOjE2NzkwODY5MjAsImV4cCI6MTk5NDY2MjkyMH0.mFqWJEQz3pR2AyhqJqXVvNqlRVGVPLhV2J0W-7LGvpw}
+      POSTGREST_URL: http://rest:3000
+      PGRST_JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-token-with-at-least-32-characters-long}
+      DATABASE_URL: postgres://supabase_storage_admin:${POSTGRES_PASSWORD:-your-super-secret-and-long-postgres-password}@db:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-postgres}
+      FILE_SIZE_LIMIT: 104857600
+      STORAGE_BACKEND: file
+      FILE_STORAGE_BACKEND_PATH: /var/lib/storage
+      TENANT_ID: stub
+      REGION: stub
+      GLOBAL_S3_BUCKET: stub
+      ENABLE_IMAGE_TRANSFORMATION: "true"
+      IMGPROXY_URL: http://imgproxy:5001
+    volumes:
+      - storage-data:/var/lib/storage:z
+    networks:
+      - antislash-network
+    depends_on:
+      db:
+        condition: service_healthy
+      rest:
+        condition: service_started
+
+  # Image Proxy
+  imgproxy:
+    image: darthsim/imgproxy:v3.8.0
+    container_name: antislash-talk-imgproxy
+    restart: unless-stopped
+    environment:
+      IMGPROXY_BIND: ":5001"
+      IMGPROXY_LOCAL_FILESYSTEM_ROOT: /
+      IMGPROXY_USE_ETAG: "true"
+      IMGPROXY_ENABLE_WEBP_DETECTION: ${IMGPROXY_ENABLE_WEBP_DETECTION:-true}
+    volumes:
+      - storage-data:/var/lib/storage:z
+    networks:
+      - antislash-network
+
+  # pg_meta
+  meta:
+    image: supabase/postgres-meta:v0.80.0
+    container_name: antislash-talk-meta
+    restart: unless-stopped
+    environment:
+      PG_META_PORT: 8080
+      PG_META_DB_HOST: db
+      PG_META_DB_PORT: ${POSTGRES_PORT:-5432}
+      PG_META_DB_NAME: ${POSTGRES_DB:-postgres}
+      PG_META_DB_USER: supabase_admin
+      PG_META_DB_PASSWORD: ${POSTGRES_PASSWORD:-your-super-secret-and-long-postgres-password}
+    networks:
+      - antislash-network
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Supabase Studio
+  studio:
+    image: supabase/studio:latest
+    container_name: antislash-talk-studio
+    restart: unless-stopped
+    environment:
+      STUDIO_PG_META_URL: http://meta:8080
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-your-super-secret-and-long-postgres-password}
+      DEFAULT_ORGANIZATION_NAME: ${STUDIO_DEFAULT_ORGANIZATION:-Antislash Talk}
+      DEFAULT_PROJECT_NAME: ${STUDIO_DEFAULT_PROJECT:-Antislash Talk Project}
+      SUPABASE_URL: http://kong:8000
+      SUPABASE_PUBLIC_URL: ${SUPABASE_PUBLIC_URL:-http://localhost:54321}
+      SUPABASE_ANON_KEY: ${ANON_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNjc5MDg2OTIwLCJleHAiOjE5OTQ2NjI5MjB9.VWXx6e0Gi-rHC0Gv7O2M38LAoIrBYsGLtC0TBvuRx6k}
+      SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJvbGUiOiJzZXJ2aWNlX3JvbGUiLCJpYXQiOjE2NzkwODY5MjAsImV4cCI6MTk5NDY2MjkyMH0.mFqWJEQz3pR2AyhqJqXVvNqlRVGVPLhV2J0W-7LGvpw}
+    ports:
+      - ${STUDIO_PORT:-54323}:3000
+    networks:
+      - antislash-network
+    depends_on:
+      meta:
+        condition: service_started
+
+  # Inbucket (Email testing)
+  inbucket:
+    image: inbucket/inbucket:3.0.3
+    container_name: antislash-talk-inbucket
+    restart: unless-stopped
+    ports:
+      - ${INBUCKET_PORT:-54324}:9000
+      - ${INBUCKET_SMTP_PORT:-54325}:2500
+      - ${INBUCKET_POP3_PORT:-54326}:1100
+    environment:
+      INBUCKET_WEB_ADDR: "0.0.0.0:9000"
+      INBUCKET_SMTP_ADDR: "0.0.0.0:2500"
+      INBUCKET_POP3_ADDR: "0.0.0.0:1100"
+    networks:
+      - antislash-network
+
+  # Edge Functions (Deno Runtime)
+  edge-runtime:
+    image: supabase/edge-runtime:v1.54.4
+    container_name: antislash-talk-edge-runtime
+    restart: unless-stopped
+    environment:
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-token-with-at-least-32-characters-long}
+      SUPABASE_URL: http://kong:8000
+      SUPABASE_ANON_KEY: ${ANON_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNjc5MDg2OTIwLCJleHAiOjE5OTQ2NjI5MjB9.VWXx6e0Gi-rHC0Gv7O2M38LAoIrBYsGLtC0TBvuRx6k}
+      SUPABASE_SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJvbGUiOiJzZXJ2aWNlX3JvbGUiLCJpYXQiOjE2NzkwODY5MjAsImV4cCI6MTk5NDY2MjkyMH0.mFqWJEQz3pR2AyhqJqXVvNqlRVGVPLhV2J0W-7LGvpw}
+      SUPABASE_DB_URL: postgresql://postgres:${POSTGRES_PASSWORD:-your-super-secret-and-long-postgres-password}@db:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-postgres}
+      VERIFY_JWT: "true"
+    # Servir transcribe-with-gemini (la fonction appelée par l'app web)
+    # La transcription locale (navigateur) fonctionne indépendamment sans edge functions
+    command:
+      - start
+      - --port
+      - "9000"
+      - --main-service
+      - /home/deno/functions/transcribe-with-gemini
+    volumes:
+      - ./packages/supabase/functions:/home/deno/functions:ro
+    networks:
+      - antislash-network
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # ============================================
+  # Antislash Talk Web Application
+  # ============================================
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+      args:
+        NODE_ENV: production
+        VITE_SUPABASE_URL: http://localhost:54321
+        VITE_SUPABASE_ANON_KEY: ${ANON_KEY}
+    container_name: antislash-talk-web
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+    ports:
+      - ${WEB_PORT:-3000}:80
+    networks:
+      - antislash-network
+    depends_on:
+      - kong
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ============================================
+  # OPTIONAL: Ollama LLM Service (pour analyse locale)
+  # Activer avec: docker-compose --profile ollama up
+  # ============================================
+  ollama:
+    image: ollama/ollama:latest
+    container_name: antislash-talk-ollama
+    restart: unless-stopped
+    # profiles:
+    #   - ollama  # Service OPTIONNEL - Commenté pour démarrage automatique
+    ports:
+      - "11434:11434"  # API Ollama
+    networks:
+      - antislash-network
+    volumes:
+      # Cache des modèles Ollama (évite de re-télécharger)
+      - ollama-models:/root/.ollama
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:11434/api/tags || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    # Décommenter pour GPU NVIDIA
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+  # ============================================
+  # OPTIONAL: PyTorch Transcription Service
+  # Activer avec: docker-compose --profile pytorch up
+  # ============================================
+  transcription-pytorch:
+    image: antislash-talk-transcription:latest
+    build:
+      context: ./packages/transcription-service
+      dockerfile: Dockerfile
+    container_name: antislash-talk-transcription
+    restart: unless-stopped
+    # profiles:
+    #   - pytorch  # Service OPTIONNEL - Commenté pour démarrage automatique
+    environment:
+      # Token HuggingFace pour pyannote (optionnel, pour diarisation)
+      HUGGINGFACE_TOKEN: ${HUGGINGFACE_TOKEN:-}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    ports:
+      - "8000:8000"  # API FastAPI
+    networks:
+      - antislash-network
+    volumes:
+      # Cache des modèles PyTorch (évite de re-télécharger)
+      - pytorch-models:/root/.cache/whisper
+      - pytorch-hub:/root/.cache/torch
+      - huggingface-cache:/root/.cache/huggingface
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    # Décommenter pour GPU NVIDIA
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+  # ============================================
+  # OPTIONAL: WhisperX (Transcription + Diarization ultra-rapide)
+  # Activer avec: docker-compose --profile whisperx up
+  # 🏆 Meilleur choix pour diarization (6x plus rapide que PyTorch)
+  # ============================================
+  whisperx:
+    build:
+      context: ./packages/whisperx-service
+      dockerfile: Dockerfile
+    image: antislash-talk-whisperx:latest
+    container_name: antislash-talk-whisperx
+    restart: unless-stopped
+    profiles:
+      - whisperx  # Service OPTIONNEL - Démarrage sur demande uniquement
+    ports:
+      - "8082:8082"  # Port 8082 externe
+    networks:
+      - antislash-network
+    environment:
+      - HUGGINGFACE_TOKEN=${HUGGINGFACE_TOKEN}
+    volumes:
+      # Cache des modèles WhisperX (évite de re-télécharger)
+      - whisperx-models:/app/models
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: '8'
+          memory: 6G
+        reservations:
+          cpus: '4'
+          memory: 3G
+    # Décommenter pour GPU NVIDIA (CUDA) - Performance x3 !
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+networks:
+  antislash-network:
+    driver: bridge
+
+volumes:
+  db-data:
+    driver: local
+  storage-data:
+    driver: local
+  pytorch-models:
+    driver: local
+  pytorch-hub:
+    driver: local
+  huggingface-cache:
+    driver: local
+  ollama-models:
+    driver: local
+  whisperx-models:
+    driver: local
+

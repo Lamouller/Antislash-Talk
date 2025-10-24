@@ -1,0 +1,12 @@
+{
+  "extends": "../types/tsconfig.json",
+  "compilerOptions": {
+    "composite": true
+  },
+  "references": [
+    {
+      "path": "../types"
+    }
+  ]
+}
+
