@@ -117,8 +117,8 @@ services:
 consumers:
   - username: anon
     keyauth_credentials:
-      - key: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNzYxMjI1NDc5LCJleHAiOjE3OTI3NjE0Nzl9.CcIA6Gcp1eK1u_GvTfTTBwW8h-5BwLpyOPC6Qm0d4q8
-      - key: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJvbGUiOiJzZXJ2aWNlX3JvbGUiLCJpYXQiOjE3NjEyMjU0NzksImV4cCI6MTc5Mjc2MTQ3OX0.KNcEMhffSdBfPbaIdrj8BMeGly3MvS6Q5foHM1wO_7A
+      - key: ANON_KEY_PLACEHOLDER
+      - key: SERVICE_ROLE_KEY_PLACEHOLDER
 
 plugins:
   - name: cors

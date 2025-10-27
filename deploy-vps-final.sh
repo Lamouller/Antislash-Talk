@@ -451,6 +451,9 @@ ALTER SCHEMA auth OWNER TO supabase_auth_admin;
 ALTER SCHEMA storage OWNER TO supabase_storage_admin;
 ALTER TABLE auth.schema_migrations OWNER TO supabase_auth_admin;
 
+-- CRITIQUE: Configurer le search_path pour supabase_auth_admin
+ALTER ROLE supabase_auth_admin SET search_path TO auth, public, extensions;
+
 GRANT ALL PRIVILEGES ON SCHEMA auth TO supabase_auth_admin;
 GRANT ALL PRIVILEGES ON SCHEMA storage TO supabase_storage_admin;
 GRANT ALL PRIVILEGES ON SCHEMA public TO postgres, supabase_admin;
@@ -501,6 +504,15 @@ docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo up -d
 # Attendre que les services soient prêts
 print_info "Attente du démarrage des services (45s)..."
 sleep 45
+
+# CRITIQUE: Mettre à jour Kong avec les bonnes clés
+print_info "Mise à jour de Kong avec les clés JWT..."
+cp packages/supabase/kong.yml /tmp/kong.yml.template
+sed -i "s/ANON_KEY_PLACEHOLDER/${ANON_KEY}/g" /tmp/kong.yml.template
+sed -i "s/SERVICE_ROLE_KEY_PLACEHOLDER/${SERVICE_ROLE_KEY}/g" /tmp/kong.yml.template
+docker cp /tmp/kong.yml.template antislash-talk-kong:/var/lib/kong/kong.yml
+docker exec antislash-talk-kong kong reload
+print_success "Kong mis à jour avec les nouvelles clés"
 
 print_header "ÉTAPE 9/10 : Création des données initiales"
 
@@ -578,15 +590,52 @@ SELECT
 FROM new_user
 ON CONFLICT (provider, provider_id) DO NOTHING;
 
--- Créer le bucket recordings
-INSERT INTO storage.buckets (id, name, public, created_at, updated_at)
-VALUES ('recordings', 'recordings', false, now(), now())
+-- CRITIQUE: Corriger les colonnes NULL en auth.users (GoTrue attend des strings vides, pas NULL)
+UPDATE auth.users SET 
+    email_change = COALESCE(email_change, ''),
+    email_change_token_new = COALESCE(email_change_token_new, ''),
+    email_change_token_current = COALESCE(email_change_token_current, ''),
+    confirmation_token = COALESCE(confirmation_token, ''),
+    recovery_token = COALESCE(recovery_token, ''),
+    phone_change = COALESCE(phone_change, ''),
+    phone_change_token = COALESCE(phone_change_token, '')
+WHERE email_change IS NULL 
+   OR email_change_token_new IS NULL 
+   OR email_change_token_current IS NULL
+   OR confirmation_token IS NULL
+   OR recovery_token IS NULL
+   OR phone_change IS NULL
+   OR phone_change_token IS NULL;
+
+-- Définir DEFAULT '' pour éviter les NULL futurs
+ALTER TABLE auth.users ALTER COLUMN email_change SET DEFAULT '';
+ALTER TABLE auth.users ALTER COLUMN email_change_token_new SET DEFAULT '';
+ALTER TABLE auth.users ALTER COLUMN email_change_token_current SET DEFAULT '';
+ALTER TABLE auth.users ALTER COLUMN confirmation_token SET DEFAULT '';
+ALTER TABLE auth.users ALTER COLUMN recovery_token SET DEFAULT '';
+ALTER TABLE auth.users ALTER COLUMN phone_change SET DEFAULT '';
+ALTER TABLE auth.users ALTER COLUMN phone_change_token SET DEFAULT '';
+
+-- Créer tous les buckets nécessaires
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types, created_at, updated_at)
+VALUES 
+  ('recordings', 'recordings', false, 104857600, ARRAY['audio/wav', 'audio/mpeg', 'audio/mp3', 'audio/webm', 'audio/ogg']::text[], now(), now()),
+  ('avatars', 'avatars', true, 5242880, ARRAY['image/jpeg', 'image/png', 'image/gif', 'image/webp']::text[], now(), now()),
+  ('public', 'public', true, 10485760, NULL, now(), now()),
+  ('private', 'private', false, 104857600, NULL, now(), now())
 ON CONFLICT (id) DO NOTHING;
 
--- Réactiver RLS
+-- Configurer les permissions Storage pour que tous les services puissent accéder
+GRANT USAGE ON SCHEMA storage TO postgres, anon, authenticated, service_role, supabase_storage_admin;
+GRANT ALL ON ALL TABLES IN SCHEMA storage TO postgres, service_role, supabase_storage_admin;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA storage TO postgres, service_role, supabase_storage_admin;
+GRANT SELECT ON ALL TABLES IN SCHEMA storage TO anon, authenticated;
+
+-- Réactiver RLS avec FORCE pour s'assurer que les policies s'appliquent
 ALTER TABLE auth.users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE auth.identities ENABLE ROW LEVEL SECURITY;
-ALTER TABLE storage.buckets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE storage.buckets FORCE ROW LEVEL SECURITY;
+ALTER TABLE storage.objects FORCE ROW LEVEL SECURITY;
 
 -- Créer les policies RLS
 DO \$\$
@@ -598,6 +647,13 @@ BEGIN
     USING (auth.uid() = id);
     
     -- Policies pour storage.buckets
+    DROP POLICY IF EXISTS "Service role bypass" ON storage.buckets;
+    CREATE POLICY "Service role bypass" 
+    ON storage.buckets FOR ALL 
+    TO service_role, postgres
+    USING (true)
+    WITH CHECK (true);
+    
     DROP POLICY IF EXISTS "Authenticated users can view buckets" ON storage.buckets;
     CREATE POLICY "Authenticated users can view buckets" 
     ON storage.buckets FOR SELECT 
@@ -606,9 +662,19 @@ BEGIN
     
     -- Policies pour storage.objects
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'storage' AND table_name = 'objects') THEN
+        -- Service role bypass pour tous les objets
+        DROP POLICY IF EXISTS "Service role bypass" ON storage.objects;
+        CREATE POLICY "Service role bypass" 
+        ON storage.objects FOR ALL 
+        TO service_role, postgres
+        USING (true)
+        WITH CHECK (true);
+        
+        -- Policies pour users authentifiés
         DROP POLICY IF EXISTS "Users can upload to recordings" ON storage.objects;
         DROP POLICY IF EXISTS "Users can view own recordings" ON storage.objects;
         DROP POLICY IF EXISTS "Users can delete own recordings" ON storage.objects;
+        DROP POLICY IF EXISTS "Public buckets are viewable" ON storage.objects;
         
         CREATE POLICY "Users can upload to recordings" 
         ON storage.objects FOR INSERT 
@@ -624,6 +690,12 @@ BEGIN
         ON storage.objects FOR DELETE 
         TO authenticated
         USING (bucket_id = 'recordings' AND auth.uid()::text = (storage.foldername(name))[1]);
+        
+        -- Public buckets viewable by all
+        CREATE POLICY "Public buckets are viewable"
+        ON storage.objects FOR SELECT
+        TO anon, authenticated
+        USING (bucket_id IN ('public', 'avatars'));
     END IF;
 END \$\$;
 
