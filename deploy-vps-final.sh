@@ -148,15 +148,26 @@ else
 fi
 
 # Studio password
-STUDIO_PASSWORD=""
-while [ -z "$STUDIO_PASSWORD" ]; do
-    read -sp "Mot de passe pour Supabase Studio : " STUDIO_PASSWORD
-    echo
-done
+print_info "Génération d'un mot de passe sécurisé pour Studio..."
+GENERATED_STUDIO_PASSWORD=$(generate_password)
+print_success "Mot de passe généré : $GENERATED_STUDIO_PASSWORD"
+
+read -sp "Mot de passe pour Supabase Studio [$GENERATED_STUDIO_PASSWORD] : " STUDIO_PASSWORD
+echo
+STUDIO_PASSWORD=${STUDIO_PASSWORD:-$GENERATED_STUDIO_PASSWORD}
 
 # Email admin
 read -p "Email de l'utilisateur admin [admin@antislash-talk.fr] : " APP_USER_EMAIL
 APP_USER_EMAIL=${APP_USER_EMAIL:-admin@antislash-talk.fr}
+
+# Mot de passe admin
+print_info "Génération d'un mot de passe sécurisé pour l'utilisateur admin..."
+GENERATED_ADMIN_PASSWORD=$(generate_password)
+print_success "Mot de passe généré : $GENERATED_ADMIN_PASSWORD"
+
+read -sp "Mot de passe pour l'utilisateur admin [$GENERATED_ADMIN_PASSWORD] : " APP_USER_PASSWORD
+echo
+APP_USER_PASSWORD=${APP_USER_PASSWORD:-$GENERATED_ADMIN_PASSWORD}
 
 # Hide marketing pages
 read -p "Masquer les pages marketing ? (oui/non) [oui] : " HIDE_MARKETING
@@ -279,7 +290,7 @@ GOTRUE_SMTP_SENDER_NAME=Antislash Talk
 
 # Configuration utilisateur
 APP_USER_EMAIL=${APP_USER_EMAIL}
-APP_USER_PASSWORD=Antislash2024!
+APP_USER_PASSWORD=${APP_USER_PASSWORD}
 
 # Kong
 KONG_HTTP2_MAX_FIELD_SIZE=16384
@@ -530,7 +541,7 @@ INSERT INTO auth.users (
 ) VALUES (
     gen_random_uuid(),
     '${APP_USER_EMAIL}',
-    crypt('Antislash2024!', gen_salt('bf')),
+    crypt('${APP_USER_PASSWORD}', gen_salt('bf')),
     now(),
     now(),
     now(),
@@ -635,7 +646,7 @@ echo -e "${GREEN}║${NC} API Supabase       : ${CYAN}http://${VPS_HOST}:54321${
 echo -e "${GREEN}║${NC}"
 echo -e "${GREEN}║${NC} Compte Admin App   :"
 echo -e "${GREEN}║${NC}   Email            : ${YELLOW}${APP_USER_EMAIL}${NC}"
-echo -e "${GREEN}║${NC}   Mot de passe     : ${YELLOW}Antislash2024!${NC}"
+echo -e "${GREEN}║${NC}   Mot de passe     : ${YELLOW}${APP_USER_PASSWORD}${NC}"
 echo -e "${GREEN}║${NC}"
 echo -e "${GREEN}║${NC} Ollama API         : ${CYAN}http://${VPS_HOST}:11434${NC}"
 if [ -n "$HUGGINGFACE_TOKEN" ]; then
@@ -658,7 +669,7 @@ URLs d'accès :
 
 Compte admin :
 - Email : ${APP_USER_EMAIL}
-- Mot de passe : Antislash2024!
+- Mot de passe : ${APP_USER_PASSWORD}
 
 Variables d'environnement :
 - JWT_SECRET : ${JWT_SECRET:0:20}...
