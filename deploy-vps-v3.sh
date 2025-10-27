@@ -498,8 +498,99 @@ print_success "PostgreSQL prêt"
 # Attendre un peu plus pour s'assurer que tout est stable
 sleep 5
 
-# 8.3: Exécuter le script d'initialisation
-print_info "Initialisation de la base de données..."
+# 8.3: Créer et exécuter le script d'initialisation
+print_info "Création du script d'initialisation..."
+mkdir -p init-db
+
+cat > init-db/00-init-complete.sql << 'EOF'
+-- Configuration PostgreSQL
+ALTER SYSTEM SET password_encryption = 'scram-sha-256';
+SELECT pg_reload_conf();
+
+-- Création des schémas
+CREATE SCHEMA IF NOT EXISTS auth;
+CREATE SCHEMA IF NOT EXISTS storage;
+CREATE SCHEMA IF NOT EXISTS extensions;
+CREATE SCHEMA IF NOT EXISTS public;
+
+-- Création des extensions (sans la fonction problématique)
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA extensions CASCADE;
+CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions CASCADE;
+
+-- Création du type auth.factor_type s'il n'existe pas
+DO $$ 
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'factor_type' AND typnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'auth')) THEN
+        CREATE TYPE auth.factor_type AS ENUM ('totp', 'webauthn', 'phone');
+    END IF;
+END $$;
+
+-- Création de la table auth.schema_migrations
+CREATE TABLE IF NOT EXISTS auth.schema_migrations (
+    version text NOT NULL PRIMARY KEY
+);
+
+-- Créer/Mettre à jour les rôles
+DO $$
+DECLARE
+    db_password text := '${POSTGRES_PASSWORD}';
+BEGIN
+    -- supabase_auth_admin
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'supabase_auth_admin') THEN
+        ALTER ROLE supabase_auth_admin WITH SUPERUSER CREATEDB CREATEROLE LOGIN PASSWORD db_password;
+    ELSE
+        CREATE ROLE supabase_auth_admin WITH SUPERUSER CREATEDB CREATEROLE LOGIN PASSWORD db_password;
+    END IF;
+
+    -- supabase_storage_admin
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'supabase_storage_admin') THEN
+        ALTER ROLE supabase_storage_admin WITH SUPERUSER CREATEDB CREATEROLE LOGIN PASSWORD db_password;
+    ELSE
+        CREATE ROLE supabase_storage_admin WITH SUPERUSER CREATEDB CREATEROLE LOGIN PASSWORD db_password;
+    END IF;
+
+    -- supabase_admin
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'supabase_admin') THEN
+        ALTER ROLE supabase_admin WITH SUPERUSER CREATEDB CREATEROLE LOGIN PASSWORD db_password;
+    ELSE
+        CREATE ROLE supabase_admin WITH SUPERUSER CREATEDB CREATEROLE LOGIN PASSWORD db_password;
+    END IF;
+
+    -- authenticator
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticator') THEN
+        ALTER ROLE authenticator WITH LOGIN PASSWORD db_password;
+    ELSE
+        CREATE ROLE authenticator WITH LOGIN PASSWORD db_password;
+    END IF;
+
+    -- service_role
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN
+        ALTER ROLE service_role;
+    ELSE
+        CREATE ROLE service_role;
+    END IF;
+
+    -- anon
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+        ALTER ROLE anon;
+    ELSE
+        CREATE ROLE anon;
+    END IF;
+END $$;
+
+-- Permissions
+GRANT ALL PRIVILEGES ON SCHEMA auth TO supabase_auth_admin;
+GRANT ALL PRIVILEGES ON SCHEMA storage TO supabase_storage_admin;
+GRANT ALL PRIVILEGES ON SCHEMA public TO postgres, supabase_admin;
+GRANT ALL PRIVILEGES ON DATABASE postgres TO supabase_admin;
+GRANT ALL ON SCHEMA extensions TO postgres, supabase_admin;
+
+-- Configurer pg_hba.conf via ALTER SYSTEM
+ALTER SYSTEM SET password_encryption = 'scram-sha-256';
+SELECT pg_reload_conf();
+EOF
+
+print_info "Exécution du script d'initialisation..."
 docker exec -i antislash-talk-db psql -U postgres -d postgres < init-db/00-init-complete.sql
 print_success "Base de données initialisée"
 
