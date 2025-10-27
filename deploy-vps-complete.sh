@@ -405,10 +405,98 @@ done
 
 print_success "Migrations terminées : $MIGRATION_SUCCESS appliquées, $MIGRATION_SKIPPED ignorées sur $MIGRATION_COUNT total"
 
+# ============================================
+# ÉTAPE 6.6: Configuration PostgreSQL (SCRAM-SHA-256)
+# ============================================
+print_info "Configuration de l'authentification PostgreSQL..."
+
+# Configurer pg_hba.conf pour utiliser SCRAM-SHA-256
+docker exec antislash-talk-db bash -c "cat > /var/lib/postgresql/data/pg_hba.conf << 'PGEOF'
+# PostgreSQL Client Authentication Configuration File
+# TYPE  DATABASE        USER            ADDRESS                 METHOD
+
+# Local connections
+local   all             postgres                                trust
+local   all             all                                     scram-sha-256
+
+# IPv4 connections with SCRAM-SHA-256
+host    all             all             0.0.0.0/0               scram-sha-256
+
+# IPv6 connections
+host    all             all             ::/0                    scram-sha-256
+PGEOF" > /dev/null 2>&1
+
+# Configurer password_encryption et créer les utilisateurs Supabase
+docker exec antislash-talk-db psql -U postgres -d postgres << SQLEOF > /dev/null 2>&1
+-- Configuration PostgreSQL pour SCRAM-SHA-256
+ALTER SYSTEM SET password_encryption = 'scram-sha-256';
+SELECT pg_reload_conf();
+
+-- Créer ou mettre à jour les rôles Supabase
+DO \$\$
+BEGIN
+    -- supabase_auth_admin (pour GoTrue)
+    IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'supabase_auth_admin') THEN
+        CREATE ROLE supabase_auth_admin;
+    END IF;
+    ALTER ROLE supabase_auth_admin WITH LOGIN PASSWORD '$POSTGRES_PASSWORD' SUPERUSER;
+
+    -- supabase_admin (pour Meta)
+    IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'supabase_admin') THEN
+        CREATE ROLE supabase_admin;
+    END IF;
+    ALTER ROLE supabase_admin WITH LOGIN PASSWORD '$POSTGRES_PASSWORD' SUPERUSER;
+
+    -- authenticator (pour PostgREST)
+    IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'authenticator') THEN
+        CREATE ROLE authenticator;
+    END IF;
+    ALTER ROLE authenticator WITH LOGIN PASSWORD '$POSTGRES_PASSWORD';
+
+    -- service_role (role sans login)
+    IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'service_role') THEN
+        CREATE ROLE service_role NOLOGIN;
+    END IF;
+
+    -- anon (role sans login)
+    IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'anon') THEN
+        CREATE ROLE anon NOLOGIN;
+    END IF;
+
+    -- supabase_storage_admin
+    IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'supabase_storage_admin') THEN
+        CREATE ROLE supabase_storage_admin;
+    END IF;
+    ALTER ROLE supabase_storage_admin WITH LOGIN PASSWORD '$POSTGRES_PASSWORD' SUPERUSER;
+END
+\$\$;
+
+-- Accorder les privilèges
+GRANT ALL PRIVILEGES ON DATABASE postgres TO supabase_auth_admin, supabase_admin;
+GRANT ALL ON SCHEMA auth, public, storage TO supabase_auth_admin, supabase_admin, authenticator;
+GRANT anon, service_role TO authenticator;
+GRANT ALL ON SCHEMA storage TO supabase_storage_admin;
+SQLEOF
+
+print_success "Authentification PostgreSQL configurée (SCRAM-SHA-256)"
+
+# Redémarrer PostgreSQL pour appliquer la configuration
+print_info "Redémarrage de PostgreSQL..."
+docker restart antislash-talk-db > /dev/null 2>&1
+sleep 15
+
+# Attendre que PostgreSQL soit prêt
+until docker exec antislash-talk-db pg_isready -U postgres > /dev/null 2>&1; do
+    sleep 1
+    echo -ne "${CYAN}.${NC}"
+done
+echo ""
+print_success "PostgreSQL redémarré avec succès"
+
 # Redémarrer les services qui dépendent de la DB
 print_info "Redémarrage des services clés pour appliquer les changements..."
-docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo restart meta studio kong > /dev/null 2>&1
-sleep 5
+docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo restart auth rest meta storage studio kong > /dev/null 2>&1
+sleep 10
 
 print_success "Services redémarrés"
 
