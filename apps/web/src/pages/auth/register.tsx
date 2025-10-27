@@ -1,9 +1,271 @@
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { supabase } from '../../lib/supabase';
+import { Mail, ArrowRight, CheckCircle, Mic2, Users, Code, Heart, Github, Star, Eye, EyeOff, Lock, AlertCircle, User } from 'lucide-react';
 
-import { Link } from 'react-router-dom';
-import { Mail, ArrowRight, CheckCircle, Mic2, Users, Code, Heart, Github, Star } from 'lucide-react';
+// Composant pour le formulaire d'inscription fonctionnel (mode client)
+function FunctionalRegisterForm() {
+  const navigate = useNavigate();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
 
-export default function RegisterScreen() {
+  const handleRegister = async () => {
+    setLoading(true);
+    setError('');
+    
+    // Validation
+    if (!email || !password || !fullName) {
+      setError('Please fill in all fields');
+      setLoading(false);
+      return;
+    }
+    
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
+      setLoading(false);
+      return;
+    }
+    
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters');
+      setLoading(false);
+      return;
+    }
 
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          full_name: fullName,
+        }
+      }
+    });
+
+    if (error) {
+      setError(error.message);
+      setLoading(false);
+    } else {
+      setSuccess(true);
+      // Redirect to login after successful registration
+      setTimeout(() => navigate('/auth/login'), 2000);
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    handleRegister();
+  };
+
+  if (success) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 dark:from-gray-900 dark:via-green-900 dark:to-emerald-900 flex items-center justify-center px-4">
+        <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-3xl shadow-2xl p-8 border border-gray-200 dark:border-gray-700">
+          <div className="text-center">
+            <div className="w-20 h-20 bg-gradient-to-r from-green-500 to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6">
+              <CheckCircle size={40} className="text-white" />
+            </div>
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">Welcome!</h2>
+            <p className="text-lg text-gray-600 dark:text-gray-300 mb-6">
+              Your account has been created successfully.
+            </p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Redirecting you to login...
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 dark:from-gray-900 dark:via-green-900 dark:to-emerald-900">
+      {/* Navigation */}
+      <nav className="absolute top-0 left-0 right-0 z-50 px-4 lg:px-8 py-4">
+        <div className="w-full flex items-center justify-between">
+          <Link to="/" className="flex items-center space-x-3 group">
+            <div className="bg-gradient-to-r from-green-500 to-emerald-600 p-2 rounded-xl shadow-lg group-hover:shadow-xl transition-shadow">
+              <Mic2 size={24} className="text-white" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-gray-900 dark:text-white">🎙️ Antislash Talk</h1>
+              <div className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                <span className="w-1.5 h-1.5 bg-green-500 rounded-full mr-1.5"></span>
+                Community Edition
+              </div>
+            </div>
+          </Link>
+          <Link 
+            to="/auth/login" 
+            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
+          >
+            Sign In
+          </Link>
+        </div>
+      </nav>
+
+      {/* Main Content */}
+      <main className="min-h-screen flex items-center justify-center px-4 lg:px-8 py-20">
+        <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-3xl shadow-2xl p-8 border border-gray-200 dark:border-gray-700">
+          
+          {/* Header */}
+          <div className="text-center mb-8">
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-3">Create Account</h2>
+            <p className="text-gray-600 dark:text-gray-400">Join Antislash Talk today</p>
+          </div>
+
+          {/* Error Message */}
+          {error && (
+            <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl flex items-start">
+              <AlertCircle size={20} className="text-red-600 dark:text-red-400 mr-3 flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-red-800 dark:text-red-200">{error}</p>
+            </div>
+          )}
+
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Full Name */}
+            <div>
+              <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Full Name
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <User size={20} className="text-gray-400" />
+                </div>
+                <input
+                  id="fullName"
+                  type="text"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 dark:text-white transition-all"
+                  placeholder="John Doe"
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Email */}
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Email Address
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <Mail size={20} className="text-gray-400" />
+                </div>
+                <input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 dark:text-white transition-all"
+                  placeholder="you@example.com"
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Password */}
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Password
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <Lock size={20} className="text-gray-400" />
+                </div>
+                <input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full pl-12 pr-12 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 dark:text-white transition-all"
+                  placeholder="••••••••"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                >
+                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
+            </div>
+
+            {/* Confirm Password */}
+            <div>
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Confirm Password
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <Lock size={20} className="text-gray-400" />
+                </div>
+                <input
+                  id="confirmPassword"
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="w-full pl-12 pr-12 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 dark:text-white transition-all"
+                  placeholder="••••••••"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                >
+                  {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
+            </div>
+
+            {/* Submit Button */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 disabled:from-gray-400 disabled:to-gray-400 text-white font-semibold rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl disabled:cursor-not-allowed flex items-center justify-center"
+            >
+              {loading ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                  Creating account...
+                </>
+              ) : (
+                <>
+                  Create Account
+                  <ArrowRight size={20} className="ml-2" />
+                </>
+              )}
+            </button>
+          </form>
+
+          {/* Footer */}
+          <div className="mt-8 text-center">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Already have an account?{' '}
+              <Link to="/auth/login" className="text-green-600 hover:text-green-500 dark:text-green-400 dark:hover:text-green-300 font-semibold">
+                Sign in here
+              </Link>
+            </p>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+// Composant "Coming Soon" (mode SaaS - garde l'existant)
+function ComingSoonRegister() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-600 via-emerald-600 to-teal-600">
       {/* Navigation */}
@@ -228,4 +490,13 @@ export default function RegisterScreen() {
         </main>
       </div>
   );
+}
+
+// Composant principal qui choisit entre les deux versions
+export default function RegisterScreen() {
+  const hideMarketingPages = import.meta.env.VITE_HIDE_MARKETING_PAGES === 'true';
+  
+  // Si marketing caché → Formulaire fonctionnel
+  // Si marketing visible → Page "Coming Soon"
+  return hideMarketingPages ? <FunctionalRegisterForm /> : <ComingSoonRegister />;
 }

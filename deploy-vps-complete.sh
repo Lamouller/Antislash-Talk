@@ -157,7 +157,36 @@ fi
 print_success "IP du VPS (IPv4) : $VPS_IP"
 
 # ============================================
-# ÉTAPE 4b: Configuration optionnelle HuggingFace
+# ÉTAPE 4b: Configuration mot de passe Studio
+# ============================================
+echo ""
+print_info "Configuration de la sécurité : Mot de passe Studio Supabase"
+echo -e "${CYAN}Le Studio Supabase permet de gérer votre base de données.${NC}"
+echo -e "${CYAN}Pour sécuriser l'accès, définissez un mot de passe.${NC}"
+echo ""
+echo -e "${YELLOW}Options :${NC}"
+echo "  1. ${GREEN}Générer automatiquement${NC} un mot de passe sécurisé (recommandé)"
+echo "  2. ${GREEN}Définir manuellement${NC} votre propre mot de passe"
+echo ""
+read -p "Votre choix [1/2] (défaut: 1) : " STUDIO_PWD_CHOICE
+
+if [[ "$STUDIO_PWD_CHOICE" == "2" ]]; then
+    read -p "Entrez le mot de passe pour le Studio : " STUDIO_PASSWORD
+    if [ -z "$STUDIO_PASSWORD" ]; then
+        print_warning "Mot de passe vide, génération automatique..."
+        STUDIO_PASSWORD=$(openssl rand -base64 16 | tr -d "=+/" | cut -c1-16)
+    fi
+else
+    STUDIO_PASSWORD=$(openssl rand -base64 16 | tr -d "=+/" | cut -c1-16)
+    print_success "Mot de passe généré automatiquement"
+fi
+
+STUDIO_USERNAME="admin"
+print_success "Utilisateur Studio : $STUDIO_USERNAME"
+print_success "Mot de passe Studio : $STUDIO_PASSWORD"
+
+# ============================================
+# ÉTAPE 4c: Configuration optionnelle HuggingFace
 # ============================================
 echo ""
 print_info "Configuration optionnelle : Token HuggingFace"
@@ -174,8 +203,15 @@ else
     print_success "Token HuggingFace configuré"
 fi
 
+# Créer le fichier .htpasswd pour l'authentification Studio
+print_info "Création du fichier d'authentification Studio..."
+# Utiliser openssl pour créer le hash du mot de passe (compatible avec Apache htpasswd)
+HASHED_PASSWORD=$(openssl passwd -apr1 "$STUDIO_PASSWORD")
+echo "$STUDIO_USERNAME:$HASHED_PASSWORD" > studio.htpasswd
+print_success "Fichier d'authentification créé"
+
 # ============================================
-# ÉTAPE 4c: Configuration pages marketing
+# ÉTAPE 4d: Configuration pages marketing
 # ============================================
 echo ""
 print_info "Configuration de l'interface : Pages marketing"
@@ -311,6 +347,8 @@ echo -e "${GREEN}✅ JWT Secret :${NC} ${JWT_SECRET:0:20}... (${#JWT_SECRET} car
 echo -e "${GREEN}✅ PostgreSQL Password :${NC} ${POSTGRES_PASSWORD:0:10}... (${#POSTGRES_PASSWORD} caractères)"
 echo -e "${GREEN}✅ ANON_KEY :${NC} ${ANON_KEY:0:30}..."
 echo -e "${GREEN}✅ SERVICE_ROLE_KEY :${NC} ${SERVICE_ROLE_KEY:0:30}..."
+echo -e "${GREEN}✅ Studio Username :${NC} $STUDIO_USERNAME"
+echo -e "${GREEN}✅ Studio Password :${NC} $STUDIO_PASSWORD"
 if [ -n "$HUGGINGFACE_TOKEN" ]; then
     echo -e "${GREEN}✅ HuggingFace Token :${NC} Configuré (${#HUGGINGFACE_TOKEN} caractères)"
 else
@@ -650,6 +688,9 @@ PostgreSQL Port : 5432
 Admin User (Test) : admin@antislash-talk.local
 Admin Password : admin123
 
+Studio Username : $STUDIO_USERNAME
+Studio Password : $STUDIO_PASSWORD
+
 JWT Secret : $JWT_SECRET
 ANON Key : $ANON_KEY
 Service Role Key : $SERVICE_ROLE_KEY
@@ -714,6 +755,9 @@ PROCHAINES ÉTAPES :
 2. Se connecter avec : admin@antislash-talk.local / admin123
    OU créer un nouveau compte utilisateur
 3. Accéder au Studio Supabase : http://$VPS_IP:54323
+   ⚠️  ATTENTION : Le Studio requiert une authentification HTTP Basic
+   Username: $STUDIO_USERNAME
+   Password: $STUDIO_PASSWORD
 4. Tester l'enregistrement audio
 5. Configurer les clés API dans Settings (optionnel)
 
@@ -746,6 +790,15 @@ echo -e "${GREEN}🌐 Application Web :${NC} http://$VPS_IP:3000"
 echo -e "${GREEN}📡 API Supabase :${NC} http://$VPS_IP:54321"
 echo -e "${GREEN}🎨 Studio Admin :${NC} http://$VPS_IP:54323"
 echo -e "${GREEN}🤖 PyTorch API :${NC} http://$VPS_IP:8000"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo ""
+echo -e "${CYAN}🔐 Credentials Studio Supabase :${NC}"
+echo -e "   ${YELLOW}Username:${NC} $STUDIO_USERNAME"
+echo -e "   ${YELLOW}Password:${NC} $STUDIO_PASSWORD"
+echo ""
+echo -e "${CYAN}👤 Compte Admin Application :${NC}"
+echo -e "   ${YELLOW}Email:${NC} admin@antislash-talk.local"
+echo -e "   ${YELLOW}Password:${NC} admin123"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 echo -e "${YELLOW}📋 Voir les logs :${NC} docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo logs -f"

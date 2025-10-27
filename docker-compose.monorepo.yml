@@ -228,13 +228,26 @@ services:
       SUPABASE_PUBLIC_URL: ${SUPABASE_PUBLIC_URL:-http://localhost:54321}
       SUPABASE_ANON_KEY: ${ANON_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNjc5MDg2OTIwLCJleHAiOjE5OTQ2NjI5MjB9.VWXx6e0Gi-rHC0Gv7O2M38LAoIrBYsGLtC0TBvuRx6k}
       SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJvbGUiOiJzZXJ2aWNlX3JvbGUiLCJpYXQiOjE2NzkwODY5MjAsImV4cCI6MTk5NDY2MjkyMH0.mFqWJEQz3pR2AyhqJqXVvNqlRVGVPLhV2J0W-7LGvpw}
-    ports:
-      - ${STUDIO_PORT:-54323}:3000
     networks:
       - antislash-network
     depends_on:
       meta:
         condition: service_started
+
+  # Nginx reverse proxy pour Studio (avec authentification)
+  studio-proxy:
+    image: nginx:alpine
+    container_name: antislash-talk-studio-proxy
+    restart: unless-stopped
+    ports:
+      - ${STUDIO_PORT:-54323}:80
+    volumes:
+      - ./nginx.studio.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./studio.htpasswd:/etc/nginx/.htpasswd:ro
+    networks:
+      - antislash-network
+    depends_on:
+      - studio
 
   # Inbucket (Email testing)
   inbucket:

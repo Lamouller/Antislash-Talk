@@ -4,7 +4,180 @@ import { Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { Eye, EyeOff, Mail, Lock, ArrowRight, AlertCircle, Mic2, Shield, Globe, Zap, Github } from 'lucide-react';
 
-export default function LoginScreen() {
+// Version simplifiée sans la partie gauche (mode client)
+function SimplifiedLoginForm() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleLogin = async () => {
+    setLoading(true);
+    setError('');
+    
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      setError(error.message);
+    }
+    setLoading(false);
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    handleLogin();
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-blue-900 dark:to-indigo-900">
+      {/* Navigation */}
+      <nav className="absolute top-0 left-0 right-0 z-50 px-4 lg:px-8 py-4">
+        <div className="w-full flex items-center justify-between">
+          <Link to="/" className="flex items-center space-x-3 group">
+            <div className="bg-gradient-to-r from-blue-500 to-indigo-600 p-2 rounded-xl shadow-lg group-hover:shadow-xl transition-shadow">
+              <Mic2 size={24} className="text-white" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-gray-900 dark:text-white">🎙️ Antislash Talk</h1>
+              <div className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                <span className="w-1.5 h-1.5 bg-green-500 rounded-full mr-1.5"></span>
+                Community Edition
+              </div>
+            </div>
+          </Link>
+          <Link 
+            to="/auth/register" 
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+          >
+            Sign Up
+          </Link>
+        </div>
+      </nav>
+
+      {/* Main Content - Centered */}
+      <main className="min-h-screen flex items-center justify-center px-4 lg:px-8 py-20">
+        <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-3xl shadow-2xl p-8 border border-gray-200 dark:border-gray-700">
+          
+          {/* Header */}
+          <div className="text-center mb-8">
+            <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <Mic2 size={32} className="text-white" />
+            </div>
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-3">Welcome Back!</h2>
+            <p className="text-gray-600 dark:text-gray-400">Sign in to your account</p>
+          </div>
+
+          {/* Error Message */}
+          {error && (
+            <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl flex items-start">
+              <AlertCircle size={20} className="text-red-600 dark:text-red-400 mr-3 flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-red-800 dark:text-red-200">{error}</p>
+            </div>
+          )}
+
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Email */}
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Email Address
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <Mail size={20} className="text-gray-400" />
+                </div>
+                <input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:text-white transition-all"
+                  placeholder="you@example.com"
+                  autoCapitalize="none"
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Password */}
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Password
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <Lock size={20} className="text-gray-400" />
+                </div>
+                <input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full pl-12 pr-12 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:text-white transition-all"
+                  placeholder="••••••••"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                >
+                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
+            </div>
+
+            {/* Forgot Password */}
+            <div className="text-right">
+              <Link 
+                to="/auth/forgot-password" 
+                className="text-sm font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
+              >
+                Forgot your password?
+              </Link>
+            </div>
+
+            {/* Submit Button */}
+            <button
+              type="submit"
+              disabled={loading || !email || !password}
+              className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:from-gray-400 disabled:to-gray-400 text-white font-semibold rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl disabled:cursor-not-allowed flex items-center justify-center"
+            >
+              {loading ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                  Signing you in...
+                </>
+              ) : (
+                <>
+                  Sign In
+                  <ArrowRight size={20} className="ml-2" />
+                </>
+              )}
+            </button>
+          </form>
+
+          {/* Footer */}
+          <div className="mt-8 text-center">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Don't have an account?{' '}
+              <Link to="/auth/register" className="text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300 font-semibold">
+                Create one for free
+              </Link>
+            </p>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+// Version complète avec la partie gauche (mode SaaS - garde l'existant)
+function FullLoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -268,4 +441,13 @@ export default function LoginScreen() {
       </main>
     </div>
   );
+}
+
+// Composant principal qui choisit entre les deux versions
+export default function LoginScreen() {
+  const hideMarketingPages = import.meta.env.VITE_HIDE_MARKETING_PAGES === 'true';
+  
+  // Si marketing caché → Version simplifiée sans partie gauche
+  // Si marketing visible → Version complète avec features
+  return hideMarketingPages ? <SimplifiedLoginForm /> : <FullLoginForm />;
 }

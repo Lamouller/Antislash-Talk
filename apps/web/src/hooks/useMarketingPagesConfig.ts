@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 
+const STORAGE_KEY = 'antislash_hide_marketing_pages';
+
 /**
  * Hook to determine if marketing pages should be hidden
  * 
  * Priority:
  * 1. Global config (VITE_HIDE_MARKETING_PAGES env var) - forces for all users
  * 2. User preference (hide_marketing_pages in profile) - if global not set
+ * 3. LocalStorage cache - persists preference even after logout
  * 
  * @returns {object} Configuration state
  * @returns {boolean} shouldHideMarketingPages - True if marketing pages should be hidden
@@ -35,8 +38,13 @@ export function useMarketingPagesConfig() {
         const { data: { user } } = await supabase.auth.getUser();
         
         if (!user) {
-          // Not logged in, don't hide marketing pages
-          setShouldHideMarketingPages(false);
+          // Not logged in, check localStorage cache
+          const cachedPreference = localStorage.getItem(STORAGE_KEY);
+          if (cachedPreference === 'true') {
+            setShouldHideMarketingPages(true);
+          } else {
+            setShouldHideMarketingPages(false);
+          }
           setIsGloballyForced(false);
           setLoading(false);
           return;
@@ -52,14 +60,20 @@ export function useMarketingPagesConfig() {
         if (error) {
           console.warn('Failed to load marketing pages preference:', error);
           setShouldHideMarketingPages(false);
+          // Keep any cached value in localStorage
         } else {
-          setShouldHideMarketingPages(profile?.hide_marketing_pages ?? false);
+          const hidePages = profile?.hide_marketing_pages ?? false;
+          setShouldHideMarketingPages(hidePages);
+          // Save to localStorage for persistence after logout
+          localStorage.setItem(STORAGE_KEY, hidePages.toString());
         }
         
         setIsGloballyForced(false);
       } catch (error) {
         console.error('Error checking marketing pages config:', error);
-        setShouldHideMarketingPages(false);
+        // Check localStorage as fallback
+        const cachedPreference = localStorage.getItem(STORAGE_KEY);
+        setShouldHideMarketingPages(cachedPreference === 'true');
         setIsGloballyForced(false);
       } finally {
         setLoading(false);
