@@ -364,6 +364,13 @@ docker system prune -f
 
 print_header "ÉTAPE 5/10 : Construction de l'image web"
 
+print_info "Création du fichier apps/web/.env pour le build..."
+cat > apps/web/.env << EOF
+VITE_SUPABASE_URL=http://${VPS_HOST}:54321
+VITE_SUPABASE_ANON_KEY=${ANON_KEY}
+VITE_HIDE_MARKETING_PAGES=${VITE_HIDE_MARKETING_PAGES}
+EOF
+
 print_info "Export des variables pour le build..."
 export API_EXTERNAL_URL="http://${VPS_HOST}:54321"
 export VITE_SUPABASE_URL="http://${VPS_HOST}:54321"
@@ -667,13 +674,100 @@ ALTER TABLE auth.users ALTER COLUMN recovery_token SET DEFAULT '';
 ALTER TABLE auth.users ALTER COLUMN phone_change SET DEFAULT '';
 ALTER TABLE auth.users ALTER COLUMN phone_change_token SET DEFAULT '';
 
--- Créer tous les buckets nécessaires
+-- CRITIQUE: Créer toutes les tables essentielles de l'application (selon base locale réelle)
+-- Table profiles (structure complète depuis base locale)
+CREATE TABLE IF NOT EXISTS public.profiles (
+    id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    email text NOT NULL UNIQUE,
+    full_name text,
+    avatar_url text,
+    role text DEFAULT 'user' NOT NULL CHECK (role = ANY (ARRAY['admin', 'user'])),
+    created_at timestamptz DEFAULT now(),
+    updated_at timestamptz DEFAULT now(),
+    preferred_llm text,
+    preferred_llm_model text,
+    preferred_transcription_model text,
+    preferred_tts_model text,
+    preferred_transcription_provider text,
+    preferred_tts_provider text,
+    auto_transcribe_after_recording boolean DEFAULT true,
+    preferred_language text DEFAULT 'fr' CHECK (preferred_language = ANY (ARRAY['fr', 'en'])),
+    prompt_title text,
+    prompt_summary text,
+    prompt_transcript text,
+    enable_streaming_transcription boolean DEFAULT false,
+    auto_generate_summary_after_streaming boolean DEFAULT true,
+    hide_marketing_pages boolean DEFAULT false
+);
+
+-- Table meetings (structure complète depuis base locale)
+CREATE TABLE IF NOT EXISTS public.meetings (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id uuid NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    title text NOT NULL,
+    description text,
+    recording_url text,
+    duration integer,
+    status text DEFAULT 'recording' NOT NULL CHECK (status = ANY (ARRAY['uploading', 'pending', 'processing', 'completed', 'failed'])),
+    created_at timestamptz DEFAULT now(),
+    updated_at timestamptz DEFAULT now(),
+    transcript jsonb,
+    summary text,
+    speaker_names jsonb,
+    audio_expires_at timestamptz,
+    transcription_provider text,
+    transcription_model text,
+    participant_count integer DEFAULT 0,
+    llm_provider text,
+    llm_model text
+);
+
+-- Table api_keys (structure complète depuis base locale)
+CREATE TABLE IF NOT EXISTS public.api_keys (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    provider text NOT NULL,
+    encrypted_key text NOT NULL,
+    created_at timestamptz DEFAULT now(),
+    updated_at timestamptz DEFAULT now(),
+    UNIQUE(user_id, provider)
+);
+
+-- Table user_api_keys (structure complète depuis base locale)
+CREATE TABLE IF NOT EXISTS public.user_api_keys (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id uuid NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    service text NOT NULL,
+    api_key text NOT NULL,
+    created_at timestamptz DEFAULT now(),
+    updated_at timestamptz DEFAULT now(),
+    UNIQUE(user_id, service)
+);
+
+-- Index pour performance
+CREATE INDEX IF NOT EXISTS idx_meetings_user_id ON public.meetings(user_id);
+CREATE INDEX IF NOT EXISTS idx_profiles_enable_streaming_transcription ON public.profiles(enable_streaming_transcription) WHERE enable_streaming_transcription = true;
+
+-- Créer un profil pour l'utilisateur admin
+INSERT INTO public.profiles (id, email, full_name)
+SELECT id, email, email
+FROM auth.users
+ON CONFLICT (id) DO NOTHING;
+
+-- Activer RLS sur toutes les tables
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.meetings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.api_keys ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_api_keys ENABLE ROW LEVEL SECURITY;
+
+-- Créer tous les buckets nécessaires (selon base locale réelle)
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types, created_at, updated_at)
 VALUES 
-  ('recordings', 'recordings', false, 104857600, ARRAY['audio/wav', 'audio/mpeg', 'audio/mp3', 'audio/webm', 'audio/ogg']::text[], now(), now()),
-  ('avatars', 'avatars', true, 5242880, ARRAY['image/jpeg', 'image/png', 'image/gif', 'image/webp']::text[], now(), now()),
-  ('public', 'public', true, 10485760, NULL, now(), now()),
-  ('private', 'private', false, 104857600, NULL, now(), now())
+  ('avatars', 'avatars', true, NULL, NULL, now(), now()),
+  ('meeting-audio', 'meeting-audio', true, NULL, NULL, now(), now()),
+  ('meetingrecordings', 'meetingrecordings', true, NULL, NULL, now(), now()),
+  ('reports', 'reports', false, NULL, NULL, now(), now()),
+  ('transcriptions', 'transcriptions', false, NULL, NULL, now(), now())
 ON CONFLICT (id) DO NOTHING;
 
 -- Configurer les permissions Storage pour que tous les services puissent accéder
@@ -696,6 +790,78 @@ BEGIN
     CREATE POLICY "Users can view own profile" 
     ON auth.users FOR SELECT 
     USING (auth.uid() = id);
+    
+    -- Policies pour public.profiles
+    DROP POLICY IF EXISTS "Service role bypass profiles" ON public.profiles;
+    CREATE POLICY "Service role bypass profiles"
+    ON public.profiles FOR ALL
+    TO service_role, postgres
+    USING (true)
+    WITH CHECK (true);
+    
+    DROP POLICY IF EXISTS "Users can view own profile" ON public.profiles;
+    CREATE POLICY "Users can view own profile"
+    ON public.profiles FOR SELECT
+    TO authenticated
+    USING (auth.uid() = id);
+    
+    DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
+    CREATE POLICY "Users can update own profile"
+    ON public.profiles FOR UPDATE
+    TO authenticated
+    USING (auth.uid() = id)
+    WITH CHECK (auth.uid() = id);
+    
+    DROP POLICY IF EXISTS "Users can insert own profile" ON public.profiles;
+    CREATE POLICY "Users can insert own profile"
+    ON public.profiles FOR INSERT
+    TO authenticated
+    WITH CHECK (auth.uid() = id);
+    
+    -- Policies pour api_keys
+    DROP POLICY IF EXISTS "Service role bypass api keys" ON public.api_keys;
+    CREATE POLICY "Service role bypass api keys"
+    ON public.api_keys FOR ALL
+    TO service_role, postgres
+    USING (true)
+    WITH CHECK (true);
+    
+    DROP POLICY IF EXISTS "Users can manage own api keys" ON public.api_keys;
+    CREATE POLICY "Users can manage own api keys"
+    ON public.api_keys FOR ALL
+    TO authenticated
+    USING (user_id = auth.uid())
+    WITH CHECK (user_id = auth.uid());
+    
+    -- Policies pour user_api_keys
+    DROP POLICY IF EXISTS "Service role bypass user api keys" ON public.user_api_keys;
+    CREATE POLICY "Service role bypass user api keys"
+    ON public.user_api_keys FOR ALL
+    TO service_role, postgres
+    USING (true)
+    WITH CHECK (true);
+    
+    DROP POLICY IF EXISTS "Users can manage own user api keys" ON public.user_api_keys;
+    CREATE POLICY "Users can manage own user api keys"
+    ON public.user_api_keys FOR ALL
+    TO authenticated
+    USING (user_id = auth.uid())
+    WITH CHECK (user_id = auth.uid());
+    
+    -- Policies pour meetings
+    DROP POLICY IF EXISTS "Service role bypass meetings" ON public.meetings;
+    CREATE POLICY "Service role bypass meetings"
+    ON public.meetings FOR ALL
+    TO service_role, postgres
+    USING (true)
+    WITH CHECK (true);
+    
+    DROP POLICY IF EXISTS "Users can manage own meetings" ON public.meetings;
+    CREATE POLICY "Users can manage own meetings"
+    ON public.meetings FOR ALL
+    TO authenticated
+    USING (user_id = auth.uid())
+    WITH CHECK (user_id = auth.uid());
     
     -- Policies pour storage.buckets
     DROP POLICY IF EXISTS "Service role bypass" ON storage.buckets;
