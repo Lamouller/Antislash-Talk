@@ -524,34 +524,59 @@ if [ "$TABLES_READY" = true ]; then
     docker exec -i antislash-talk-db psql -U postgres << EOF
 -- Désactiver temporairement RLS
 ALTER TABLE auth.users DISABLE ROW LEVEL SECURITY;
+ALTER TABLE auth.identities DISABLE ROW LEVEL SECURITY;
 ALTER TABLE storage.buckets DISABLE ROW LEVEL SECURITY;
 
 -- Créer l'utilisateur admin
-INSERT INTO auth.users (
+WITH new_user AS (
+    INSERT INTO auth.users (
+        id,
+        email,
+        encrypted_password,
+        email_confirmed_at,
+        created_at,
+        updated_at,
+        instance_id,
+        aud,
+        role,
+        raw_app_meta_data,
+        raw_user_meta_data
+    ) VALUES (
+        extensions.gen_random_uuid(),
+        '${APP_USER_EMAIL}',
+        extensions.crypt('${APP_USER_PASSWORD}', extensions.gen_salt('bf', 6)),
+        now(),
+        now(),
+        now(),
+        '00000000-0000-0000-0000-000000000000',
+        'authenticated',
+        'authenticated',
+        '{"provider": "email", "providers": ["email"]}',
+        '{}'
+    ) ON CONFLICT (email) DO UPDATE SET email = EXCLUDED.email
+    RETURNING id, email
+)
+INSERT INTO auth.identities (
     id,
-    email,
-    encrypted_password,
-    email_confirmed_at,
+    user_id,
+    provider_id,
+    provider,
+    identity_data,
+    last_sign_in_at,
     created_at,
-    updated_at,
-    instance_id,
-    aud,
-    role,
-    raw_app_meta_data,
-    raw_user_meta_data
-) VALUES (
+    updated_at
+)
+SELECT
     extensions.gen_random_uuid(),
-    '${APP_USER_EMAIL}',
-    extensions.crypt('${APP_USER_PASSWORD}', extensions.gen_salt('bf', 6)),
+    new_user.id,
+    new_user.id::text,
+    'email',
+    json_build_object('sub', new_user.id::text, 'email', new_user.email)::jsonb,
     now(),
     now(),
-    now(),
-    '00000000-0000-0000-0000-000000000000',
-    'authenticated',
-    'authenticated',
-    '{"provider": "email", "providers": ["email"]}',
-    '{}'
-) ON CONFLICT (email) DO NOTHING;
+    now()
+FROM new_user
+ON CONFLICT (provider, provider_id) DO NOTHING;
 
 -- Créer le bucket recordings
 INSERT INTO storage.buckets (id, name, public, created_at, updated_at)
@@ -560,6 +585,7 @@ ON CONFLICT (id) DO NOTHING;
 
 -- Réactiver RLS
 ALTER TABLE auth.users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE auth.identities ENABLE ROW LEVEL SECURITY;
 ALTER TABLE storage.buckets ENABLE ROW LEVEL SECURITY;
 
 -- Créer les policies RLS
@@ -629,9 +655,9 @@ antislash:$STUDIO_PASSWORD_HASH
 EOF
 
 # Copier dans le container avec une méthode qui évite le "device busy"
-docker cp studio.htpasswd antislash-talk-studio-proxy:/tmp/.htpasswd
-docker exec antislash-talk-studio-proxy sh -c "rm -f /etc/nginx/.htpasswd && cp /tmp/.htpasswd /etc/nginx/.htpasswd && rm /tmp/.htpasswd"
-docker exec antislash-talk-studio-proxy nginx -s reload
+docker cp studio.htpasswd antislash-talk-studio-proxy:/tmp/.htpasswd.new
+docker exec antislash-talk-studio-proxy sh -c "mv /tmp/.htpasswd.new /etc/nginx/.htpasswd && chmod 644 /etc/nginx/.htpasswd"
+docker exec antislash-talk-studio-proxy nginx -s reload 2>/dev/null || docker restart antislash-talk-studio-proxy
 rm -f studio.htpasswd
 
 # Afficher les informations finales
