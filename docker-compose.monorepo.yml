@@ -240,7 +240,7 @@ services:
     container_name: antislash-talk-studio-proxy
     restart: unless-stopped
     ports:
-      - ${STUDIO_PORT:-54323}:80
+      - ${STUDIO_PROXY_PORT:-54324}:80
     volumes:
       - ./nginx.studio.conf:/etc/nginx/conf.d/default.conf:ro
       - ./studio.htpasswd:/etc/nginx/.htpasswd:ro
