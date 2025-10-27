@@ -152,6 +152,19 @@ if [[ "$HIDE_MARKETING" =~ ^[Oo]$ ]]; then
     VITE_HIDE_MARKETING_PAGES="true"
 fi
 
+# Token HuggingFace (optionnel)
+echo ""
+print_info "Configuration optionnelle : Token HuggingFace"
+echo -e "${CYAN}Le token HuggingFace est nécessaire pour la diarisation (identification des locuteurs).${NC}"
+echo -e "${CYAN}Si vous n'en avez pas, laissez vide (vous pourrez l'ajouter plus tard).${NC}"
+echo -e "${YELLOW}Pour obtenir un token : https://huggingface.co/settings/tokens${NC}"
+read -p "Token HuggingFace (optionnel, Entrée pour ignorer) : " HUGGINGFACE_TOKEN
+if [ -z "$HUGGINGFACE_TOKEN" ]; then
+    print_info "Token HuggingFace non fourni (diarisation désactivée)"
+else
+    print_success "Token HuggingFace configuré"
+fi
+
 # ============================================
 # ÉTAPE 5: Génération des secrets
 # ============================================
@@ -203,6 +216,9 @@ SMTP_HOST=inbucket
 SMTP_PORT=2500
 ENABLE_EMAIL_SIGNUP=true
 ENABLE_EMAIL_AUTOCONFIRM=true
+
+# Services optionnels
+HUGGINGFACE_TOKEN=$HUGGINGFACE_TOKEN
 
 # Studio
 STUDIO_DEFAULT_ORGANIZATION="Antislash Talk"
@@ -452,10 +468,35 @@ docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo up -d db
 
 # Attendre que PostgreSQL soit prêt
 print_info "Attente de PostgreSQL..."
-until docker exec antislash-talk-db pg_isready -U postgres > /dev/null 2>&1; do
-    sleep 1
+POSTGRES_READY=false
+for i in {1..30}; do
+    # Vérifier d'abord que le container est toujours en cours d'exécution
+    if ! docker ps | grep -q antislash-talk-db; then
+        print_error "Container PostgreSQL arrêté ! Vérification des logs..."
+        docker logs antislash-talk-db --tail 20
+        exit 1
+    fi
+    
+    # Vérifier si PostgreSQL est prêt
+    if docker exec antislash-talk-db pg_isready -U postgres > /dev/null 2>&1; then
+        POSTGRES_READY=true
+        break
+    fi
+    
+    sleep 2
 done
+
+if [ "$POSTGRES_READY" = false ]; then
+    print_error "PostgreSQL n'a pas démarré après 60 secondes"
+    print_info "Logs PostgreSQL :"
+    docker logs antislash-talk-db --tail 50
+    exit 1
+fi
+
 print_success "PostgreSQL prêt"
+
+# Attendre un peu plus pour s'assurer que tout est stable
+sleep 5
 
 # 8.3: Exécuter le script d'initialisation
 print_info "Initialisation de la base de données..."
@@ -560,6 +601,10 @@ Studio Supabase :
 
 PostgreSQL :
   Password : $POSTGRES_PASSWORD
+
+Configuration :
+  Pages marketing : $([ "$VITE_HIDE_MARKETING_PAGES" = "true" ] && echo "Désactivées" || echo "Activées")
+  HuggingFace Token : $([ -n "$HUGGINGFACE_TOKEN" ] && echo "Configuré" || echo "Non configuré")
 
 JWT Secret : $JWT_SECRET
 EOF
