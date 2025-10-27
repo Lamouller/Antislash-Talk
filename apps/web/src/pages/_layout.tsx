@@ -55,8 +55,6 @@ export default function RootLayout() {
   useEffect(() => {
     if (initialized && supabaseOnline && !configLoading) {
       const isAuthRoute = location.pathname.startsWith('/auth');
-      const isAuthLoginRoute = location.pathname === '/auth/login';
-      const isAuthRegisterRoute = location.pathname === '/auth/register';
       const isAuthIndexRoute = location.pathname === '/auth';
       const isOfflineRoute = location.pathname === '/offline';
       const isRootRoute = location.pathname === '/';
