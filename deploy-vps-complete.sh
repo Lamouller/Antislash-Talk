@@ -128,33 +128,52 @@ print_success "ANON_KEY généré"
 print_success "SERVICE_ROLE_KEY généré"
 
 # ============================================
-# ÉTAPE 4: Détecter l'IP du VPS
+# ÉTAPE 4: Configurer l'adresse du serveur
 # ============================================
-print_header "ÉTAPE 4/7 : Détection de l'IP du VPS"
+print_header "ÉTAPE 4/7 : Configuration de l'adresse du serveur"
 
 # Forcer IPv4 (éviter IPv6 qui cause des erreurs dans Studio)
-VPS_IP=$(curl -4 -s ifconfig.me || curl -4 -s icanhazip.com || echo "")
+DETECTED_IP=$(curl -4 -s ifconfig.me || curl -4 -s icanhazip.com || echo "")
 
-if [ -z "$VPS_IP" ]; then
-    print_warning "Impossible de détecter l'IPv4 publique automatiquement"
-    echo -e "${CYAN}Entrez l'adresse IPv4 de votre VPS (pas d'IPv6) :${NC}"
-    read -p "IP du VPS : " VPS_IP
+echo ""
+echo -e "${CYAN}Configuration de l'adresse du serveur${NC}"
+echo -e "${YELLOW}Vous pouvez utiliser :${NC}"
+echo "  1. ${GREEN}L'IP détectée automatiquement${NC} (${DETECTED_IP:-non détectée})"
+echo "  2. ${GREEN}Une IP personnalisée${NC} (ex: 192.168.1.100)"
+echo "  3. ${GREEN}Un nom de domaine${NC} (ex: antislash-talk.example.com)"
+echo ""
+echo -e "${YELLOW}Note :${NC} Si vous utilisez un domaine, assurez-vous qu'il pointe vers ce serveur."
+echo ""
+
+read -p "Appuyez sur Entrée pour utiliser l'IP détectée, ou entrez une IP/domaine : " USER_INPUT
+
+if [ -z "$USER_INPUT" ]; then
+    # Utiliser l'IP détectée
+    if [ -z "$DETECTED_IP" ]; then
+        print_error "Impossible de détecter l'IP automatiquement"
+        read -p "Entrez l'adresse IPv4 de votre VPS : " VPS_HOST
+    else
+        VPS_HOST="$DETECTED_IP"
+        print_success "Utilisation de l'IP détectée : $VPS_HOST"
+    fi
+else
+    VPS_HOST="$USER_INPUT"
     
-    # Validation basique IPv4
-    if [[ ! "$VPS_IP" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
-        print_warning "Format IPv4 invalide (ex: 192.168.1.1)"
-        read -p "Réessayer avec l'IP correcte : " VPS_IP
+    # Vérifier si c'est une IPv6
+    if [[ "$VPS_HOST" =~ : ]]; then
+        print_error "IPv6 détectée ! Studio Supabase ne supporte pas les IPv6."
+        print_info "Veuillez entrer une IPv4 ou un nom de domaine"
+        read -p "Entrez l'IPv4 ou domaine : " VPS_HOST
+    fi
+    
+    # Détecter si c'est un domaine ou une IP
+    if [[ "$VPS_HOST" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+        print_success "Adresse IPv4 configurée : $VPS_HOST"
+    else
+        print_success "Nom de domaine configuré : $VPS_HOST"
+        print_warning "Assurez-vous que le DNS pointe vers ce serveur !"
     fi
 fi
-
-# Vérifier si c'est une IPv6 (commence par des chiffres/lettres hexadécimaux avec :)
-if [[ "$VPS_IP" =~ : ]]; then
-    print_error "IPv6 détectée ! Studio Supabase ne supporte pas les IPv6 non-bracketed."
-    print_info "Veuillez entrer votre adresse IPv4 à la place"
-    read -p "Entrez l'IPv4 du VPS : " VPS_IP
-fi
-
-print_success "IP du VPS (IPv4) : $VPS_IP"
 
 # ============================================
 # ÉTAPE 4b: Configuration mot de passe Studio
@@ -291,9 +310,9 @@ SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY
 # ============================================
 # URLs du VPS
 # ============================================
-SITE_URL=http://$VPS_IP:3000
-API_EXTERNAL_URL=http://$VPS_IP:54321
-SUPABASE_PUBLIC_URL=http://$VPS_IP:54321
+SITE_URL=http://$VPS_HOST:3000
+API_EXTERNAL_URL=http://$VPS_HOST:54321
+SUPABASE_PUBLIC_URL=http://$VPS_HOST:54321
 
 # ============================================
 # Ports des services
@@ -520,92 +539,6 @@ SQLEOF
 
 print_success "Utilisateurs PostgreSQL configurés"
 
-# Créer les buckets Storage
-print_info "Création des buckets Storage..."
-docker exec antislash-talk-db psql -U postgres -d postgres << 'SQLEOF' > /dev/null 2>&1
--- Créer la table buckets si elle n'existe pas déjà
-CREATE TABLE IF NOT EXISTS storage.buckets (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL UNIQUE,
-    owner UUID,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW(),
-    public BOOLEAN DEFAULT FALSE,
-    avif_autodetection BOOLEAN DEFAULT FALSE,
-    file_size_limit BIGINT,
-    allowed_mime_types TEXT[]
-);
-
--- Créer les buckets nécessaires
-INSERT INTO storage.buckets (id, name, public) 
-VALUES 
-    ('audio-recordings', 'audio-recordings', false),
-    ('transcriptions', 'transcriptions', false),
-    ('avatars', 'avatars', true)
-ON CONFLICT (name) DO NOTHING;
-SQLEOF
-
-print_success "Buckets Storage créés (audio-recordings, transcriptions, avatars)"
-
-# Désactiver RLS et accorder les permissions Storage
-print_info "Configuration des permissions Storage..."
-docker exec antislash-talk-db psql -U postgres -d postgres << 'SQLEOF' > /dev/null 2>&1
--- Désactiver RLS sur storage (pour que les services puissent accéder)
-ALTER TABLE storage.buckets DISABLE ROW LEVEL SECURITY;
-ALTER TABLE storage.objects DISABLE ROW LEVEL SECURITY;
-
--- Accorder tous les privilèges aux rôles Supabase
-GRANT ALL ON SCHEMA storage TO supabase_storage_admin, postgres, anon, authenticated, service_role;
-GRANT ALL ON ALL TABLES IN SCHEMA storage TO supabase_storage_admin, postgres, anon, authenticated, service_role;
-GRANT ALL ON ALL SEQUENCES IN SCHEMA storage TO supabase_storage_admin, postgres;
-SQLEOF
-
-print_success "Permissions Storage configurées"
-
-# Créer le premier utilisateur
-print_info "Création du premier utilisateur : $APP_USER_EMAIL..."
-
-# Générer le hash bcrypt du mot de passe (compatible avec GoTrue/Supabase)
-# Note: On utilise htpasswd pour générer un hash bcrypt compatible
-APP_USER_PASSWORD_HASH=$(docker run --rm httpd:alpine htpasswd -nbB -C 10 temp "$APP_USER_PASSWORD" | cut -d: -f2)
-
-docker exec antislash-talk-db psql -U postgres -d postgres << SQLEOF > /dev/null 2>&1
--- Créer le premier utilisateur
-INSERT INTO auth.users (
-    instance_id,
-    id,
-    aud,
-    role,
-    email,
-    encrypted_password,
-    email_confirmed_at,
-    raw_app_meta_data,
-    raw_user_meta_data,
-    created_at,
-    updated_at,
-    confirmation_token,
-    email_change
-)
-VALUES (
-    '00000000-0000-0000-0000-000000000000',
-    gen_random_uuid(),
-    'authenticated',
-    'authenticated',
-    '$APP_USER_EMAIL',
-    '$APP_USER_PASSWORD_HASH',
-    NOW(),
-    '{"provider":"email","providers":["email"]}'::jsonb,
-    '{"name":"First User"}'::jsonb,
-    NOW(),
-    NOW(),
-    '',
-    ''
-)
-ON CONFLICT (email) DO NOTHING;
-SQLEOF
-
-print_success "Utilisateur créé : $APP_USER_EMAIL / $APP_USER_PASSWORD"
-
 # ============================================
 # ÉTAPE 6.6: Application des migrations
 # ============================================
@@ -654,6 +587,88 @@ for migration in packages/supabase/migrations/*.sql; do
 done
 
 print_success "Migrations terminées : $MIGRATION_SUCCESS appliquées, $MIGRATION_SKIPPED ignorées sur $MIGRATION_COUNT total"
+
+# ============================================
+# ÉTAPE 6.7: Création des buckets et du premier utilisateur
+# ============================================
+print_header "ÉTAPE 6.7/7 : Création des buckets Storage et du premier utilisateur"
+
+# Créer les buckets Storage
+print_info "Création des buckets Storage..."
+docker exec antislash-talk-db psql -U postgres -d postgres << 'SQLEOF' > /dev/null 2>&1
+-- Les tables storage.buckets et storage.objects ont été créées par les migrations
+
+-- Créer les buckets nécessaires
+INSERT INTO storage.buckets (id, name, public) 
+VALUES 
+    ('audio-recordings', 'audio-recordings', false),
+    ('transcriptions', 'transcriptions', false),
+    ('avatars', 'avatars', true)
+ON CONFLICT (name) DO NOTHING;
+SQLEOF
+
+print_success "Buckets Storage créés (audio-recordings, transcriptions, avatars)"
+
+# Désactiver RLS et accorder les permissions Storage
+print_info "Configuration des permissions Storage..."
+docker exec antislash-talk-db psql -U postgres -d postgres << 'SQLEOF' > /dev/null 2>&1
+-- Désactiver RLS sur storage (pour que les services puissent accéder)
+ALTER TABLE storage.buckets DISABLE ROW LEVEL SECURITY;
+ALTER TABLE storage.objects DISABLE ROW LEVEL SECURITY;
+
+-- Accorder tous les privilèges aux rôles Supabase
+GRANT ALL ON SCHEMA storage TO supabase_storage_admin, postgres, anon, authenticated, service_role;
+GRANT ALL ON ALL TABLES IN SCHEMA storage TO supabase_storage_admin, postgres, anon, authenticated, service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA storage TO supabase_storage_admin, postgres;
+SQLEOF
+
+print_success "Permissions Storage configurées"
+
+# Créer le premier utilisateur
+print_info "Création du premier utilisateur : $APP_USER_EMAIL..."
+
+# Générer le hash bcrypt du mot de passe (compatible avec GoTrue/Supabase)
+# Note: On utilise htpasswd pour générer un hash bcrypt compatible
+APP_USER_PASSWORD_HASH=$(docker run --rm httpd:alpine htpasswd -nbB -C 10 temp "$APP_USER_PASSWORD" | cut -d: -f2)
+
+docker exec antislash-talk-db psql -U postgres -d postgres << SQLEOF > /dev/null 2>&1
+-- La table auth.users a été créée par les migrations
+
+-- Créer le premier utilisateur
+INSERT INTO auth.users (
+    instance_id,
+    id,
+    aud,
+    role,
+    email,
+    encrypted_password,
+    email_confirmed_at,
+    raw_app_meta_data,
+    raw_user_meta_data,
+    created_at,
+    updated_at,
+    confirmation_token,
+    email_change
+)
+VALUES (
+    '00000000-0000-0000-0000-000000000000',
+    gen_random_uuid(),
+    'authenticated',
+    'authenticated',
+    '$APP_USER_EMAIL',
+    '$APP_USER_PASSWORD_HASH',
+    NOW(),
+    '{"provider":"email","providers":["email"]}'::jsonb,
+    '{"name":"First User"}'::jsonb,
+    NOW(),
+    NOW(),
+    '',
+    ''
+)
+ON CONFLICT (email) DO NOTHING;
+SQLEOF
+
+print_success "Utilisateur créé : $APP_USER_EMAIL / $APP_USER_PASSWORD"
 
 # Redémarrer PostgreSQL pour appliquer pg_hba.conf
 print_info "Redémarrage de PostgreSQL pour appliquer pg_hba.conf..."
