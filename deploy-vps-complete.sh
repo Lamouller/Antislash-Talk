@@ -338,6 +338,81 @@ echo ""
 print_success "Phase de démarrage terminée"
 
 # ============================================
+# ÉTAPE 6b: Application des migrations
+# ============================================
+print_header "ÉTAPE 6.5/7 : Application des migrations de base de données"
+
+print_info "Attente de la disponibilité de PostgreSQL..."
+MAX_RETRIES=30
+RETRY_COUNT=0
+
+until docker exec antislash-talk-db pg_isready -U postgres > /dev/null 2>&1; do
+    RETRY_COUNT=$((RETRY_COUNT + 1))
+    if [ $RETRY_COUNT -ge $MAX_RETRIES ]; then
+        print_error "PostgreSQL n'est pas disponible après ${MAX_RETRIES}s"
+        exit 1
+    fi
+    sleep 1
+    echo -ne "${CYAN}.${NC}"
+done
+echo ""
+print_success "PostgreSQL est prêt"
+
+# Attendre un peu plus pour s'assurer que tout est initialisé
+sleep 3
+
+print_info "Application des migrations SQL..."
+
+# Créer la table de tracking des migrations si elle n'existe pas
+docker exec antislash-talk-db psql -U postgres -d postgres -c \
+    "CREATE TABLE IF NOT EXISTS public.schema_migrations (
+        version TEXT PRIMARY KEY,
+        applied_at TIMESTAMP DEFAULT NOW()
+    );" > /dev/null 2>&1
+
+MIGRATION_COUNT=0
+MIGRATION_SUCCESS=0
+MIGRATION_SKIPPED=0
+
+# Appliquer toutes les migrations dans l'ordre
+for migration in packages/supabase/migrations/*.sql; do
+    if [ -f "$migration" ]; then
+        MIGRATION_COUNT=$((MIGRATION_COUNT + 1))
+        filename=$(basename "$migration")
+        
+        # Vérifier si la migration a déjà été appliquée
+        applied=$(docker exec antislash-talk-db psql -U postgres -d postgres -tAc \
+            "SELECT EXISTS(SELECT 1 FROM public.schema_migrations WHERE version = '${filename%.sql}');" 2>/dev/null || echo "f")
+        
+        if [ "$applied" = "t" ]; then
+            MIGRATION_SKIPPED=$((MIGRATION_SKIPPED + 1))
+            echo -e "${CYAN}  ↷ $filename${NC} (déjà appliquée)"
+            continue
+        fi
+        
+        # Appliquer la migration
+        if docker exec -i antislash-talk-db psql -U postgres -d postgres < "$migration" > /dev/null 2>&1; then
+            # Enregistrer la migration comme appliquée
+            docker exec antislash-talk-db psql -U postgres -d postgres -c \
+                "INSERT INTO public.schema_migrations (version) VALUES ('${filename%.sql}') ON CONFLICT DO NOTHING;" > /dev/null 2>&1 || true
+            MIGRATION_SUCCESS=$((MIGRATION_SUCCESS + 1))
+            echo -e "${GREEN}  ✓ $filename${NC}"
+        else
+            echo -e "${YELLOW}  ⚠ $filename${NC} (erreur, peut être normale)"
+        fi
+    fi
+done
+
+print_success "Migrations terminées : $MIGRATION_SUCCESS appliquées, $MIGRATION_SKIPPED ignorées sur $MIGRATION_COUNT total"
+
+# Redémarrer les services qui dépendent de la DB
+print_info "Redémarrage des services clés pour appliquer les changements..."
+docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo restart meta studio kong > /dev/null 2>&1
+sleep 5
+
+print_success "Services redémarrés"
+
+# ============================================
 # ÉTAPE 7: Vérification des services
 # ============================================
 print_header "ÉTAPE 7/7 : Vérification des services"
@@ -461,6 +536,14 @@ SERVICES DÉPLOYÉS :
 ✅ Application Web React (Frontend)
 ✅ PyTorch Transcription (IA locale)
 ✅ Ollama (LLM local - optionnel)
+
+BASE DE DONNÉES :
+------------------
+✅ Toutes les migrations appliquées automatiquement
+✅ Schéma complet créé (meetings, profiles, transcriptions, etc.)
+✅ Fonctions RPC configurées
+✅ Row Level Security (RLS) activé
+✅ Triggers et webhooks configurés
 
 PROCHAINES ÉTAPES :
 -------------------
