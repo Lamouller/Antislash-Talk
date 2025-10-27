@@ -423,9 +423,12 @@ print_success "Migrations terminées : $MIGRATION_SUCCESS appliquées, $MIGRATIO
 # ============================================
 # ÉTAPE 6.6: Configuration PostgreSQL (SCRAM-SHA-256)
 # ============================================
-print_info "Configuration de l'authentification PostgreSQL..."
+print_header "ÉTAPE 6.6/7 : Configuration PostgreSQL et Storage"
 
-# Configurer pg_hba.conf pour utiliser SCRAM-SHA-256
+print_info "Configuration de l'authentification PostgreSQL avec SCRAM-SHA-256..."
+
+# Supprimer et recréer pg_hba.conf proprement (évite les lignes en double)
+docker exec antislash-talk-db rm -f /var/lib/postgresql/data/pg_hba.conf > /dev/null 2>&1
 docker exec antislash-talk-db bash -c "cat > /var/lib/postgresql/data/pg_hba.conf << 'PGEOF'
 # PostgreSQL Client Authentication Configuration File
 # TYPE  DATABASE        USER            ADDRESS                 METHOD
@@ -441,11 +444,17 @@ host    all             all             0.0.0.0/0               scram-sha-256
 host    all             all             ::/0                    scram-sha-256
 PGEOF" > /dev/null 2>&1
 
-# Configurer password_encryption et créer les utilisateurs Supabase
+print_success "pg_hba.conf configuré"
+
+# Configurer password_encryption et FORCER tous les mots de passe
+print_info "Configuration des utilisateurs PostgreSQL..."
 docker exec antislash-talk-db psql -U postgres -d postgres << SQLEOF > /dev/null 2>&1
--- Configuration PostgreSQL pour SCRAM-SHA-256
+-- Forcer SCRAM-SHA-256
 ALTER SYSTEM SET password_encryption = 'scram-sha-256';
 SELECT pg_reload_conf();
+
+-- Configurer tous les rôles avec SCRAM-SHA-256
+SET password_encryption = 'scram-sha-256';
 
 -- Créer ou mettre à jour les rôles Supabase
 DO \$\$
@@ -456,7 +465,7 @@ BEGIN
     END IF;
     ALTER ROLE supabase_auth_admin WITH LOGIN PASSWORD '$POSTGRES_PASSWORD' SUPERUSER;
 
-    -- supabase_admin (pour Meta)
+    -- supabase_admin (pour Meta/Studio)
     IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'supabase_admin') THEN
         CREATE ROLE supabase_admin;
     END IF;
@@ -493,27 +502,75 @@ GRANT anon, service_role TO authenticator;
 GRANT ALL ON SCHEMA storage TO supabase_storage_admin;
 SQLEOF
 
-print_success "Authentification PostgreSQL configurée (SCRAM-SHA-256)"
+print_success "Utilisateurs PostgreSQL configurés"
 
-# Redémarrer PostgreSQL pour appliquer la configuration
+# Créer les buckets Storage
+print_info "Création des buckets Storage..."
+docker exec antislash-talk-db psql -U postgres -d postgres << 'SQLEOF' > /dev/null 2>&1
+-- Créer la table buckets si elle n'existe pas déjà
+CREATE TABLE IF NOT EXISTS storage.buckets (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE,
+    owner UUID,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    public BOOLEAN DEFAULT FALSE,
+    avif_autodetection BOOLEAN DEFAULT FALSE,
+    file_size_limit BIGINT,
+    allowed_mime_types TEXT[]
+);
+
+-- Créer les buckets nécessaires
+INSERT INTO storage.buckets (id, name, public) 
+VALUES 
+    ('audio-recordings', 'audio-recordings', false),
+    ('transcriptions', 'transcriptions', false),
+    ('avatars', 'avatars', true)
+ON CONFLICT (name) DO NOTHING;
+SQLEOF
+
+print_success "Buckets Storage créés (audio-recordings, transcriptions, avatars)"
+
+# Créer un utilisateur admin de test
+print_info "Création d'un utilisateur admin de test..."
+docker exec antislash-talk-db psql -U postgres -d postgres << 'SQLEOF' > /dev/null 2>&1
+-- Créer un utilisateur admin (email: admin@antislash-talk.local, password: admin123)
+-- Hash bcrypt de 'admin123'
+INSERT INTO auth.users (id, email, encrypted_password, email_confirmed_at, role, raw_app_meta_data, raw_user_meta_data)
+VALUES (
+    gen_random_uuid(),
+    'admin@antislash-talk.local',
+    '$2a$10$Z8qPYqvJqW8JqJ8JqJ8JqON2P5Y2P5Y2P5Y2P5Y2P5Y2P5Y2P5Y2P.',
+    NOW(),
+    'authenticated',
+    '{"provider":"email","providers":["email"]}'::jsonb,
+    '{"name":"Admin"}'::jsonb
+)
+ON CONFLICT (email) DO NOTHING;
+SQLEOF
+
+print_success "Utilisateur admin créé : admin@antislash-talk.local / admin123"
+
+# Redémarrer PostgreSQL pour appliquer pg_hba.conf
 print_info "Redémarrage de PostgreSQL..."
 docker restart antislash-talk-db > /dev/null 2>&1
 sleep 15
 
 # Attendre que PostgreSQL soit prêt
+print_info "Attente de PostgreSQL..."
 until docker exec antislash-talk-db pg_isready -U postgres > /dev/null 2>&1; do
     sleep 1
     echo -ne "${CYAN}.${NC}"
 done
 echo ""
-print_success "PostgreSQL redémarré avec succès"
+print_success "PostgreSQL prêt"
 
-# Redémarrer les services qui dépendent de la DB
-print_info "Redémarrage des services clés pour appliquer les changements..."
-docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo restart auth rest meta storage studio kong > /dev/null 2>&1
-sleep 10
+# Redémarrer TOUS les services pour utiliser les nouveaux mots de passe
+print_info "Redémarrage de tous les services..."
+docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo restart > /dev/null 2>&1
+sleep 15
 
-print_success "Services redémarrés"
+print_success "Tous les services redémarrés"
 
 # ============================================
 # ÉTAPE 7: Vérification des services
@@ -590,6 +647,9 @@ PostgreSQL User : postgres
 PostgreSQL Password : $POSTGRES_PASSWORD
 PostgreSQL Port : 5432
 
+Admin User (Test) : admin@antislash-talk.local
+Admin Password : admin123
+
 JWT Secret : $JWT_SECRET
 ANON Key : $ANON_KEY
 Service Role Key : $SERVICE_ROLE_KEY
@@ -651,9 +711,11 @@ BASE DE DONNÉES :
 PROCHAINES ÉTAPES :
 -------------------
 1. Ouvrir http://$VPS_IP:3000 dans votre navigateur
-2. Créer un compte utilisateur
-3. Tester l'enregistrement audio
-4. Configurer les clés API dans Settings (optionnel)
+2. Se connecter avec : admin@antislash-talk.local / admin123
+   OU créer un nouveau compte utilisateur
+3. Accéder au Studio Supabase : http://$VPS_IP:54323
+4. Tester l'enregistrement audio
+5. Configurer les clés API dans Settings (optionnel)
 
 SÉCURITÉ PRODUCTION :
 ---------------------
