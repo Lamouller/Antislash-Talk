@@ -77,10 +77,25 @@ Transform your voice recordings into intelligent insights with advanced AI trans
 
 ## 🚀 Quick Start
 
-### Prerequisites
+### 🎯 Deploy Everything in One Command (VPS/Server)
+
+The fastest way to deploy the complete stack with Supabase + AI:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/Lamouller/Antislash-Talk/main/deploy-vps-complete.sh | bash
+```
+
+**This installs everything:** Database, Auth, Storage, API, Admin UI, AI transcription, and more!  
+**Requirements:** Ubuntu/Debian server with 8GB+ RAM
+
+---
+
+### 💻 Local Development
+
+#### Prerequisites
 
 - **Node.js** 18+ and npm/yarn
-- **Supabase** account (free tier available)
+- **Supabase** account (free tier available) OR use Docker Compose for local Supabase
 - **Modern browser** with WebGPU support (Chrome recommended)
 
 ### 1. Clone & Install
@@ -131,67 +146,186 @@ Visit `http://localhost:5173` and start transcribing! 🎉
 
 ## 🏗️ Production Deployment
 
-### Option 1: Netlify (Recommended)
+### 🚀 Quick Deploy on VPS/Server (One Command)
 
-1. **Build the project:**
+Deploy the complete stack (Supabase + App + PyTorch) in one command:
+
 ```bash
-npm run build
+# On your VPS/server, run:
+curl -sSL https://raw.githubusercontent.com/Lamouller/Antislash-Talk/main/deploy-vps-complete.sh | bash
 ```
 
-2. **Deploy to Netlify:**
-```bash
-# Install Netlify CLI
-npm install -g netlify-cli
+**What this deploys:**
+- ✅ Complete self-hosted Supabase stack (14 services)
+- ✅ PostgreSQL database
+- ✅ Authentication (GoTrue)
+- ✅ Storage API
+- ✅ Realtime subscriptions
+- ✅ Supabase Studio (admin interface)
+- ✅ React application (frontend)
+- ✅ PyTorch transcription service (AI)
+- ✅ Ollama (local LLM - optional)
 
-# Deploy
+**Requirements:**
+- Ubuntu 20.04+ or Debian 11+
+- 8GB RAM minimum (16GB recommended with PyTorch)
+- 4 vCPU minimum
+- 100GB SSD storage
+- Docker & Docker Compose (auto-installed by script)
+
+**What the script does:**
+1. Installs Docker and dependencies
+2. Clones the repository
+3. Generates secure secrets (JWT, passwords)
+4. Configures environment variables
+5. Builds and starts all services
+6. Saves credentials to `deployment-info.txt`
+
+**After deployment, access:**
+- 🌐 **Application**: `http://YOUR_IP:3000`
+- 📡 **API**: `http://YOUR_IP:54321`
+- 🎨 **Studio Admin**: `http://YOUR_IP:54323`
+- 🤖 **PyTorch API**: `http://YOUR_IP:8000`
+
+---
+
+### 🐳 Docker Compose - Local Development
+
+Deploy locally with all services:
+
+```bash
+# Clone the repository
+git clone https://github.com/Lamouller/Antislash-Talk.git
+cd Antislash-Talk
+
+# Copy environment example
+cp env.monorepo.example .env.monorepo
+
+# Edit with your values (or use defaults for local dev)
+nano .env.monorepo
+
+# Start all services (lightweight - no PyTorch)
+docker compose -f docker-compose.monorepo.yml up -d
+
+# OR with PyTorch for AI transcription
+docker compose -f docker-compose.monorepo.yml --profile pytorch up -d
+```
+
+**Access locally:**
+- Application: http://localhost:3000
+- Supabase Studio: http://localhost:54323
+- API: http://localhost:54321
+
+---
+
+### ☁️ Cloud Platforms (Frontend Only)
+
+#### Option 1: Netlify
+
+```bash
+npm run build
 netlify deploy --prod --dir=dist
 ```
 
-3. **Configure environment variables** in Netlify dashboard.
-
-### Option 2: Vercel
+#### Option 2: Vercel
 
 ```bash
-# Install Vercel CLI
-npm install -g vercel
-
-# Deploy
 vercel --prod
 ```
 
-### Option 3: Docker
+**Note:** Cloud deployments require a separate Supabase project (cloud or self-hosted).
 
-```dockerfile
-# Dockerfile
-FROM node:18-alpine
+---
 
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci --only=production
+### 🛠️ Manual Self-Hosted Setup
 
-COPY . .
-RUN npm run build
-
-EXPOSE 3000
-CMD ["npm", "run", "preview"]
-```
+#### Step 1: Clone and Setup
 
 ```bash
-# Build and run
-docker build -t talk-2-web .
-docker run -p 3000:3000 talk-2-web
+git clone https://github.com/Lamouller/Antislash-Talk.git
+cd Antislash-Talk
+cp env.monorepo.example .env.monorepo
 ```
 
-### Option 4: Self-Hosted
+#### Step 2: Generate Secrets
 
 ```bash
-# Build for production
-npm run build
+# Generate JWT secret
+JWT_SECRET=$(openssl rand -base64 45 | tr -d "=+/" | cut -c1-45)
 
-# Serve with any static server
-npx serve dist
-# or
-python -m http.server 3000 -d dist
+# Generate PostgreSQL password
+POSTGRES_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-32)
+
+# Generate Supabase keys
+node generate-supabase-keys.js "$JWT_SECRET"
+```
+
+#### Step 3: Configure Environment
+
+Edit `.env.monorepo` with your values:
+```env
+JWT_SECRET=<your-generated-secret>
+POSTGRES_PASSWORD=<your-generated-password>
+ANON_KEY=<generated-anon-key>
+SERVICE_ROLE_KEY=<generated-service-role-key>
+SITE_URL=http://YOUR_IP:3000
+API_EXTERNAL_URL=http://YOUR_IP:54321
+```
+
+#### Step 4: Deploy
+
+```bash
+# Start all services
+docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo up -d
+
+# Check status
+docker compose -f docker-compose.monorepo.yml ps
+
+# View logs
+docker compose -f docker-compose.monorepo.yml logs -f
+```
+
+---
+
+### 🔒 Production Security Checklist
+
+Before going to production:
+
+- [ ] Change all default passwords
+- [ ] Configure a domain name
+- [ ] Enable HTTPS/SSL (Let's Encrypt)
+- [ ] Set up reverse proxy (Nginx)
+- [ ] Configure automated backups
+- [ ] Set up monitoring and logging
+- [ ] Restrict database access
+- [ ] Configure real SMTP server
+- [ ] Review and set proper CORS policies
+- [ ] Enable firewall rules
+
+**Nginx reverse proxy example:**
+```nginx
+server {
+    listen 80;
+    server_name your-domain.com;
+    
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+    
+    location /api/ {
+        proxy_pass http://localhost:54321/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+    }
+}
+```
+
+**SSL with Certbot:**
+```bash
+sudo certbot --nginx -d your-domain.com
 ```
 
 ### 🎯 Client Deployments
