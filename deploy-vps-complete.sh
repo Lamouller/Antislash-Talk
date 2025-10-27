@@ -133,25 +133,51 @@ print_success "SERVICE_ROLE_KEY généré"
 print_header "ÉTAPE 4/7 : Configuration de l'adresse du serveur"
 
 # Forcer IPv4 (éviter IPv6 qui cause des erreurs dans Studio)
-DETECTED_IP=$(curl -4 -s ifconfig.me || curl -4 -s icanhazip.com || echo "")
+print_info "Détection de l'adresse IPv4 publique..."
+DETECTED_IP=$(curl -4 -s --max-time 5 ifconfig.me 2>/dev/null || \
+              curl -4 -s --max-time 5 icanhazip.com 2>/dev/null || \
+              curl -4 -s --max-time 5 api.ipify.org 2>/dev/null || \
+              curl -4 -s --max-time 5 ipecho.net/plain 2>/dev/null || \
+              wget -4 -qO- --timeout=5 ifconfig.me 2>/dev/null || \
+              echo "")
 
 echo ""
 echo -e "${CYAN}Configuration de l'adresse du serveur${NC}"
-echo -e "${YELLOW}Vous pouvez utiliser :${NC}"
-echo "  1. ${GREEN}L'IP détectée automatiquement${NC} (${DETECTED_IP:-non détectée})"
-echo "  2. ${GREEN}Une IP personnalisée${NC} (ex: 192.168.1.100)"
-echo "  3. ${GREEN}Un nom de domaine${NC} (ex: antislash-talk.example.com)"
+
+if [ -n "$DETECTED_IP" ]; then
+    echo -e "${GREEN}✓ IP détectée automatiquement :${NC} $DETECTED_IP"
+    echo ""
+    echo -e "${YELLOW}Vous pouvez :${NC}"
+    echo "  1. ${GREEN}Appuyer sur Entrée${NC} pour utiliser cette IP"
+    echo "  2. ${GREEN}Entrer une autre IP${NC} (ex: 192.168.1.100)"
+    echo "  3. ${GREEN}Entrer un nom de domaine${NC} (ex: antislash-talk.example.com)"
+else
+    print_warning "Impossible de détecter l'IP automatiquement"
+    echo ""
+    echo -e "${YELLOW}Entrez l'adresse de votre serveur :${NC}"
+    echo "  - ${GREEN}Une adresse IPv4${NC} (ex: 192.168.1.100)"
+    echo "  - ${GREEN}Un nom de domaine${NC} (ex: antislash-talk.example.com)"
+fi
+
 echo ""
 echo -e "${YELLOW}Note :${NC} Si vous utilisez un domaine, assurez-vous qu'il pointe vers ce serveur."
 echo ""
 
-read -p "Appuyez sur Entrée pour utiliser l'IP détectée, ou entrez une IP/domaine : " USER_INPUT
+if [ -n "$DETECTED_IP" ]; then
+    read -p "Adresse [${DETECTED_IP}] : " USER_INPUT
+else
+    read -p "Adresse : " USER_INPUT
+fi
 
 if [ -z "$USER_INPUT" ]; then
     # Utiliser l'IP détectée
     if [ -z "$DETECTED_IP" ]; then
-        print_error "Impossible de détecter l'IP automatiquement"
-        read -p "Entrez l'adresse IPv4 de votre VPS : " VPS_HOST
+        print_error "Aucune adresse fournie !"
+        read -p "Entrez MAINTENANT l'adresse IPv4 de votre VPS : " VPS_HOST
+        if [ -z "$VPS_HOST" ]; then
+            print_error "Impossible de continuer sans adresse IP"
+            exit 1
+        fi
     else
         VPS_HOST="$DETECTED_IP"
         print_success "Utilisation de l'IP détectée : $VPS_HOST"
