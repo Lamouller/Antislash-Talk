@@ -79,19 +79,24 @@ print_header "ÉTAPE 1/10 : Configuration initiale"
 print_info "Détection de l'IP du VPS..."
 DETECTED_IP=""
 
-# Méthode 1: curl ifconfig.me
+# Méthode 1: curl ifconfig.me (forcer IPv4)
 if [ -z "$DETECTED_IP" ]; then
-    DETECTED_IP=$(curl -s --max-time 5 ifconfig.me 2>/dev/null || true)
+    DETECTED_IP=$(curl -4 -s --max-time 5 ifconfig.me 2>/dev/null | grep -E '^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$' || true)
 fi
 
-# Méthode 2: curl ipinfo.io
+# Méthode 2: curl ipinfo.io (forcer IPv4)
 if [ -z "$DETECTED_IP" ]; then
-    DETECTED_IP=$(curl -s --max-time 5 ipinfo.io/ip 2>/dev/null || true)
+    DETECTED_IP=$(curl -4 -s --max-time 5 ipinfo.io/ip 2>/dev/null | grep -E '^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$' || true)
 fi
 
-# Méthode 3: curl checkip.amazonaws.com
+# Méthode 3: curl checkip.amazonaws.com (forcer IPv4)
 if [ -z "$DETECTED_IP" ]; then
-    DETECTED_IP=$(curl -s --max-time 5 checkip.amazonaws.com 2>/dev/null || true)
+    DETECTED_IP=$(curl -4 -s --max-time 5 checkip.amazonaws.com 2>/dev/null | grep -E '^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$' || true)
+fi
+
+# Méthode 3bis: curl spécifique IPv4
+if [ -z "$DETECTED_IP" ]; then
+    DETECTED_IP=$(curl -4 -s --max-time 5 ipv4.icanhazip.com 2>/dev/null | tr -d '\n' || true)
 fi
 
 # Méthode 4: ip addr show (IPv4 seulement)
@@ -109,11 +114,31 @@ if [ -z "$DETECTED_IP" ]; then
     DETECTED_IP=$(wget -qO- --timeout=5 http://ipv4.icanhazip.com 2>/dev/null | tr -d '\n' || true)
 fi
 
-# Collecter les informations
+# Valider que c'est bien une IPv4
 if [ -n "$DETECTED_IP" ]; then
-    print_success "IP détectée : $DETECTED_IP"
-    read -p "IP ou domaine du VPS [$DETECTED_IP] : " VPS_HOST
-    VPS_HOST=${VPS_HOST:-$DETECTED_IP}
+    # Vérifier le format IPv4
+    if echo "$DETECTED_IP" | grep -qE '^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$'; then
+        print_success "IPv4 détectée : $DETECTED_IP"
+        read -p "IP ou domaine du VPS [$DETECTED_IP] : " VPS_HOST
+        VPS_HOST=${VPS_HOST:-$DETECTED_IP}
+    else
+        print_warning "IP détectée non valide (IPv6?) : $DETECTED_IP"
+        print_info "Tentative de détection IPv4 forcée..."
+        
+        # Dernière tentative avec curl spécifique IPv4
+        DETECTED_IP=$(curl -4 -s --max-time 5 api.ipify.org 2>/dev/null || true)
+        
+        if [ -n "$DETECTED_IP" ] && echo "$DETECTED_IP" | grep -qE '^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$'; then
+            print_success "IPv4 trouvée : $DETECTED_IP"
+            read -p "IP ou domaine du VPS [$DETECTED_IP] : " VPS_HOST
+            VPS_HOST=${VPS_HOST:-$DETECTED_IP}
+        else
+            VPS_HOST=""
+            while [ -z "$VPS_HOST" ]; do
+                read -p "IP ou domaine du VPS (entrez votre IPv4) : " VPS_HOST
+            done
+        fi
+    fi
 else
     print_warning "Impossible de détecter l'IP automatiquement"
     VPS_HOST=""
