@@ -409,14 +409,16 @@ DO \$\$
 BEGIN
     -- Policies pour auth.users
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'auth' AND table_name = 'users') THEN
-        CREATE POLICY IF NOT EXISTS "Users can view own profile" 
+        DROP POLICY IF EXISTS "Users can view own profile" ON auth.users;
+        CREATE POLICY "Users can view own profile" 
         ON auth.users FOR SELECT 
         USING (auth.uid() = id);
     END IF;
     
     -- Policies pour storage.buckets
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'storage' AND table_name = 'buckets') THEN
-        CREATE POLICY IF NOT EXISTS "Authenticated users can view buckets" 
+        DROP POLICY IF EXISTS "Authenticated users can view buckets" ON storage.buckets;
+        CREATE POLICY "Authenticated users can view buckets" 
         ON storage.buckets FOR SELECT 
         TO authenticated
         USING (true);
@@ -424,17 +426,21 @@ BEGIN
     
     -- Policies pour storage.objects
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'storage' AND table_name = 'objects') THEN
-        CREATE POLICY IF NOT EXISTS "Users can upload to recordings" 
+        DROP POLICY IF EXISTS "Users can upload to recordings" ON storage.objects;
+        DROP POLICY IF EXISTS "Users can view own recordings" ON storage.objects;
+        DROP POLICY IF EXISTS "Users can delete own recordings" ON storage.objects;
+        
+        CREATE POLICY "Users can upload to recordings" 
         ON storage.objects FOR INSERT 
         TO authenticated
         WITH CHECK (bucket_id = 'recordings' AND auth.uid()::text = (storage.foldername(name))[1]);
 
-        CREATE POLICY IF NOT EXISTS "Users can view own recordings" 
+        CREATE POLICY "Users can view own recordings" 
         ON storage.objects FOR SELECT 
         TO authenticated
         USING (bucket_id = 'recordings' AND auth.uid()::text = (storage.foldername(name))[1]);
 
-        CREATE POLICY IF NOT EXISTS "Users can delete own recordings" 
+        CREATE POLICY "Users can delete own recordings" 
         ON storage.objects FOR DELETE 
         TO authenticated
         USING (bucket_id = 'recordings' AND auth.uid()::text = (storage.foldername(name))[1]);
