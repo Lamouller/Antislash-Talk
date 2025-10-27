@@ -720,7 +720,11 @@ print_info "Création du premier utilisateur : $APP_USER_EMAIL..."
 # Générer le hash bcrypt du mot de passe (compatible avec GoTrue/Supabase)
 APP_USER_PASSWORD_HASH=$(docker run --rm httpd:alpine htpasswd -nbB -C 10 temp "$APP_USER_PASSWORD" | cut -d: -f2)
 
+# IMPORTANT: Désactiver temporairement RLS pour créer l'utilisateur initial
 docker exec antislash-talk-db psql -U postgres -d postgres << SQLEOF > /dev/null 2>&1
+-- Désactiver RLS temporairement (sera réactivé par les migrations)
+ALTER TABLE auth.users DISABLE ROW LEVEL SECURITY;
+
 -- Créer le premier utilisateur
 INSERT INTO auth.users (
     instance_id,
@@ -752,7 +756,10 @@ VALUES (
     '',
     ''
 )
-ON CONFLICT (email) DO NOTHING;
+ON CONFLICT (email) WHERE is_sso_user = false DO NOTHING;
+
+-- Réactiver RLS
+ALTER TABLE auth.users ENABLE ROW LEVEL SECURITY;
 SQLEOF
 
 print_success "Utilisateur créé : $APP_USER_EMAIL / $APP_USER_PASSWORD"
