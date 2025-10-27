@@ -647,56 +647,69 @@ ALTER TABLE auth.identities DISABLE ROW LEVEL SECURITY;
 ALTER TABLE storage.buckets DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.profiles DISABLE ROW LEVEL SECURITY;
 
--- Créer l'utilisateur admin
-WITH new_user AS (
-    INSERT INTO auth.users (
-        id,
-        email,
-        encrypted_password,
-        email_confirmed_at,
-        created_at,
-        updated_at,
-        instance_id,
-        aud,
-        role,
-        raw_app_meta_data,
-        raw_user_meta_data
-    ) VALUES (
-        extensions.gen_random_uuid(),
-        '${APP_USER_EMAIL}',
-        extensions.crypt('${APP_USER_PASSWORD}', extensions.gen_salt('bf', 6)),
-        now(),
-        now(),
-        now(),
-        '00000000-0000-0000-0000-000000000000',
-        'authenticated',
-        'authenticated',
-        '{"provider": "email", "providers": ["email"]}',
-        '{}'
-    ) ON CONFLICT (email) DO UPDATE SET email = EXCLUDED.email
-    RETURNING id, email
-)
-INSERT INTO auth.identities (
-    id,
-    user_id,
-    provider_id,
-    provider,
-    identity_data,
-    last_sign_in_at,
-    created_at,
-    updated_at
-)
-SELECT
-    extensions.gen_random_uuid(),
-    new_user.id,
-    new_user.id::text,
-    'email',
-    json_build_object('sub', new_user.id::text, 'email', new_user.email)::jsonb,
-    now(),
-    now(),
-    now()
-FROM new_user
-ON CONFLICT (provider, provider_id) DO NOTHING;
+-- Créer l'utilisateur admin (seulement s'il n'existe pas déjà)
+DO \$\$
+DECLARE
+    v_user_id uuid;
+    v_user_email text := '${APP_USER_EMAIL}';
+BEGIN
+    -- Vérifier si l'utilisateur existe déjà
+    SELECT id INTO v_user_id FROM auth.users WHERE email = v_user_email;
+    
+    IF v_user_id IS NULL THEN
+        -- Créer l'utilisateur
+        INSERT INTO auth.users (
+            id,
+            email,
+            encrypted_password,
+            email_confirmed_at,
+            created_at,
+            updated_at,
+            instance_id,
+            aud,
+            role,
+            raw_app_meta_data,
+            raw_user_meta_data
+        ) VALUES (
+            extensions.gen_random_uuid(),
+            v_user_email,
+            extensions.crypt('${APP_USER_PASSWORD}', extensions.gen_salt('bf', 6)),
+            now(),
+            now(),
+            now(),
+            '00000000-0000-0000-0000-000000000000',
+            'authenticated',
+            'authenticated',
+            '{"provider": "email", "providers": ["email"]}',
+            '{}'
+        ) RETURNING id INTO v_user_id;
+        
+        -- Créer l'identité
+        INSERT INTO auth.identities (
+            id,
+            user_id,
+            provider_id,
+            provider,
+            identity_data,
+            last_sign_in_at,
+            created_at,
+            updated_at
+        ) VALUES (
+            extensions.gen_random_uuid(),
+            v_user_id,
+            v_user_id::text,
+            'email',
+            json_build_object('sub', v_user_id::text, 'email', v_user_email)::jsonb,
+            now(),
+            now(),
+            now()
+        );
+        
+        RAISE NOTICE 'Utilisateur créé: %', v_user_email;
+    ELSE
+        RAISE NOTICE 'Utilisateur existe déjà: %', v_user_email;
+    END IF;
+END \$\$;
 
 -- Créer le profil pour l'utilisateur admin
 INSERT INTO public.profiles (id, email, full_name, role)
