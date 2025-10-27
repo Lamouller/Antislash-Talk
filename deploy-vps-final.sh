@@ -215,27 +215,54 @@ EOF
 
 # Installer jsonwebtoken temporairement et générer les clés
 print_info "Installation temporaire de jsonwebtoken..."
-# Créer un package.json minimal si nécessaire
-if [ ! -f "package.json" ]; then
-    echo '{"type": "module"}' > package.json
-    CREATED_PACKAGE_JSON=true
+# Sauvegarder l'ancien package.json s'il existe
+if [ -f "package.json" ]; then
+    cp package.json package.json.backup
 fi
-npm install --no-save jsonwebtoken >/dev/null 2>&1
+
+# Créer un package.json propre pour l'installation
+cat > package.json << 'PKGJSON'
+{
+  "type": "module",
+  "dependencies": {
+    "jsonwebtoken": "^9.0.0"
+  }
+}
+PKGJSON
+
+# Installer pour de vrai
+npm install >/dev/null 2>&1
 
 # Exécuter le script pour obtenir les clés
 JWT_OUTPUT=$(JWT_SECRET="$JWT_SECRET" node generate-jwt-keys.mjs 2>&1)
-if [ $? -ne 0 ]; then
+JWT_EXIT_CODE=$?
+
+# Vérifier que ça a fonctionné
+if [ $JWT_EXIT_CODE -ne 0 ] || [ -z "$JWT_OUTPUT" ] || echo "$JWT_OUTPUT" | grep -q "Error"; then
     print_error "Erreur lors de la génération des clés JWT"
     echo "$JWT_OUTPUT"
     exit 1
 fi
+
 ANON_KEY=$(echo "$JWT_OUTPUT" | grep "ANON_KEY=" | cut -d'=' -f2-)
 SERVICE_ROLE_KEY=$(echo "$JWT_OUTPUT" | grep "SERVICE_ROLE_KEY=" | cut -d'=' -f2-)
+
+# Vérifier que les clés ont bien été générées
+if [ -z "$ANON_KEY" ] || [ -z "$SERVICE_ROLE_KEY" ]; then
+    print_error "Les clés JWT n'ont pas pu être extraites"
+    echo "JWT_OUTPUT:"
+    echo "$JWT_OUTPUT"
+    exit 1
+fi
 
 # Nettoyer
 rm -f generate-jwt-keys.mjs
 rm -rf node_modules package-lock.json
-if [ "$CREATED_PACKAGE_JSON" = true ]; then
+
+# Restaurer l'ancien package.json s'il existait
+if [ -f "package.json.backup" ]; then
+    mv package.json.backup package.json
+else
     rm -f package.json
 fi
 
