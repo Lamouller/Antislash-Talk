@@ -75,11 +75,47 @@ fi
 
 print_header "ÉTAPE 1/10 : Configuration initiale"
 
+# Détecter l'IP automatiquement
+print_info "Détection de l'IP du VPS..."
+DETECTED_IP=""
+
+# Méthode 1: curl ifconfig.me
+if [ -z "$DETECTED_IP" ]; then
+    DETECTED_IP=$(curl -s --max-time 5 ifconfig.me 2>/dev/null || true)
+fi
+
+# Méthode 2: curl ipinfo.io
+if [ -z "$DETECTED_IP" ]; then
+    DETECTED_IP=$(curl -s --max-time 5 ipinfo.io/ip 2>/dev/null || true)
+fi
+
+# Méthode 3: curl checkip.amazonaws.com
+if [ -z "$DETECTED_IP" ]; then
+    DETECTED_IP=$(curl -s --max-time 5 checkip.amazonaws.com 2>/dev/null || true)
+fi
+
+# Méthode 4: ip addr show
+if [ -z "$DETECTED_IP" ]; then
+    DETECTED_IP=$(ip addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v '127.0.0.1' | head -1 || true)
+fi
+
+# Méthode 5: hostname -I
+if [ -z "$DETECTED_IP" ]; then
+    DETECTED_IP=$(hostname -I | awk '{print $1}' || true)
+fi
+
 # Collecter les informations
-VPS_HOST=""
-while [ -z "$VPS_HOST" ]; do
-    read -p "IP ou domaine du VPS : " VPS_HOST
-done
+if [ -n "$DETECTED_IP" ]; then
+    print_success "IP détectée : $DETECTED_IP"
+    read -p "IP ou domaine du VPS [$DETECTED_IP] : " VPS_HOST
+    VPS_HOST=${VPS_HOST:-$DETECTED_IP}
+else
+    print_warning "Impossible de détecter l'IP automatiquement"
+    VPS_HOST=""
+    while [ -z "$VPS_HOST" ]; do
+        read -p "IP ou domaine du VPS : " VPS_HOST
+    done
+fi
 
 # Studio password
 STUDIO_PASSWORD=""
