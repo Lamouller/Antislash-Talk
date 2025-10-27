@@ -540,9 +540,9 @@ INSERT INTO auth.users (
     raw_app_meta_data,
     raw_user_meta_data
 ) VALUES (
-    gen_random_uuid(),
+    extensions.gen_random_uuid(),
     '${APP_USER_EMAIL}',
-    crypt('${APP_USER_PASSWORD}', gen_salt('bf')),
+    extensions.crypt('${APP_USER_PASSWORD}', extensions.gen_salt('bf', 6)),
     now(),
     now(),
     now(),
@@ -624,13 +624,15 @@ SELECT 'Buckets' as type, count(*) as count, string_agg(name, ', ') as details F
 print_info "Configuration de l'authentification Studio..."
 STUDIO_PASSWORD_HASH=$(docker run --rm httpd:alpine htpasswd -nbB antislash "$STUDIO_PASSWORD" | cut -d: -f2)
 
-cat > studio-htpasswd << EOF
+cat > studio.htpasswd << EOF
 antislash:$STUDIO_PASSWORD_HASH
 EOF
 
-docker cp studio-htpasswd antislash-talk-studio-proxy:/etc/nginx/.htpasswd
-docker restart antislash-talk-studio-proxy
-rm -f studio-htpasswd
+# Copier dans le container avec une méthode qui évite le "device busy"
+docker cp studio.htpasswd antislash-talk-studio-proxy:/tmp/.htpasswd
+docker exec antislash-talk-studio-proxy sh -c "rm -f /etc/nginx/.htpasswd && cp /tmp/.htpasswd /etc/nginx/.htpasswd && rm /tmp/.htpasswd"
+docker exec antislash-talk-studio-proxy nginx -s reload
+rm -f studio.htpasswd
 
 # Afficher les informations finales
 print_header "🎉 DÉPLOIEMENT TERMINÉ AVEC SUCCÈS !"
