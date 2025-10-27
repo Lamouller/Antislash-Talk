@@ -364,8 +364,8 @@ services:
       dockerfile: Dockerfile
     container_name: antislash-talk-transcription
     restart: unless-stopped
-    # profiles:
-    #   - pytorch  # Service OPTIONNEL - Commenté pour démarrage automatique
+    profiles:
+      - pytorch  # Service OPTIONNEL - Démarrer avec: docker compose --profile pytorch up
     environment:
       # Token HuggingFace pour pyannote (optionnel, pour diarisation)
       HUGGINGFACE_TOKEN: ${HUGGINGFACE_TOKEN:-}

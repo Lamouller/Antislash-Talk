@@ -238,10 +238,10 @@ print_info "Configuration du premier utilisateur de l'application"
 echo -e "${CYAN}Créez le premier compte utilisateur pour accéder à l'application.${NC}"
 echo ""
 echo -e "${YELLOW}Email du premier utilisateur :${NC}"
-read -p "Email (défaut: admin@antislash-talk.local) : " APP_USER_EMAIL
+read -p "Email (défaut: admin@antislash-talk.fr) : " APP_USER_EMAIL
 
 if [ -z "$APP_USER_EMAIL" ]; then
-    APP_USER_EMAIL="admin@antislash-talk.local"
+    APP_USER_EMAIL="admin@antislash-talk.fr"
 fi
 
 # Générer un mot de passe sécurisé
@@ -339,6 +339,10 @@ SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY
 SITE_URL=http://$VPS_HOST:3000
 API_EXTERNAL_URL=http://$VPS_HOST:54321
 SUPABASE_PUBLIC_URL=http://$VPS_HOST:54321
+
+# Variables Vite pour le build frontend
+VITE_SUPABASE_URL=http://$VPS_HOST:54321
+VITE_SUPABASE_ANON_KEY=$ANON_KEY
 
 # ============================================
 # Ports des services
@@ -438,12 +442,14 @@ docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo down 2>/d
 print_info "Construction de l'image web avec les bonnes URLs..."
 # Exporter TOUTES les variables pour le build Vite
 export API_EXTERNAL_URL="http://$VPS_HOST:54321"
+export VITE_SUPABASE_URL="http://$VPS_HOST:54321"
+export VITE_SUPABASE_ANON_KEY="$ANON_KEY"
 export ANON_KEY="$ANON_KEY"
 export VITE_HIDE_MARKETING_PAGES="$VITE_HIDE_MARKETING_PAGES"
 
 print_info "Variables d'environnement pour le build :"
-echo -e "  ${CYAN}VITE_SUPABASE_URL:${NC} $API_EXTERNAL_URL"
-echo -e "  ${CYAN}VITE_SUPABASE_ANON_KEY:${NC} ${ANON_KEY:0:30}..."
+echo -e "  ${CYAN}VITE_SUPABASE_URL:${NC} $VITE_SUPABASE_URL"
+echo -e "  ${CYAN}VITE_SUPABASE_ANON_KEY:${NC} ${VITE_SUPABASE_ANON_KEY:0:30}..."
 echo -e "  ${CYAN}VITE_HIDE_MARKETING_PAGES:${NC} $VITE_HIDE_MARKETING_PAGES"
 
 docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo build --no-cache web
@@ -507,12 +513,26 @@ docker exec antislash-talk-db psql -U postgres -d postgres << SQLEOF > /dev/null
 ALTER SYSTEM SET password_encryption = 'scram-sha-256';
 SELECT pg_reload_conf();
 
+-- Créer les schémas nécessaires
+CREATE SCHEMA IF NOT EXISTS auth;
+CREATE SCHEMA IF NOT EXISTS storage;
+CREATE SCHEMA IF NOT EXISTS extensions;
+
+-- Créer les extensions
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp" SCHEMA extensions;
+CREATE EXTENSION IF NOT EXISTS pgcrypto SCHEMA extensions;
+
 -- Créer le type ENUM pour Auth (requis par GoTrue)
 DO \$\$ BEGIN
     CREATE TYPE auth.factor_type AS ENUM ('totp', 'webauthn', 'phone');
 EXCEPTION
     WHEN duplicate_object THEN null;
 END \$\$;
+
+-- Créer la table schema_migrations pour Auth
+CREATE TABLE IF NOT EXISTS auth.schema_migrations (
+    version VARCHAR(14) PRIMARY KEY
+);
 
 -- Configurer tous les rôles avec SCRAM-SHA-256
 SET password_encryption = 'scram-sha-256';
@@ -760,9 +780,43 @@ ON CONFLICT (email) WHERE is_sso_user = false DO NOTHING;
 
 -- Réactiver RLS
 ALTER TABLE auth.users ENABLE ROW LEVEL SECURITY;
+
+-- Créer les policies RLS de base pour éviter le blocage total
+-- Policy pour auth.users (lecture seule pour les utilisateurs)
+CREATE POLICY IF NOT EXISTS "Users can view own profile" 
+ON auth.users FOR SELECT 
+USING (auth.uid() = id);
+
+-- Policies pour storage.buckets (lecture pour tous les authentifiés)
+CREATE POLICY IF NOT EXISTS "Authenticated users can view buckets" 
+ON storage.buckets FOR SELECT 
+TO authenticated
+USING (true);
+
+-- Policies pour storage.objects si la table existe
+DO \$\$ 
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'storage' AND table_name = 'objects') THEN
+        CREATE POLICY IF NOT EXISTS "Users can upload to their folder" 
+        ON storage.objects FOR INSERT 
+        TO authenticated
+        WITH CHECK (auth.uid()::text = (storage.foldername(name))[1]);
+
+        CREATE POLICY IF NOT EXISTS "Users can view own files" 
+        ON storage.objects FOR SELECT 
+        TO authenticated
+        USING (auth.uid()::text = (storage.foldername(name))[1]);
+
+        CREATE POLICY IF NOT EXISTS "Users can delete own files" 
+        ON storage.objects FOR DELETE 
+        TO authenticated
+        USING (auth.uid()::text = (storage.foldername(name))[1]);
+    END IF;
+END \$\$;
 SQLEOF
 
 print_success "Utilisateur créé : $APP_USER_EMAIL / $APP_USER_PASSWORD"
+print_success "Policies RLS de base créées"
 
 # ============================================
 # ÉTAPE 7: Vérification des services
