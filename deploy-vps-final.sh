@@ -568,9 +568,18 @@ print_info "Mise à jour de Kong avec les clés JWT..."
 cp packages/supabase/kong.yml /tmp/kong.yml.template
 sed -i "s/ANON_KEY_PLACEHOLDER/${ANON_KEY}/g" /tmp/kong.yml.template
 sed -i "s/SERVICE_ROLE_KEY_PLACEHOLDER/${SERVICE_ROLE_KEY}/g" /tmp/kong.yml.template
-docker cp /tmp/kong.yml.template antislash-talk-kong:/var/lib/kong/kong.yml
-docker exec antislash-talk-kong kong reload
-print_success "Kong mis à jour avec les nouvelles clés"
+
+# Copier dans le bon répertoire Kong (où le volume est monté)
+docker cp /tmp/kong.yml.template antislash-talk-kong:/etc/kong/kong.yml
+
+# Vérifier que le fichier est bien copié
+if docker exec antislash-talk-kong test -f /etc/kong/kong.yml; then
+    print_success "Fichier kong.yml copié avec succès"
+    docker exec antislash-talk-kong kong reload 2>/dev/null || docker restart antislash-talk-kong
+    print_success "Kong mis à jour avec les nouvelles clés"
+else
+    print_error "Échec de la copie du fichier kong.yml"
+fi
 
 print_header "ÉTAPE 9/10 : Création des données initiales"
 
