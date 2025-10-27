@@ -160,6 +160,28 @@ else
 fi
 
 # ============================================
+# ÉTAPE 4c: Configuration pages marketing
+# ============================================
+echo ""
+print_info "Configuration de l'interface : Pages marketing"
+echo -e "${CYAN}Pour un déploiement client ou entreprise, vous pouvez cacher les pages marketing.${NC}"
+echo -e "${CYAN}Cela redirigera directement vers la page de connexion au lieu de la page d'accueil.${NC}"
+echo ""
+echo -e "${YELLOW}Cacher les pages marketing ?${NC}"
+echo "  - ${GREEN}O${NC} : Redirection directe vers /auth/login (mode entreprise)"
+echo "  - ${GREEN}N${NC} : Garder la page d'accueil marketing (défaut)"
+echo ""
+read -p "Cacher les pages marketing ? [o/N] : " HIDE_MARKETING
+
+if [[ "$HIDE_MARKETING" =~ ^[Oo]$ ]]; then
+    VITE_HIDE_MARKETING_PAGES="true"
+    print_success "Pages marketing désactivées (mode entreprise)"
+else
+    VITE_HIDE_MARKETING_PAGES="false"
+    print_info "Pages marketing activées (mode par défaut)"
+fi
+
+# ============================================
 # ÉTAPE 5: Créer le fichier .env.monorepo
 # ============================================
 print_header "ÉTAPE 5/7 : Création du fichier .env.monorepo"
@@ -227,7 +249,7 @@ ENABLE_EMAIL_AUTOCONFIRM=true
 HUGGINGFACE_TOKEN=$HUGGINGFACE_TOKEN
 
 # Cacher les pages marketing (optionnel)
-VITE_HIDE_MARKETING_PAGES=false
+VITE_HIDE_MARKETING_PAGES=$VITE_HIDE_MARKETING_PAGES
 
 # ============================================
 # Studio Supabase
@@ -279,6 +301,11 @@ if [ -n "$HUGGINGFACE_TOKEN" ]; then
 else
     echo -e "${YELLOW}⚠️  HuggingFace Token :${NC} Non configuré (diarisation désactivée)"
 fi
+if [ "$VITE_HIDE_MARKETING_PAGES" = "true" ]; then
+    echo -e "${GREEN}✅ Pages marketing :${NC} Désactivées (mode entreprise)"
+else
+    echo -e "${CYAN}ℹ️  Pages marketing :${NC} Activées (mode par défaut)"
+fi
 echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
 echo ""
 
@@ -291,6 +318,8 @@ print_info "Arrêt des services existants (si présents)..."
 docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo down 2>/dev/null || true
 
 print_info "Construction des images Docker..."
+# Exporter les variables pour le build Vite
+export VITE_HIDE_MARKETING_PAGES=$VITE_HIDE_MARKETING_PAGES
 docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo build --no-cache web
 
 print_info "Démarrage de tous les services (mode production avec PyTorch)..."
@@ -386,6 +415,11 @@ PostgreSQL Port : 5432
 JWT Secret : $JWT_SECRET
 ANON Key : $ANON_KEY
 Service Role Key : $SERVICE_ROLE_KEY
+
+CONFIGURATION :
+---------------
+Pages marketing : $([ "$VITE_HIDE_MARKETING_PAGES" = "true" ] && echo "Désactivées (mode entreprise)" || echo "Activées")
+HuggingFace Token : $([ -n "$HUGGINGFACE_TOKEN" ] && echo "Configuré" || echo "Non configuré")
 
 COMMANDES UTILES :
 ------------------
