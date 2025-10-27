@@ -1,8 +1,6 @@
 # 🎙️ Antislash Talk - Monorepo Docker Compose
 # Complete self-hosted stack with Supabase + Web App + API
 
-version: '3.8'
-
 services:
   # ============================================
   # Supabase Services
@@ -293,6 +291,7 @@ services:
         NODE_ENV: production
         VITE_SUPABASE_URL: http://localhost:54321
         VITE_SUPABASE_ANON_KEY: ${ANON_KEY}
+        VITE_HIDE_MARKETING_PAGES: ${VITE_HIDE_MARKETING_PAGES:-false}
     container_name: antislash-talk-web
     restart: unless-stopped
     environment:
