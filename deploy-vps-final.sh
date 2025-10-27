@@ -574,15 +574,17 @@ print_success "Kong mis à jour avec les nouvelles clés"
 
 print_header "ÉTAPE 9/10 : Création des données initiales"
 
-# Attendre que les tables existent
-print_info "Attente de la création des tables..."
+# Attendre que les tables existent (créées par les migrations)
+print_info "Attente de la création des tables par les migrations..."
 TABLES_READY=false
 for i in {1..30}; do
     AUTH_EXISTS=$(docker exec antislash-talk-db psql -U postgres -t -c "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'auth' AND table_name = 'users');" | tr -d ' ')
     STORAGE_EXISTS=$(docker exec antislash-talk-db psql -U postgres -t -c "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'storage' AND table_name = 'buckets');" | tr -d ' ')
+    PROFILES_EXISTS=$(docker exec antislash-talk-db psql -U postgres -t -c "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'profiles');" | tr -d ' ')
     
-    if [ "$AUTH_EXISTS" = "t" ] && [ "$STORAGE_EXISTS" = "t" ]; then
+    if [ "$AUTH_EXISTS" = "t" ] && [ "$STORAGE_EXISTS" = "t" ] && [ "$PROFILES_EXISTS" = "t" ]; then
         TABLES_READY=true
+        print_success "Toutes les tables nécessaires sont créées (auth.users, storage.buckets, public.profiles)"
         break
     fi
     sleep 2
@@ -596,6 +598,7 @@ if [ "$TABLES_READY" = true ]; then
 ALTER TABLE auth.users DISABLE ROW LEVEL SECURITY;
 ALTER TABLE auth.identities DISABLE ROW LEVEL SECURITY;
 ALTER TABLE storage.buckets DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.profiles DISABLE ROW LEVEL SECURITY;
 
 -- Créer l'utilisateur admin
 WITH new_user AS (
@@ -648,6 +651,16 @@ SELECT
 FROM new_user
 ON CONFLICT (provider, provider_id) DO NOTHING;
 
+-- Créer le profil pour l'utilisateur admin
+INSERT INTO public.profiles (id, email, full_name, role)
+SELECT id, email, email, 'admin'
+FROM auth.users
+WHERE email = '${APP_USER_EMAIL}'
+ON CONFLICT (id) DO UPDATE SET 
+    email = EXCLUDED.email,
+    role = 'admin',
+    updated_at = now();
+
 -- CRITIQUE: Corriger les colonnes NULL en auth.users (GoTrue attend des strings vides, pas NULL)
 UPDATE auth.users SET 
     email_change = COALESCE(email_change, ''),
@@ -674,91 +687,8 @@ ALTER TABLE auth.users ALTER COLUMN recovery_token SET DEFAULT '';
 ALTER TABLE auth.users ALTER COLUMN phone_change SET DEFAULT '';
 ALTER TABLE auth.users ALTER COLUMN phone_change_token SET DEFAULT '';
 
--- CRITIQUE: Créer toutes les tables essentielles de l'application (selon base locale réelle)
--- Table profiles (structure complète depuis base locale)
-CREATE TABLE IF NOT EXISTS public.profiles (
-    id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-    email text NOT NULL UNIQUE,
-    full_name text,
-    avatar_url text,
-    role text DEFAULT 'user' NOT NULL CHECK (role = ANY (ARRAY['admin', 'user'])),
-    created_at timestamptz DEFAULT now(),
-    updated_at timestamptz DEFAULT now(),
-    preferred_llm text,
-    preferred_llm_model text,
-    preferred_transcription_model text,
-    preferred_tts_model text,
-    preferred_transcription_provider text,
-    preferred_tts_provider text,
-    auto_transcribe_after_recording boolean DEFAULT true,
-    preferred_language text DEFAULT 'fr' CHECK (preferred_language = ANY (ARRAY['fr', 'en'])),
-    prompt_title text,
-    prompt_summary text,
-    prompt_transcript text,
-    enable_streaming_transcription boolean DEFAULT false,
-    auto_generate_summary_after_streaming boolean DEFAULT true,
-    hide_marketing_pages boolean DEFAULT false
-);
-
--- Table meetings (structure complète depuis base locale)
-CREATE TABLE IF NOT EXISTS public.meetings (
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id uuid NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-    title text NOT NULL,
-    description text,
-    recording_url text,
-    duration integer,
-    status text DEFAULT 'recording' NOT NULL CHECK (status = ANY (ARRAY['uploading', 'pending', 'processing', 'completed', 'failed'])),
-    created_at timestamptz DEFAULT now(),
-    updated_at timestamptz DEFAULT now(),
-    transcript jsonb,
-    summary text,
-    speaker_names jsonb,
-    audio_expires_at timestamptz,
-    transcription_provider text,
-    transcription_model text,
-    participant_count integer DEFAULT 0,
-    llm_provider text,
-    llm_model text
-);
-
--- Table api_keys (structure complète depuis base locale)
-CREATE TABLE IF NOT EXISTS public.api_keys (
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-    provider text NOT NULL,
-    encrypted_key text NOT NULL,
-    created_at timestamptz DEFAULT now(),
-    updated_at timestamptz DEFAULT now(),
-    UNIQUE(user_id, provider)
-);
-
--- Table user_api_keys (structure complète depuis base locale)
-CREATE TABLE IF NOT EXISTS public.user_api_keys (
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id uuid NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-    service text NOT NULL,
-    api_key text NOT NULL,
-    created_at timestamptz DEFAULT now(),
-    updated_at timestamptz DEFAULT now(),
-    UNIQUE(user_id, service)
-);
-
--- Index pour performance
-CREATE INDEX IF NOT EXISTS idx_meetings_user_id ON public.meetings(user_id);
-CREATE INDEX IF NOT EXISTS idx_profiles_enable_streaming_transcription ON public.profiles(enable_streaming_transcription) WHERE enable_streaming_transcription = true;
-
--- Créer un profil pour l'utilisateur admin
-INSERT INTO public.profiles (id, email, full_name)
-SELECT id, email, email
-FROM auth.users
-ON CONFLICT (id) DO NOTHING;
-
--- Activer RLS sur toutes les tables
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.meetings ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.api_keys ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.user_api_keys ENABLE ROW LEVEL SECURITY;
+-- Note: Les tables (profiles, meetings, api_keys, user_api_keys, etc.) sont créées par les migrations
+-- Ne pas les créer manuellement ici pour éviter les conflits
 
 -- Créer tous les buckets nécessaires (selon base locale réelle)
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types, created_at, updated_at)
@@ -779,6 +709,7 @@ GRANT SELECT ON ALL TABLES IN SCHEMA storage TO anon, authenticated;
 -- Réactiver RLS avec FORCE pour s'assurer que les policies s'appliquent
 ALTER TABLE auth.users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE auth.identities ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE storage.buckets FORCE ROW LEVEL SECURITY;
 ALTER TABLE storage.objects FORCE ROW LEVEL SECURITY;
 
