@@ -407,7 +407,7 @@ echo ""
 echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
 echo -e "${CYAN}📋 Résumé de la configuration${NC}"
 echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
-echo -e "${GREEN}✅ IP VPS :${NC} $VPS_IP"
+echo -e "${GREEN}✅ IP VPS :${NC} $VPS_HOST"
 echo -e "${GREEN}✅ JWT Secret :${NC} ${JWT_SECRET:0:20}... (${#JWT_SECRET} caractères)"
 echo -e "${GREEN}✅ PostgreSQL Password :${NC} ${POSTGRES_PASSWORD:0:10}... (${#POSTGRES_PASSWORD} caractères)"
 echo -e "${GREEN}✅ ANON_KEY :${NC} ${ANON_KEY:0:30}..."
@@ -437,7 +437,7 @@ docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo down 2>/d
 
 print_info "Construction de l'image web avec les bonnes URLs..."
 # Exporter TOUTES les variables pour le build Vite
-export API_EXTERNAL_URL="http://$VPS_IP:54321"
+export API_EXTERNAL_URL="http://$VPS_HOST:54321"
 export ANON_KEY="$ANON_KEY"
 export VITE_HIDE_MARKETING_PAGES="$VITE_HIDE_MARKETING_PAGES"
 
@@ -750,30 +750,30 @@ print_info "Tests de connectivité..."
 # Test de l'application web
 sleep 5
 if curl -s -o /dev/null -w "%{http_code}" http://localhost:3000 | grep -q "200"; then
-    print_success "Application Web : OK (http://$VPS_IP:3000)"
+    print_success "Application Web : OK (http://$VPS_HOST:3000)"
 else
-    print_warning "Application Web : En cours de démarrage... (http://$VPS_IP:3000)"
+    print_warning "Application Web : En cours de démarrage... (http://$VPS_HOST:3000)"
 fi
 
 # Test de l'API Supabase
 if curl -s -o /dev/null -w "%{http_code}" http://localhost:54321/rest/v1/ | grep -q "200\|404"; then
-    print_success "API Supabase : OK (http://$VPS_IP:54321)"
+    print_success "API Supabase : OK (http://$VPS_HOST:54321)"
 else
-    print_warning "API Supabase : En cours de démarrage... (http://$VPS_IP:54321)"
+    print_warning "API Supabase : En cours de démarrage... (http://$VPS_HOST:54321)"
 fi
 
 # Test du Studio
 if curl -s -o /dev/null -w "%{http_code}" http://localhost:54323 | grep -q "200"; then
-    print_success "Studio Supabase : OK (http://$VPS_IP:54323)"
+    print_success "Studio Supabase : OK (http://$VPS_HOST:54323)"
 else
-    print_warning "Studio Supabase : En cours de démarrage... (http://$VPS_IP:54323)"
+    print_warning "Studio Supabase : En cours de démarrage... (http://$VPS_HOST:54323)"
 fi
 
 # Test PyTorch (peut prendre plus de temps)
 print_info "Test du service PyTorch (peut prendre 1-2 minutes)..."
 for i in {1..30}; do
     if curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/health | grep -q "200"; then
-        print_success "Service PyTorch : OK (http://$VPS_IP:8000)"
+        print_success "Service PyTorch : OK (http://$VPS_HOST:8000)"
         break
     fi
     if [ $i -eq 30 ]; then
@@ -794,15 +794,15 @@ cat > deployment-info.txt << EOF
 =====================================================
 
 Date du déploiement : $(date)
-IP du VPS : $VPS_IP
+IP du VPS : $VPS_HOST
 
 URLS D'ACCÈS :
 --------------
-🌐 Application Web : http://$VPS_IP:3000
-📡 API Supabase : http://$VPS_IP:54321
-🎨 Studio Supabase : http://$VPS_IP:54323
-🤖 PyTorch API : http://$VPS_IP:8000
-📧 Email Testing : http://$VPS_IP:54324
+🌐 Application Web : http://$VPS_HOST:3000
+📡 API Supabase : http://$VPS_HOST:54321
+🎨 Studio Supabase : http://$VPS_HOST:54323
+🤖 PyTorch API : http://$VPS_HOST:8000
+📧 Email Testing : http://$VPS_HOST:54324
 
 CREDENTIALS :
 -------------
@@ -880,11 +880,11 @@ BASE DE DONNÉES :
 
 PROCHAINES ÉTAPES :
 -------------------
-1. Ouvrir http://$VPS_IP:3000 dans votre navigateur
+1. Ouvrir http://$VPS_HOST:3000 dans votre navigateur
 2. Se connecter avec :
    Email: $APP_USER_EMAIL
    Password: $APP_USER_PASSWORD
-3. Accéder au Studio Supabase : http://$VPS_IP:54323
+3. Accéder au Studio Supabase : http://$VPS_HOST:54323
    ⚠️  ATTENTION : Le Studio requiert une authentification HTTP Basic
    Username: $STUDIO_USERNAME
    Password: $STUDIO_PASSWORD
@@ -916,10 +916,10 @@ echo -e "${GREEN}╚════════════════════
 echo ""
 echo -e "${CYAN}L'application est maintenant accessible :${NC}"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${GREEN}🌐 Application Web :${NC} http://$VPS_IP:3000"
-echo -e "${GREEN}📡 API Supabase :${NC} http://$VPS_IP:54321"
-echo -e "${GREEN}🎨 Studio Admin :${NC} http://$VPS_IP:54323"
-echo -e "${GREEN}🤖 PyTorch API :${NC} http://$VPS_IP:8000"
+echo -e "${GREEN}🌐 Application Web :${NC} http://$VPS_HOST:3000"
+echo -e "${GREEN}📡 API Supabase :${NC} http://$VPS_HOST:54321"
+echo -e "${GREEN}🎨 Studio Admin :${NC} http://$VPS_HOST:54323"
+echo -e "${GREEN}🤖 PyTorch API :${NC} http://$VPS_HOST:8000"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 echo -e "${CYAN}👤 Compte Utilisateur Application :${NC}"
