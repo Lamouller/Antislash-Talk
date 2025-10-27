@@ -215,16 +215,29 @@ EOF
 
 # Installer jsonwebtoken temporairement et générer les clés
 print_info "Installation temporaire de jsonwebtoken..."
+# Créer un package.json minimal si nécessaire
+if [ ! -f "package.json" ]; then
+    echo '{"type": "module"}' > package.json
+    CREATED_PACKAGE_JSON=true
+fi
 npm install --no-save jsonwebtoken >/dev/null 2>&1
 
 # Exécuter le script pour obtenir les clés
-JWT_OUTPUT=$(JWT_SECRET="$JWT_SECRET" node generate-jwt-keys.mjs)
+JWT_OUTPUT=$(JWT_SECRET="$JWT_SECRET" node generate-jwt-keys.mjs 2>&1)
+if [ $? -ne 0 ]; then
+    print_error "Erreur lors de la génération des clés JWT"
+    echo "$JWT_OUTPUT"
+    exit 1
+fi
 ANON_KEY=$(echo "$JWT_OUTPUT" | grep "ANON_KEY=" | cut -d'=' -f2-)
 SERVICE_ROLE_KEY=$(echo "$JWT_OUTPUT" | grep "SERVICE_ROLE_KEY=" | cut -d'=' -f2-)
 
 # Nettoyer
 rm -f generate-jwt-keys.mjs
 rm -rf node_modules package-lock.json
+if [ "$CREATED_PACKAGE_JSON" = true ]; then
+    rm -f package.json
+fi
 
 print_success "Clés générées avec succès"
 
