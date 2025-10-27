@@ -305,7 +305,7 @@ GOTRUE_DB_DRIVER=postgres
 DATABASE_URL=postgres://supabase_auth_admin:${POSTGRES_PASSWORD}@db:5432/postgres
 
 # Studio
-STUDIO_DEFAULT_ORGANIZATION=Antislash Talk
+STUDIO_DEFAULT_ORGANIZATION="Antislash Talk"
 STUDIO_DEFAULT_PROJECT=Production
 STUDIO_PORT=3000
 STUDIO_PROXY_PORT=54327
@@ -327,7 +327,7 @@ GOTRUE_SMTP_HOST=inbucket
 GOTRUE_SMTP_PORT=2500
 GOTRUE_SMTP_USER=
 GOTRUE_SMTP_PASS=
-GOTRUE_SMTP_SENDER_NAME=Antislash Talk
+GOTRUE_SMTP_SENDER_NAME="Antislash Talk"
 
 # Configuration utilisateur
 APP_USER_EMAIL=${APP_USER_EMAIL}
@@ -428,11 +428,22 @@ EXCEPTION
         RAISE NOTICE 'Extension pgcrypto: %', SQLERRM;
 END \$\$;
 
--- Type auth.factor_type
+-- Types ENUM pour GoTrue MFA (DOIVENT être dans public, pas auth !)
 DO \$\$ 
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'factor_type' AND typnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'auth')) THEN
-        CREATE TYPE auth.factor_type AS ENUM ('totp', 'webauthn', 'phone');
+    -- factor_type dans public
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'factor_type' AND typnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'public')) THEN
+        CREATE TYPE factor_type AS ENUM ('totp', 'webauthn', 'phone');
+    END IF;
+    
+    -- factor_status dans public
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'factor_status' AND typnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'public')) THEN
+        CREATE TYPE factor_status AS ENUM ('unverified', 'verified');
+    END IF;
+    
+    -- aal_level dans public
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'aal_level' AND typnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'public')) THEN
+        CREATE TYPE aal_level AS ENUM ('aal1', 'aal2', 'aal3');
     END IF;
 END \$\$;
 
