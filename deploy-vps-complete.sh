@@ -186,7 +186,27 @@ print_success "Utilisateur Studio : $STUDIO_USERNAME"
 print_success "Mot de passe Studio : $STUDIO_PASSWORD"
 
 # ============================================
-# ÉTAPE 4c: Configuration optionnelle HuggingFace
+# ÉTAPE 4c: Configuration du premier utilisateur
+# ============================================
+echo ""
+print_info "Configuration du premier utilisateur de l'application"
+echo -e "${CYAN}Créez le premier compte utilisateur pour accéder à l'application.${NC}"
+echo ""
+echo -e "${YELLOW}Email du premier utilisateur :${NC}"
+read -p "Email (défaut: admin@antislash-talk.local) : " APP_USER_EMAIL
+
+if [ -z "$APP_USER_EMAIL" ]; then
+    APP_USER_EMAIL="admin@antislash-talk.local"
+fi
+
+# Générer un mot de passe sécurisé
+APP_USER_PASSWORD=$(openssl rand -base64 12 | tr -d "=+/" | cut -c1-12)
+print_success "Email utilisateur : $APP_USER_EMAIL"
+print_success "Mot de passe généré : $APP_USER_PASSWORD"
+print_warning "⚠️  Notez bien ce mot de passe, il ne sera pas récupérable !"
+
+# ============================================
+# ÉTAPE 4d: Configuration optionnelle HuggingFace
 # ============================================
 echo ""
 print_info "Configuration optionnelle : Token HuggingFace"
@@ -370,9 +390,17 @@ print_header "ÉTAPE 6/7 : Démarrage de PostgreSQL"
 print_info "Arrêt des services existants (si présents)..."
 docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo down 2>/dev/null || true
 
-print_info "Construction de l'image web..."
-# Exporter les variables pour le build Vite
-export VITE_HIDE_MARKETING_PAGES=$VITE_HIDE_MARKETING_PAGES
+print_info "Construction de l'image web avec les bonnes URLs..."
+# Exporter TOUTES les variables pour le build Vite
+export API_EXTERNAL_URL="http://$VPS_IP:54321"
+export ANON_KEY="$ANON_KEY"
+export VITE_HIDE_MARKETING_PAGES="$VITE_HIDE_MARKETING_PAGES"
+
+print_info "Variables d'environnement pour le build :"
+echo -e "  ${CYAN}VITE_SUPABASE_URL:${NC} $API_EXTERNAL_URL"
+echo -e "  ${CYAN}VITE_SUPABASE_ANON_KEY:${NC} ${ANON_KEY:0:30}..."
+echo -e "  ${CYAN}VITE_HIDE_MARKETING_PAGES:${NC} $VITE_HIDE_MARKETING_PAGES"
+
 docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo build --no-cache web
 
 print_info "Démarrage de PostgreSQL uniquement..."
@@ -433,6 +461,13 @@ docker exec antislash-talk-db psql -U postgres -d postgres << SQLEOF > /dev/null
 -- Forcer SCRAM-SHA-256
 ALTER SYSTEM SET password_encryption = 'scram-sha-256';
 SELECT pg_reload_conf();
+
+-- Créer le type ENUM pour Auth (requis par GoTrue)
+DO \$\$ BEGIN
+    CREATE TYPE auth.factor_type AS ENUM ('totp', 'webauthn', 'phone');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END \$\$;
 
 -- Configurer tous les rôles avec SCRAM-SHA-256
 SET password_encryption = 'scram-sha-256';
@@ -512,25 +547,64 @@ SQLEOF
 
 print_success "Buckets Storage créés (audio-recordings, transcriptions, avatars)"
 
-# Créer un utilisateur admin de test
-print_info "Création d'un utilisateur admin de test..."
+# Désactiver RLS et accorder les permissions Storage
+print_info "Configuration des permissions Storage..."
 docker exec antislash-talk-db psql -U postgres -d postgres << 'SQLEOF' > /dev/null 2>&1
--- Créer un utilisateur admin (email: admin@antislash-talk.local, password: admin123)
--- Hash bcrypt de 'admin123'
-INSERT INTO auth.users (id, email, encrypted_password, email_confirmed_at, role, raw_app_meta_data, raw_user_meta_data)
+-- Désactiver RLS sur storage (pour que les services puissent accéder)
+ALTER TABLE storage.buckets DISABLE ROW LEVEL SECURITY;
+ALTER TABLE storage.objects DISABLE ROW LEVEL SECURITY;
+
+-- Accorder tous les privilèges aux rôles Supabase
+GRANT ALL ON SCHEMA storage TO supabase_storage_admin, postgres, anon, authenticated, service_role;
+GRANT ALL ON ALL TABLES IN SCHEMA storage TO supabase_storage_admin, postgres, anon, authenticated, service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA storage TO supabase_storage_admin, postgres;
+SQLEOF
+
+print_success "Permissions Storage configurées"
+
+# Créer le premier utilisateur
+print_info "Création du premier utilisateur : $APP_USER_EMAIL..."
+
+# Générer le hash bcrypt du mot de passe (compatible avec GoTrue/Supabase)
+# Note: On utilise htpasswd pour générer un hash bcrypt compatible
+APP_USER_PASSWORD_HASH=$(docker run --rm httpd:alpine htpasswd -nbB -C 10 temp "$APP_USER_PASSWORD" | cut -d: -f2)
+
+docker exec antislash-talk-db psql -U postgres -d postgres << SQLEOF > /dev/null 2>&1
+-- Créer le premier utilisateur
+INSERT INTO auth.users (
+    instance_id,
+    id,
+    aud,
+    role,
+    email,
+    encrypted_password,
+    email_confirmed_at,
+    raw_app_meta_data,
+    raw_user_meta_data,
+    created_at,
+    updated_at,
+    confirmation_token,
+    email_change
+)
 VALUES (
+    '00000000-0000-0000-0000-000000000000',
     gen_random_uuid(),
-    'admin@antislash-talk.local',
-    '$2a$10$Z8qPYqvJqW8JqJ8JqJ8JqON2P5Y2P5Y2P5Y2P5Y2P5Y2P5Y2P5Y2P.',
-    NOW(),
     'authenticated',
+    'authenticated',
+    '$APP_USER_EMAIL',
+    '$APP_USER_PASSWORD_HASH',
+    NOW(),
     '{"provider":"email","providers":["email"]}'::jsonb,
-    '{"name":"Admin"}'::jsonb
+    '{"name":"First User"}'::jsonb,
+    NOW(),
+    NOW(),
+    '',
+    ''
 )
 ON CONFLICT (email) DO NOTHING;
 SQLEOF
 
-print_success "Utilisateur admin créé : admin@antislash-talk.local / admin123"
+print_success "Utilisateur créé : $APP_USER_EMAIL / $APP_USER_PASSWORD"
 
 # ============================================
 # ÉTAPE 6.6: Application des migrations
@@ -678,11 +752,15 @@ PostgreSQL User : postgres
 PostgreSQL Password : $POSTGRES_PASSWORD
 PostgreSQL Port : 5432
 
-Admin User (Test) : admin@antislash-talk.local
-Admin Password : admin123
+ACCÈS APPLICATION :
+-------------------
+Email : $APP_USER_EMAIL
+Password : $APP_USER_PASSWORD
 
-Studio Username : $STUDIO_USERNAME
-Studio Password : $STUDIO_PASSWORD
+ACCÈS STUDIO SUPABASE :
+-----------------------
+Username : $STUDIO_USERNAME
+Password : $STUDIO_PASSWORD
 
 JWT Secret : $JWT_SECRET
 ANON Key : $ANON_KEY
@@ -745,8 +823,9 @@ BASE DE DONNÉES :
 PROCHAINES ÉTAPES :
 -------------------
 1. Ouvrir http://$VPS_IP:3000 dans votre navigateur
-2. Se connecter avec : admin@antislash-talk.local / admin123
-   OU créer un nouveau compte utilisateur
+2. Se connecter avec :
+   Email: $APP_USER_EMAIL
+   Password: $APP_USER_PASSWORD
 3. Accéder au Studio Supabase : http://$VPS_IP:54323
    ⚠️  ATTENTION : Le Studio requiert une authentification HTTP Basic
    Username: $STUDIO_USERNAME
@@ -785,13 +864,13 @@ echo -e "${GREEN}🎨 Studio Admin :${NC} http://$VPS_IP:54323"
 echo -e "${GREEN}🤖 PyTorch API :${NC} http://$VPS_IP:8000"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
-echo -e "${CYAN}🔐 Credentials Studio Supabase :${NC}"
+echo -e "${CYAN}👤 Compte Utilisateur Application :${NC}"
+echo -e "   ${YELLOW}Email:${NC}    $APP_USER_EMAIL"
+echo -e "   ${YELLOW}Password:${NC} $APP_USER_PASSWORD"
+echo ""
+echo -e "${CYAN}🔐 Accès Studio Supabase :${NC}"
 echo -e "   ${YELLOW}Username:${NC} $STUDIO_USERNAME"
 echo -e "   ${YELLOW}Password:${NC} $STUDIO_PASSWORD"
-echo ""
-echo -e "${CYAN}👤 Compte Admin Application :${NC}"
-echo -e "   ${YELLOW}Email:${NC} admin@antislash-talk.local"
-echo -e "   ${YELLOW}Password:${NC} admin123"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 echo -e "${YELLOW}📋 Voir les logs :${NC} docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo logs -f"
