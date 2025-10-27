@@ -238,7 +238,7 @@ INBUCKET_PORT=54324
 SMTP_HOST=inbucket
 SMTP_PORT=2500
 SMTP_ADMIN_EMAIL=admin@antislash-talk.local
-SMTP_SENDER_NAME=Antislash Talk
+SMTP_SENDER_NAME="Antislash Talk"
 ENABLE_EMAIL_SIGNUP=true
 ENABLE_EMAIL_AUTOCONFIRM=true
 
@@ -254,8 +254,8 @@ VITE_HIDE_MARKETING_PAGES=$VITE_HIDE_MARKETING_PAGES
 # ============================================
 # Studio Supabase
 # ============================================
-STUDIO_DEFAULT_ORGANIZATION=Antislash Talk
-STUDIO_DEFAULT_PROJECT=Antislash Talk Project
+STUDIO_DEFAULT_ORGANIZATION="Antislash Talk"
+STUDIO_DEFAULT_PROJECT="Antislash Talk Project"
 EOF
 
 print_success "Fichier .env.monorepo créé avec succès"
