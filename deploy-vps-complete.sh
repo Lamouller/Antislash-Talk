@@ -667,16 +667,60 @@ SQLEOF
 
 print_success "Permissions Storage configurées"
 
-# Créer le premier utilisateur
+# NOTE: On ne crée PAS encore l'utilisateur ici car Auth n'a pas encore créé la table auth.users !
+# L'utilisateur sera créé APRÈS le démarrage de Auth et Storage
+
+# Redémarrer PostgreSQL pour appliquer pg_hba.conf
+print_info "Redémarrage de PostgreSQL pour appliquer pg_hba.conf..."
+docker restart antislash-talk-db > /dev/null 2>&1
+sleep 10
+
+# Attendre que PostgreSQL soit prêt
+print_info "Attente de PostgreSQL..."
+until docker exec antislash-talk-db pg_isready -U postgres > /dev/null 2>&1; do
+    sleep 1
+    echo -ne "${CYAN}.${NC}"
+done
+echo ""
+print_success "PostgreSQL prêt avec la nouvelle configuration"
+
+# MAINTENANT démarrer tous les autres services (Auth, Storage, Meta, Kong, etc.)
+print_info "Démarrage de tous les services Supabase et de l'application..."
+print_info "Cela peut prendre 30-60 secondes..."
+# FORCER la recréation des containers pour qu'ils utilisent les nouvelles variables d'environnement
+docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo up -d --force-recreate
+sleep 30
+
+print_success "Tous les services démarrés avec les bons mots de passe"
+
+# Attendre que Auth et Storage aient créé leurs tables
+print_info "Attente que Auth et Storage créent leurs tables (jusqu'à 60s)..."
+for i in {1..60}; do
+    AUTH_TABLES=$(docker exec antislash-talk-db psql -U postgres -d postgres -tAc "SELECT count(*) FROM pg_tables WHERE schemaname = 'auth' AND tablename = 'users';" 2>/dev/null || echo "0")
+    STORAGE_TABLES=$(docker exec antislash-talk-db psql -U postgres -d postgres -tAc "SELECT count(*) FROM pg_tables WHERE schemaname = 'storage' AND tablename = 'buckets';" 2>/dev/null || echo "0")
+    
+    if [ "$AUTH_TABLES" = "1" ] && [ "$STORAGE_TABLES" = "1" ]; then
+        print_success "Tables Auth et Storage créées !"
+        break
+    fi
+    
+    if [ $i -eq 60 ]; then
+        print_warning "Timeout : Les tables Auth/Storage n'ont pas été créées automatiquement"
+        print_info "Vérifiez les logs : docker logs antislash-talk-auth"
+    fi
+    
+    echo -ne "${CYAN}.${NC}"
+    sleep 1
+done
+echo ""
+
+# MAINTENANT créer l'utilisateur dans la table auth.users qui existe
 print_info "Création du premier utilisateur : $APP_USER_EMAIL..."
 
 # Générer le hash bcrypt du mot de passe (compatible avec GoTrue/Supabase)
-# Note: On utilise htpasswd pour générer un hash bcrypt compatible
 APP_USER_PASSWORD_HASH=$(docker run --rm httpd:alpine htpasswd -nbB -C 10 temp "$APP_USER_PASSWORD" | cut -d: -f2)
 
 docker exec antislash-talk-db psql -U postgres -d postgres << SQLEOF > /dev/null 2>&1
--- La table auth.users a été créée par les migrations
-
 -- Créer le premier utilisateur
 INSERT INTO auth.users (
     instance_id,
@@ -712,28 +756,6 @@ ON CONFLICT (email) DO NOTHING;
 SQLEOF
 
 print_success "Utilisateur créé : $APP_USER_EMAIL / $APP_USER_PASSWORD"
-
-# Redémarrer PostgreSQL pour appliquer pg_hba.conf
-print_info "Redémarrage de PostgreSQL pour appliquer pg_hba.conf..."
-docker restart antislash-talk-db > /dev/null 2>&1
-sleep 10
-
-# Attendre que PostgreSQL soit prêt
-print_info "Attente de PostgreSQL..."
-until docker exec antislash-talk-db pg_isready -U postgres > /dev/null 2>&1; do
-    sleep 1
-    echo -ne "${CYAN}.${NC}"
-done
-echo ""
-print_success "PostgreSQL prêt avec la nouvelle configuration"
-
-# MAINTENANT démarrer tous les autres services (Auth, Storage, Meta, Kong, etc.)
-print_info "Démarrage de tous les services Supabase et de l'application..."
-print_info "Cela peut prendre 30-60 secondes..."
-docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo up -d
-sleep 20
-
-print_success "Tous les services démarrés avec les bons mots de passe"
 
 # ============================================
 # ÉTAPE 7: Vérification des services
