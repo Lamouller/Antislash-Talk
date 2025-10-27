@@ -544,6 +544,18 @@ print_success "Utilisateurs PostgreSQL configurés"
 # ============================================
 print_header "ÉTAPE 6.6/7 : Application des migrations de base de données"
 
+# Attendre que PostgreSQL soit VRAIMENT prêt pour les migrations
+print_info "Vérification que PostgreSQL est prêt pour les migrations..."
+for i in {1..30}; do
+    if docker exec antislash-talk-db psql -U postgres -d postgres -c "SELECT 1;" > /dev/null 2>&1; then
+        print_success "PostgreSQL prêt"
+        break
+    fi
+    echo -ne "${CYAN}.${NC}"
+    sleep 2
+done
+echo ""
+
 print_info "Application des migrations SQL..."
 
 # Créer la table de tracking des migrations si elle n'existe pas
@@ -574,14 +586,19 @@ for migration in packages/supabase/migrations/*.sql; do
         fi
         
         # Appliquer la migration
-        if docker exec -i antislash-talk-db psql -U postgres -d postgres < "$migration" > /dev/null 2>&1; then
+        migration_output=$(docker exec -i antislash-talk-db psql -U postgres -d postgres < "$migration" 2>&1)
+        migration_exit_code=$?
+        
+        if [ $migration_exit_code -eq 0 ]; then
             # Enregistrer la migration comme appliquée
             docker exec antislash-talk-db psql -U postgres -d postgres -c \
                 "INSERT INTO public.schema_migrations (version) VALUES ('${filename%.sql}') ON CONFLICT DO NOTHING;" > /dev/null 2>&1 || true
             MIGRATION_SUCCESS=$((MIGRATION_SUCCESS + 1))
             echo -e "${GREEN}  ✓ $filename${NC}"
         else
-            echo -e "${YELLOW}  ⚠ $filename${NC} (erreur, peut être normale)"
+            # Afficher l'erreur pour diagnostic
+            echo -e "${YELLOW}  ⚠ $filename${NC} (erreur)"
+            echo -e "${RED}     Erreur: ${migration_output:0:200}${NC}" | head -3
         fi
     fi
 done
