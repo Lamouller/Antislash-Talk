@@ -94,14 +94,19 @@ if [ -z "$DETECTED_IP" ]; then
     DETECTED_IP=$(curl -s --max-time 5 checkip.amazonaws.com 2>/dev/null || true)
 fi
 
-# Méthode 4: ip addr show
+# Méthode 4: ip addr show (IPv4 seulement)
 if [ -z "$DETECTED_IP" ]; then
-    DETECTED_IP=$(ip addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v '127.0.0.1' | head -1 || true)
+    DETECTED_IP=$(ip addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v '127.0.0.1' | grep -v '^172\.' | grep -v '^10\.' | grep -v '^192\.168\.' | head -1 || true)
 fi
 
-# Méthode 5: hostname -I
+# Méthode 5: hostname -I (IPv4 seulement)
 if [ -z "$DETECTED_IP" ]; then
-    DETECTED_IP=$(hostname -I | awk '{print $1}' || true)
+    DETECTED_IP=$(hostname -I | tr ' ' '\n' | grep -E '^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$' | grep -v '^127\.' | grep -v '^172\.' | grep -v '^10\.' | grep -v '^192\.168\.' | head -1 || true)
+fi
+
+# Méthode 6: wget -qO- (en cas d'échec des autres)
+if [ -z "$DETECTED_IP" ]; then
+    DETECTED_IP=$(wget -qO- --timeout=5 http://ipv4.icanhazip.com 2>/dev/null | tr -d '\n' || true)
 fi
 
 # Collecter les informations
