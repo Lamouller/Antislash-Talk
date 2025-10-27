@@ -194,6 +194,22 @@ npx serve dist
 python -m http.server 3000 -d dist
 ```
 
+### 🎯 Client Deployments
+
+For client-specific deployments, you can hide marketing pages and enable direct login access:
+
+```bash
+# In your .env or .env.local
+VITE_HIDE_MARKETING_PAGES=true
+```
+
+This configuration:
+- ✅ Removes promotional content (home page, auth index)
+- ✅ Redirects directly to login page
+- ✅ Creates a more focused, enterprise-like experience
+
+**📖 Full Guide:** See [Client Deployment Guide](docs/CLIENT_DEPLOYMENT.md) for complete configuration options and best practices.
+
 ## ⚙️ Configuration
 
 ### Transcription Providers

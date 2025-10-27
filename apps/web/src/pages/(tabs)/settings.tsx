@@ -411,6 +411,10 @@ export default function SettingsScreen() {
   
   // Language Preference State
   const [preferredLanguage, setPreferredLanguage] = useState<'fr' | 'en'>('fr');
+  
+  // Marketing Pages Visibility State
+  const [hideMarketingPages, setHideMarketingPages] = useState(false);
+  const isMarketingPagesGloballyForced = import.meta.env.VITE_HIDE_MARKETING_PAGES === 'true';
 
   const [apiKeyInputs, setApiKeyInputs] = useState({ openai: '', anthropic: '', google: '', mistral: '' });
 
@@ -611,7 +615,7 @@ export default function SettingsScreen() {
 
   useEffect(() => {
     if(!loading) setHasChanges(true);
-  }, [selectedLlmProvider, selectedLlmModel, preferredTranscriptionProvider, preferredTranscriptionModel, selectedTtsProvider, selectedTtsModel, promptTitle, promptSummary, promptTranscript, autoTranscribeAfterRecording, enableStreamingTranscription, autoGenerateSummaryAfterStreaming, preferredLanguage]);
+  }, [selectedLlmProvider, selectedLlmModel, preferredTranscriptionProvider, preferredTranscriptionModel, selectedTtsProvider, selectedTtsModel, promptTitle, promptSummary, promptTranscript, autoTranscribeAfterRecording, enableStreamingTranscription, autoGenerateSummaryAfterStreaming, preferredLanguage, hideMarketingPages]);
   
 
   async function fetchProfileAndKeys() {
@@ -665,6 +669,9 @@ export default function SettingsScreen() {
       
       // Set language preference
       setPreferredLanguage(profileData.preferred_language || 'fr');
+      
+      // Set marketing pages visibility preference
+      setHideMarketingPages(profileData.hide_marketing_pages ?? false);
       
       const { data: keysData, error: keysError } = await supabase
         .from('api_keys')
@@ -722,6 +729,7 @@ export default function SettingsScreen() {
       enable_streaming_transcription: enableStreamingTranscription,
       auto_generate_summary_after_streaming: autoGenerateSummaryAfterStreaming,
       preferred_language: preferredLanguage,
+      hide_marketing_pages: hideMarketingPages,
     };
 
     const { error } = await supabase.from('profiles').upsert(updates);
@@ -1467,6 +1475,46 @@ export default function SettingsScreen() {
                      }
                    </p>
                  </div>
+               </div>
+               
+               {/* Hide Marketing Pages Toggle */}
+               <div className="mt-4 flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-slate-50 dark:from-gray-700/30 dark:to-slate-700/30 rounded-xl border border-gray-200/50 dark:border-gray-600/50">
+                 <div className="flex-1">
+                   <div className="flex items-center gap-2">
+                     <h3 className="text-sm font-medium text-gray-900 dark:text-white">
+                       🎯 Hide marketing pages
+                     </h3>
+                     {isMarketingPagesGloballyForced && (
+                       <span className="px-2 py-0.5 text-xs font-semibold bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 rounded-full">
+                         FORCED BY CONFIG
+                       </span>
+                     )}
+                   </div>
+                   <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">
+                     {hideMarketingPages || isMarketingPagesGloballyForced
+                       ? "🚀 Skip home and marketing pages - go directly to login" 
+                       : "📋 Show home page and full marketing content (default)"
+                     }
+                   </p>
+                   {isMarketingPagesGloballyForced && (
+                     <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">
+                       ⚙️ Marketing pages are hidden globally via VITE_HIDE_MARKETING_PAGES environment variable
+                     </p>
+                   )}
+                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                     💡 Perfect for client deployments - removes promotional content and enables direct login access
+                   </p>
+                 </div>
+                 <label className="relative inline-flex items-center cursor-pointer ml-4">
+                   <input
+                     type="checkbox"
+                     checked={hideMarketingPages || isMarketingPagesGloballyForced}
+                     onChange={(e) => setHideMarketingPages(e.target.checked)}
+                     disabled={isMarketingPagesGloballyForced}
+                     className="sr-only peer"
+                   />
+                   <div className={`w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-gray-300 dark:peer-focus:ring-gray-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-gray-600 ${isMarketingPagesGloballyForced ? 'opacity-50 cursor-not-allowed' : ''}`}></div>
+                 </label>
                </div>
              </div>
            </Card>

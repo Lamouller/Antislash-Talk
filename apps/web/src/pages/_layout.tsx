@@ -3,6 +3,7 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { Session } from '@supabase/supabase-js';
 import { Toaster } from 'react-hot-toast';
+import { useMarketingPagesConfig } from '../hooks/useMarketingPagesConfig';
 
 export default function RootLayout() {
   const [session, setSession] = useState<Session | null>(null);
@@ -10,6 +11,7 @@ export default function RootLayout() {
   const [supabaseOnline, setSupabaseOnline] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
+  const { shouldHideMarketingPages, loading: configLoading } = useMarketingPagesConfig();
 
   useEffect(() => {
     async function checkSession() {
@@ -51,8 +53,11 @@ export default function RootLayout() {
   }, []);
 
   useEffect(() => {
-    if (initialized && supabaseOnline) {
+    if (initialized && supabaseOnline && !configLoading) {
       const isAuthRoute = location.pathname.startsWith('/auth');
+      const isAuthLoginRoute = location.pathname === '/auth/login';
+      const isAuthRegisterRoute = location.pathname === '/auth/register';
+      const isAuthIndexRoute = location.pathname === '/auth';
       const isOfflineRoute = location.pathname === '/offline';
       const isRootRoute = location.pathname === '/';
       
@@ -63,9 +68,19 @@ export default function RootLayout() {
         // Utilisateur NON connecté sur une page protégée → rediriger vers / (page d'accueil)
         console.log('🔒 Page protégée - redirection vers la page d\'accueil');
         navigate('/', { replace: true });
+      } else if (!session && shouldHideMarketingPages) {
+        // Marketing pages cachées → rediriger vers /auth/login
+        if (isRootRoute) {
+          console.log('🎯 Marketing pages cachées - redirection depuis / vers /auth/login');
+          navigate('/auth/login', { replace: true });
+        } else if (isAuthIndexRoute) {
+          console.log('🎯 Marketing pages cachées - redirection depuis /auth vers /auth/login');
+          navigate('/auth/login', { replace: true });
+        }
+        // Garder /auth/login et /auth/register accessibles
       }
     }
-  }, [session, initialized, supabaseOnline, navigate, location.pathname]);
+  }, [session, initialized, supabaseOnline, configLoading, shouldHideMarketingPages, navigate, location.pathname]);
 
   if (!initialized) {
     return (

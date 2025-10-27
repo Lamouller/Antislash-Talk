@@ -3,7 +3,7 @@
 // Script pour générer les clés Supabase (ANON_KEY et SERVICE_ROLE_KEY)
 // Ces clés doivent être signées avec le JWT_SECRET
 
-const crypto = require('crypto');
+import crypto from 'crypto';
 
 // Fonction pour encoder en base64url
 function base64url(str) {
@@ -65,8 +65,10 @@ function generateKeys(jwtSecret) {
   };
 }
 
-// Si exécuté directement
-if (require.main === module) {
+// Si exécuté directement (vérification ES module)
+const isMainModule = import.meta.url === `file://${process.argv[1]}`;
+
+if (isMainModule) {
   const args = process.argv.slice(2);
   
   if (args.length === 0) {
@@ -91,4 +93,4 @@ if (require.main === module) {
   console.log(`SERVICE_ROLE_KEY=${keys.SERVICE_ROLE_KEY}`);
 }
 
-module.exports = { generateKeys };
+export { generateKeys };
