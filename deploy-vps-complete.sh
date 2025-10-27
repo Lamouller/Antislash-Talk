@@ -142,6 +142,24 @@ fi
 print_success "IP du VPS détectée : $VPS_IP"
 
 # ============================================
+# ÉTAPE 4b: Configuration optionnelle HuggingFace
+# ============================================
+echo ""
+print_info "Configuration optionnelle : Token HuggingFace"
+echo -e "${CYAN}Le token HuggingFace est nécessaire pour la diarisation (identification des locuteurs).${NC}"
+echo -e "${CYAN}Si vous n'en avez pas, laissez vide (vous pourrez l'ajouter plus tard).${NC}"
+echo -e "${YELLOW}Pour obtenir un token : https://huggingface.co/settings/tokens${NC}"
+echo ""
+read -p "Token HuggingFace (optionnel, Entrée pour ignorer) : " HUGGINGFACE_TOKEN
+
+if [ -z "$HUGGINGFACE_TOKEN" ]; then
+    print_info "Token HuggingFace non fourni (diarisation désactivée)"
+    HUGGINGFACE_TOKEN=""
+else
+    print_success "Token HuggingFace configuré"
+fi
+
+# ============================================
 # ÉTAPE 5: Créer le fichier .env.monorepo
 # ============================================
 print_header "ÉTAPE 5/7 : Création du fichier .env.monorepo"
@@ -206,7 +224,7 @@ ENABLE_EMAIL_AUTOCONFIRM=true
 # Services optionnels
 # ============================================
 # Token HuggingFace pour diarization (optionnel)
-HUGGINGFACE_TOKEN=
+HUGGINGFACE_TOKEN=$HUGGINGFACE_TOKEN
 
 # Cacher les pages marketing (optionnel)
 VITE_HIDE_MARKETING_PAGES=false
@@ -220,19 +238,63 @@ EOF
 
 print_success "Fichier .env.monorepo créé avec succès"
 
+# Vérifier que les variables critiques sont définies
+echo ""
+print_info "Vérification des variables critiques..."
+
+if [ -z "$ANON_KEY" ]; then
+    print_error "ANON_KEY n'est pas défini !"
+    exit 1
+fi
+
+if [ -z "$SERVICE_ROLE_KEY" ]; then
+    print_error "SERVICE_ROLE_KEY n'est pas défini !"
+    exit 1
+fi
+
+if [ -z "$JWT_SECRET" ]; then
+    print_error "JWT_SECRET n'est pas défini !"
+    exit 1
+fi
+
+if [ -z "$POSTGRES_PASSWORD" ]; then
+    print_error "POSTGRES_PASSWORD n'est pas défini !"
+    exit 1
+fi
+
+print_success "Toutes les variables critiques sont définies"
+
+# Afficher un résumé
+echo ""
+echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
+echo -e "${CYAN}📋 Résumé de la configuration${NC}"
+echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
+echo -e "${GREEN}✅ IP VPS :${NC} $VPS_IP"
+echo -e "${GREEN}✅ JWT Secret :${NC} ${JWT_SECRET:0:20}... (${#JWT_SECRET} caractères)"
+echo -e "${GREEN}✅ PostgreSQL Password :${NC} ${POSTGRES_PASSWORD:0:10}... (${#POSTGRES_PASSWORD} caractères)"
+echo -e "${GREEN}✅ ANON_KEY :${NC} ${ANON_KEY:0:30}..."
+echo -e "${GREEN}✅ SERVICE_ROLE_KEY :${NC} ${SERVICE_ROLE_KEY:0:30}..."
+if [ -n "$HUGGINGFACE_TOKEN" ]; then
+    echo -e "${GREEN}✅ HuggingFace Token :${NC} Configuré (${#HUGGINGFACE_TOKEN} caractères)"
+else
+    echo -e "${YELLOW}⚠️  HuggingFace Token :${NC} Non configuré (diarisation désactivée)"
+fi
+echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
+echo ""
+
 # ============================================
 # ÉTAPE 6: Démarrer les services Docker
 # ============================================
 print_header "ÉTAPE 6/7 : Démarrage des services Docker"
 
 print_info "Arrêt des services existants (si présents)..."
-docker compose -f docker-compose.monorepo.yml down 2>/dev/null || true
+docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo down 2>/dev/null || true
 
 print_info "Construction des images Docker..."
-docker compose -f docker-compose.monorepo.yml build --no-cache web
+docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo build --no-cache web
 
 print_info "Démarrage de tous les services (mode production avec PyTorch)..."
-docker compose -f docker-compose.monorepo.yml up -d
+docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo up -d
 
 print_success "Commande de démarrage lancée"
 print_info "Attente du démarrage des services (60 secondes)..."
@@ -253,7 +315,7 @@ print_header "ÉTAPE 7/7 : Vérification des services"
 
 # Vérifier l'état des containers
 echo -e "${YELLOW}État des containers Docker :${NC}"
-docker compose -f docker-compose.monorepo.yml ps
+docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo ps
 
 echo ""
 print_info "Tests de connectivité..."
@@ -328,26 +390,26 @@ Service Role Key : $SERVICE_ROLE_KEY
 COMMANDES UTILES :
 ------------------
 # Voir les logs en temps réel
-docker compose -f docker-compose.monorepo.yml logs -f
+docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo logs -f
 
 # Logs d'un service spécifique
-docker compose -f docker-compose.monorepo.yml logs -f web
-docker compose -f docker-compose.monorepo.yml logs -f transcription-pytorch
+docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo logs -f web
+docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo logs -f transcription-pytorch
 
 # État des services
-docker compose -f docker-compose.monorepo.yml ps
+docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo ps
 
 # Redémarrer tous les services
-docker compose -f docker-compose.monorepo.yml restart
+docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo restart
 
 # Arrêter tous les services
-docker compose -f docker-compose.monorepo.yml down
+docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo down
 
 # Utilisation des ressources
 docker stats
 
 # Rebuild et redémarrer
-docker compose -f docker-compose.monorepo.yml up -d --build
+docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo up -d --build
 
 SERVICES DÉPLOYÉS :
 -------------------
@@ -404,8 +466,8 @@ echo -e "${GREEN}🎨 Studio Admin :${NC} http://$VPS_IP:54323"
 echo -e "${GREEN}🤖 PyTorch API :${NC} http://$VPS_IP:8000"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
-echo -e "${YELLOW}📋 Voir les logs :${NC} docker compose -f docker-compose.monorepo.yml logs -f"
-echo -e "${YELLOW}📊 État services :${NC} docker compose -f docker-compose.monorepo.yml ps"
+echo -e "${YELLOW}📋 Voir les logs :${NC} docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo logs -f"
+echo -e "${YELLOW}📊 État services :${NC} docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo ps"
 echo -e "${YELLOW}📁 Informations :${NC} cat deployment-info.txt"
 echo ""
 echo -e "${CYAN}Bon développement ! 🚀${NC}"
