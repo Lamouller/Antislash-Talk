@@ -132,14 +132,29 @@ print_success "SERVICE_ROLE_KEY généré"
 # ============================================
 print_header "ÉTAPE 4/7 : Détection de l'IP du VPS"
 
-VPS_IP=$(curl -s ifconfig.me || curl -s icanhazip.com || echo "localhost")
+# Forcer IPv4 (éviter IPv6 qui cause des erreurs dans Studio)
+VPS_IP=$(curl -4 -s ifconfig.me || curl -4 -s icanhazip.com || echo "")
 
-if [ "$VPS_IP" = "localhost" ]; then
-    print_warning "Impossible de détecter l'IP publique automatiquement"
-    read -p "Entrez l'IP de votre VPS manuellement : " VPS_IP
+if [ -z "$VPS_IP" ]; then
+    print_warning "Impossible de détecter l'IPv4 publique automatiquement"
+    echo -e "${CYAN}Entrez l'adresse IPv4 de votre VPS (pas d'IPv6) :${NC}"
+    read -p "IP du VPS : " VPS_IP
+    
+    # Validation basique IPv4
+    if [[ ! "$VPS_IP" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+        print_warning "Format IPv4 invalide (ex: 192.168.1.1)"
+        read -p "Réessayer avec l'IP correcte : " VPS_IP
+    fi
 fi
 
-print_success "IP du VPS détectée : $VPS_IP"
+# Vérifier si c'est une IPv6 (commence par des chiffres/lettres hexadécimaux avec :)
+if [[ "$VPS_IP" =~ : ]]; then
+    print_error "IPv6 détectée ! Studio Supabase ne supporte pas les IPv6 non-bracketed."
+    print_info "Veuillez entrer votre adresse IPv4 à la place"
+    read -p "Entrez l'IPv4 du VPS : " VPS_IP
+fi
+
+print_success "IP du VPS (IPv4) : $VPS_IP"
 
 # ============================================
 # ÉTAPE 4b: Configuration optionnelle HuggingFace
