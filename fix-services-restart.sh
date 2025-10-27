@@ -53,25 +53,25 @@ DECLARE
     db_password text := '${POSTGRES_PASSWORD}';
 BEGIN
     -- Mettre à jour postgres lui-même
-    ALTER ROLE postgres PASSWORD db_password;
+    EXECUTE format('ALTER ROLE postgres PASSWORD %L', db_password);
     
     -- Créer/mettre à jour supabase_auth_admin
     IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'supabase_auth_admin') THEN
         CREATE ROLE supabase_auth_admin;
     END IF;
-    ALTER ROLE supabase_auth_admin WITH SUPERUSER CREATEDB CREATEROLE LOGIN PASSWORD db_password;
+    EXECUTE format('ALTER ROLE supabase_auth_admin WITH SUPERUSER CREATEDB CREATEROLE LOGIN PASSWORD %L', db_password);
     
     -- Créer/mettre à jour supabase_storage_admin
     IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'supabase_storage_admin') THEN
         CREATE ROLE supabase_storage_admin;
     END IF;
-    ALTER ROLE supabase_storage_admin WITH SUPERUSER CREATEDB CREATEROLE LOGIN PASSWORD db_password;
+    EXECUTE format('ALTER ROLE supabase_storage_admin WITH SUPERUSER CREATEDB CREATEROLE LOGIN PASSWORD %L', db_password);
     
     -- Créer/mettre à jour authenticator
     IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticator') THEN
         CREATE ROLE authenticator;
     END IF;
-    ALTER ROLE authenticator WITH LOGIN PASSWORD db_password;
+    EXECUTE format('ALTER ROLE authenticator WITH LOGIN PASSWORD %L', db_password);
     
     -- Créer/mettre à jour service_role
     IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN
@@ -89,7 +89,7 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'supabase_admin') THEN
         CREATE ROLE supabase_admin;
     END IF;
-    ALTER ROLE supabase_admin WITH SUPERUSER CREATEDB CREATEROLE LOGIN PASSWORD db_password;
+    EXECUTE format('ALTER ROLE supabase_admin WITH SUPERUSER CREATEDB CREATEROLE LOGIN PASSWORD %L', db_password);
 END \$\$;
 
 -- Permissions
@@ -103,9 +103,22 @@ GRANT USAGE ON SCHEMA public TO authenticator, anon, service_role;
 GRANT anon TO authenticator;
 GRANT service_role TO authenticator;
 
--- S'assurer que les extensions sont créées
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA extensions CASCADE;
-CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions CASCADE;
+-- S'assurer que les extensions sont créées (ignorer les erreurs pg_read_file)
+DO \$\$
+BEGIN
+    CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA extensions CASCADE;
+EXCEPTION
+    WHEN others THEN
+        RAISE NOTICE 'Extension uuid-ossp: %', SQLERRM;
+END \$\$;
+
+DO \$\$
+BEGIN
+    CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions CASCADE;
+EXCEPTION
+    WHEN others THEN
+        RAISE NOTICE 'Extension pgcrypto: %', SQLERRM;
+END \$\$;
 
 -- Créer le type auth.factor_type s'il n'existe pas
 DO \$\$ 
