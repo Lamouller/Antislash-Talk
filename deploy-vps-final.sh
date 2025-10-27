@@ -559,9 +559,44 @@ done
 print_info "Démarrage de tous les services..."
 docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo up -d
 
-# Attendre que les services soient prêts
-print_info "Attente du démarrage des services (45s)..."
-sleep 45
+# Attendre que les services critiques soient prêts
+print_info "Attente du démarrage des services..."
+
+# Vérifier que Auth est prêt
+print_info "Vérification du service Auth..."
+AUTH_READY=false
+for i in {1..30}; do
+    if docker exec antislash-talk-auth curl -f http://localhost:9999/health 2>/dev/null | grep -q "ok"; then
+        AUTH_READY=true
+        print_success "Service Auth prêt"
+        break
+    fi
+    sleep 2
+done
+
+if [ "$AUTH_READY" = false ]; then
+    print_warning "Service Auth pas encore prêt après 60s, on continue quand même..."
+fi
+
+# Vérifier que Storage est prêt
+print_info "Vérification du service Storage..."
+STORAGE_READY=false
+for i in {1..30}; do
+    if docker exec antislash-talk-storage curl -f http://localhost:5000/status 2>/dev/null | grep -q "ok"; then
+        STORAGE_READY=true
+        print_success "Service Storage prêt"
+        break
+    fi
+    sleep 2
+done
+
+if [ "$STORAGE_READY" = false ]; then
+    print_warning "Service Storage pas encore prêt après 60s, on continue quand même..."
+fi
+
+# Attendre encore un peu pour la stabilisation
+print_info "Attente de stabilisation (15s)..."
+sleep 15
 
 # CRITIQUE: Mettre à jour Kong avec les bonnes clés
 print_info "Mise à jour de Kong avec les clés JWT..."
@@ -868,9 +903,50 @@ print_header "ÉTAPE 10/10 : Vérification du déploiement"
 print_info "État des services :"
 docker compose -f docker-compose.monorepo.yml ps
 
-# Vérifier les données créées
-print_info "Données créées :"
-docker exec antislash-talk-db psql -U postgres -c "
+# Vérifier les données créées avec diagnostic
+print_info "Vérification des données créées..."
+
+USERS_COUNT=$(docker exec antislash-talk-db psql -U postgres -t -c "SELECT count(*) FROM auth.users;" 2>/dev/null | tr -d ' ')
+PROFILES_COUNT=$(docker exec antislash-talk-db psql -U postgres -t -c "SELECT count(*) FROM public.profiles;" 2>/dev/null | tr -d ' ')
+BUCKETS_COUNT=$(docker exec antislash-talk-db psql -U postgres -t -c "SELECT count(*) FROM storage.buckets;" 2>/dev/null | tr -d ' ')
+
+echo ""
+echo "📊 Résultats de la vérification :"
+echo "  - Utilisateurs (auth.users) : ${USERS_COUNT:-0}"
+echo "  - Profils (public.profiles) : ${PROFILES_COUNT:-0}"
+echo "  - Buckets (storage.buckets) : ${BUCKETS_COUNT:-0}"
+echo ""
+
+# Vérifier si tout est OK
+DEPLOYMENT_OK=true
+
+if [ "${USERS_COUNT:-0}" -eq 0 ]; then
+    print_error "❌ PROBLÈME : Aucun utilisateur créé dans auth.users"
+    DEPLOYMENT_OK=false
+    echo "   → Diagnostic :"
+    docker logs antislash-talk-auth --tail 20 2>&1 | grep -i error || echo "     Pas d'erreur évidente dans les logs Auth"
+fi
+
+if [ "${PROFILES_COUNT:-0}" -eq 0 ]; then
+    print_error "❌ PROBLÈME : Aucun profil créé dans public.profiles"
+    DEPLOYMENT_OK=false
+    echo "   → Vérification : La table profiles existe-t-elle ?"
+    docker exec antislash-talk-db psql -U postgres -t -c "\d public.profiles" 2>&1 | head -5
+fi
+
+if [ "${BUCKETS_COUNT:-0}" -eq 0 ]; then
+    print_error "❌ PROBLÈME : Aucun bucket créé dans storage.buckets"
+    DEPLOYMENT_OK=false
+    echo "   → Diagnostic :"
+    docker logs antislash-talk-storage --tail 20 2>&1 | grep -i error || echo "     Pas d'erreur évidente dans les logs Storage"
+fi
+
+# Afficher les détails si tout est OK
+if [ "$DEPLOYMENT_OK" = true ]; then
+    print_success "✅ Toutes les vérifications sont OK !"
+    echo ""
+    print_info "Détails des données créées :"
+    docker exec antislash-talk-db psql -U postgres -c "
 SELECT 'Utilisateurs' as type, count(*) as count, string_agg(email, ', ') as details FROM auth.users
 UNION ALL
 SELECT 'Buckets' as type, count(*) as count, string_agg(name, ', ') as details FROM storage.buckets;"
@@ -940,4 +1016,39 @@ if [ -n "$HUGGINGFACE_TOKEN" ]; then
     echo "- HUGGINGFACE_TOKEN : ${HUGGINGFACE_TOKEN:0:10}..." >> deployment-info.txt
 fi
 
-print_success "Déploiement terminé !"
+# Afficher le résultat final
+echo ""
+echo "=========================================="
+if [ "$DEPLOYMENT_OK" = true ]; then
+    print_success "🎉 DÉPLOIEMENT TERMINÉ AVEC SUCCÈS !"
+    echo ""
+    echo "✅ Tous les services sont opérationnels"
+    echo "✅ ${USERS_COUNT} utilisateur(s) créé(s)"
+    echo "✅ ${PROFILES_COUNT} profil(s) créé(s)"
+    echo "✅ ${BUCKETS_COUNT} bucket(s) créé(s)"
+else
+    print_error "⚠️  DÉPLOIEMENT TERMINÉ AVEC DES PROBLÈMES"
+    echo ""
+    echo "Des erreurs ont été détectées. Solutions possibles :"
+    echo ""
+    echo "1. Relancer le script de correction manuelle :"
+    echo "   ./fix-complete-deployment.sh"
+    echo ""
+    echo "2. Vérifier les logs des services problématiques :"
+    echo "   docker logs antislash-talk-auth --tail 50"
+    echo "   docker logs antislash-talk-storage --tail 50"
+    echo ""
+    echo "3. Redéployer complètement depuis zéro :"
+    echo "   ./clean-and-deploy.sh"
+    echo ""
+    echo "4. Diagnostic détaillé de la base de données :"
+    echo "   docker exec -it antislash-talk-db psql -U postgres -d postgres"
+    echo "   Puis exécuter : \\dt auth.*"
+    echo "                   \\dt storage.*"
+    echo "                   \\dt public.*"
+    echo ""
+fi
+echo "=========================================="
+echo ""
+
+exit $([ "$DEPLOYMENT_OK" = true ] && echo 0 || echo 1)
