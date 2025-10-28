@@ -274,6 +274,7 @@ print_header "ÉTAPE 3/11 : Création du fichier .env.monorepo"
 cat > .env.monorepo << EOF
 # Configuration de base
 NODE_ENV=production
+VPS_HOST=${VPS_HOST}
 API_EXTERNAL_URL=https://${VPS_HOST}:8443
 VITE_SUPABASE_URL=https://${VPS_HOST}:8443
 VITE_SUPABASE_ANON_KEY=${ANON_KEY}
