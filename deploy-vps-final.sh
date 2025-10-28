@@ -381,7 +381,12 @@ export VITE_HIDE_MARKETING_PAGES="$VITE_HIDE_MARKETING_PAGES"
 export VITE_OLLAMA_URL="https://${VPS_HOST}:8445"
 
 print_info "Construction de l'image web..."
-docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo build web
+docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo build \
+  --build-arg VITE_SUPABASE_URL="https://${VPS_HOST}:8443" \
+  --build-arg VITE_SUPABASE_ANON_KEY="${ANON_KEY}" \
+  --build-arg VITE_HIDE_MARKETING_PAGES="${VITE_HIDE_MARKETING_PAGES}" \
+  --build-arg VITE_OLLAMA_URL="https://${VPS_HOST}:8445" \
+  web
 
 print_header "ÉTAPE 6/11 : Démarrage de PostgreSQL"
 
