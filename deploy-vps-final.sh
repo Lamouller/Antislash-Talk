@@ -278,6 +278,7 @@ API_EXTERNAL_URL=https://${VPS_HOST}:8443
 VITE_SUPABASE_URL=https://${VPS_HOST}:8443
 VITE_SUPABASE_ANON_KEY=${ANON_KEY}
 VITE_HIDE_MARKETING_PAGES=${VITE_HIDE_MARKETING_PAGES}
+VITE_OLLAMA_URL=https://${VPS_HOST}:8445
 
 # PostgreSQL
 POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
@@ -369,6 +370,7 @@ cat > apps/web/.env << EOF
 VITE_SUPABASE_URL=https://${VPS_HOST}:8443
 VITE_SUPABASE_ANON_KEY=${ANON_KEY}
 VITE_HIDE_MARKETING_PAGES=${VITE_HIDE_MARKETING_PAGES}
+VITE_OLLAMA_URL=https://${VPS_HOST}:8445
 EOF
 
 print_info "Export des variables pour le build..."
@@ -376,6 +378,7 @@ export API_EXTERNAL_URL="https://${VPS_HOST}:8443"
 export VITE_SUPABASE_URL="https://${VPS_HOST}:8443"
 export VITE_SUPABASE_ANON_KEY="$ANON_KEY"
 export VITE_HIDE_MARKETING_PAGES="$VITE_HIDE_MARKETING_PAGES"
+export VITE_OLLAMA_URL="https://${VPS_HOST}:8445"
 
 print_info "Construction de l'image web..."
 docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo build web
@@ -710,6 +713,33 @@ server {
 
     location / {
         proxy_pass http://localhost:54327;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+    }
+}
+
+# Ollama API (HTTPS sur 8445)
+server {
+    listen 8445 ssl http2;
+    server_name _;
+
+    ssl_certificate /etc/nginx/ssl/selfsigned.crt;
+    ssl_certificate_key /etc/nginx/ssl/selfsigned.key;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+
+    client_max_body_size 500M;
+    proxy_read_timeout 600s;
+    proxy_connect_timeout 600s;
+
+    location / {
+        proxy_pass http://localhost:11434;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -1131,12 +1161,11 @@ echo -e "${GREEN}║${NC}   Utilisateur      : ${YELLOW}antislash${NC}"
 echo -e "${GREEN}║${NC}   Mot de passe     : ${YELLOW}${STUDIO_PASSWORD}${NC}"
 echo -e "${GREEN}║${NC}"
 echo -e "${GREEN}║${NC} API Supabase       : ${CYAN}https://${VPS_HOST}:8443${NC}"
+echo -e "${GREEN}║${NC} Ollama API         : ${CYAN}https://${VPS_HOST}:8445${NC}"
 echo -e "${GREEN}║${NC}"
 echo -e "${GREEN}║${NC} Compte Admin App   :"
 echo -e "${GREEN}║${NC}   Email            : ${YELLOW}${APP_USER_EMAIL}${NC}"
 echo -e "${GREEN}║${NC}   Mot de passe     : ${YELLOW}${APP_USER_PASSWORD}${NC}"
-echo -e "${GREEN}║${NC}"
-echo -e "${GREEN}║${NC} Ollama API         : ${CYAN}http://${VPS_HOST}:11434${NC}"
 if [ -n "$HUGGINGFACE_TOKEN" ]; then
 echo -e "${GREEN}║${NC} HuggingFace Token  : ${YELLOW}${HUGGINGFACE_TOKEN:0:10}...${NC}"
 fi
@@ -1153,7 +1182,7 @@ URLs d'accès :
 - Application : https://${VPS_HOST} (HTTPS)
 - Studio : https://${VPS_HOST}:8444 (HTTPS, user: antislash, pass: ${STUDIO_PASSWORD})
 - API : https://${VPS_HOST}:8443 (HTTPS)
-- Ollama : http://${VPS_HOST}:11434
+- Ollama : https://${VPS_HOST}:8445 (HTTPS)
 
 Compte admin :
 - Email : ${APP_USER_EMAIL}
