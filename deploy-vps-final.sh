@@ -73,7 +73,7 @@ if ! docker ps >/dev/null 2>&1; then
     exit 1
 fi
 
-print_header "ÉTAPE 1/11 : Configuration initiale"
+print_header "ÉTAPE 1/13 : Configuration initiale"
 
 # Vérifier si un .env.monorepo existe déjà
 if [ -f ".env.monorepo" ]; then
@@ -222,7 +222,7 @@ read -p "Token HuggingFace (optionnel, Entrée pour ignorer) : " HUGGINGFACE_TOK
 
 fi # Fin du if [ "$GOTO_BUILD" != "true" ]
 
-print_header "ÉTAPE 2/11 : Génération des clés et mots de passe"
+print_header "ÉTAPE 2/13 : Génération des clés et mots de passe"
 
 # Si on saute la config, charger les clés depuis .env.monorepo
 if [ "$GOTO_BUILD" = "true" ]; then
@@ -326,7 +326,7 @@ print_success "Clés générées avec succès"
 
 fi # Fin du else (génération des clés)
 
-print_header "ÉTAPE 3/11 : Création du fichier .env.monorepo"
+print_header "ÉTAPE 3/13 : Création du fichier .env.monorepo"
 
 # Si on a gardé la config, skip cette étape aussi
 if [ "$GOTO_BUILD" = "true" ]; then
@@ -423,13 +423,13 @@ print_success "Configuration créée"
 
 fi # Fin du else (création de .env.monorepo)
 
-print_header "ÉTAPE 4/11 : Arrêt des services existants"
+print_header "ÉTAPE 4/13 : Arrêt des services existants"
 
 # Arrêter et nettoyer les services existants
 docker compose -f docker-compose.monorepo.yml down -v --remove-orphans || true
 docker system prune -f
 
-print_header "ÉTAPE 5/11 : Construction de l'image web"
+print_header "ÉTAPE 5/13 : Construction de l'image web"
 
 print_info "Création du fichier apps/web/.env pour le build..."
 cat > apps/web/.env << EOF
@@ -454,7 +454,7 @@ docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo build \
   --build-arg VITE_OLLAMA_URL="https://${VPS_HOST}:8445" \
   web
 
-print_header "ÉTAPE 6/11 : Démarrage de PostgreSQL"
+print_header "ÉTAPE 6/13 : Démarrage de PostgreSQL"
 
 print_info "Démarrage de PostgreSQL seul..."
 docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo up -d db
@@ -478,7 +478,7 @@ fi
 print_success "PostgreSQL prêt"
 sleep 5
 
-print_header "ÉTAPE 7/11 : Configuration de PostgreSQL"
+print_header "ÉTAPE 7/13 : Configuration de PostgreSQL"
 
 print_info "Configuration complète de PostgreSQL..."
 docker exec -i antislash-talk-db psql -U postgres << EOF
@@ -614,7 +614,7 @@ EOF"
 docker exec antislash-talk-db psql -U postgres -c "SELECT pg_reload_conf();"
 print_success "PostgreSQL configuré"
 
-print_header "ÉTAPE 8/11 : Application des migrations et démarrage des services"
+print_header "ÉTAPE 8/13 : Application des migrations et démarrage des services"
 
 # Appliquer les migrations
 print_info "Application des migrations..."
@@ -693,7 +693,7 @@ print_success "Kong mis à jour avec les nouvelles clés"
 # Restaurer le template pour les prochains déploiements
 mv packages/supabase/kong.yml.backup packages/supabase/kong.yml 2>/dev/null || true
 
-print_header "ÉTAPE 9/10 : Configuration Nginx HTTPS"
+print_header "ÉTAPE 9/13 : Configuration Nginx HTTPS"
 
 print_info "Installation de Nginx si nécessaire..."
 if ! command -v nginx &> /dev/null; then
@@ -838,7 +838,7 @@ else
     exit 1
 fi
 
-print_header "ÉTAPE 10/11 : Création des données initiales"
+print_header "ÉTAPE 10/13 : Création des données initiales"
 
 # Attendre que les tables existent (créées par les migrations)
 print_info "Attente de la création des tables par les migrations..."
@@ -1151,7 +1151,7 @@ else
     print_warning "Les tables n'ont pas été créées automatiquement"
 fi
 
-print_header "ÉTAPE 11/11 : Vérification du déploiement"
+print_header "ÉTAPE 11/13 : Vérification du déploiement"
 
 # Vérifier l'état des services
 print_info "État des services :"
@@ -1232,6 +1232,97 @@ else
 fi
 
 # Afficher les informations finales
+print_header "ÉTAPE 12/13 : Configuration Ollama"
+
+print_info "Attente du démarrage d'Ollama (30s)..."
+sleep 30
+
+# Vérifier si Ollama est accessible
+if docker exec antislash-talk-ollama curl -s http://localhost:11434/api/tags >/dev/null 2>&1; then
+    print_success "Ollama est accessible"
+    
+    # Vérifier si des modèles sont installés
+    MODELS_COUNT=$(docker exec antislash-talk-ollama ollama list 2>/dev/null | grep -c "^[a-zA-Z]" || echo "0")
+    
+    if [ "$MODELS_COUNT" -eq "0" ]; then
+        print_info "Aucun modèle Ollama trouvé. Installation de llama3.2:3b..."
+        if docker exec -it antislash-talk-ollama ollama pull llama3.2:3b; then
+            print_success "Modèle llama3.2:3b installé"
+        else
+            print_warning "Impossible d'installer le modèle automatiquement"
+            print_info "Vous pourrez l'installer plus tard avec : ./install-ollama-model.sh"
+        fi
+    else
+        print_success "$MODELS_COUNT modèle(s) Ollama déjà installé(s)"
+    fi
+else
+    print_warning "Ollama n'est pas encore prêt"
+    print_info "Vous pourrez installer un modèle plus tard avec : ./install-ollama-model.sh"
+fi
+
+print_header "ÉTAPE 13/13 : Configuration CORS pour Ollama"
+
+print_info "Configuration des headers CORS pour Ollama..."
+
+# Créer la configuration Nginx avec CORS pour Ollama
+cat > /tmp/nginx-ollama-cors.conf << 'NGINXCORS'
+# Ollama API (HTTPS sur 8445)
+server {
+    listen 8445 ssl http2;
+    server_name _;
+
+    ssl_certificate /etc/nginx/ssl/selfsigned.crt;
+    ssl_certificate_key /etc/nginx/ssl/selfsigned.key;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+
+    client_max_body_size 500M;
+    proxy_read_timeout 600s;
+    proxy_connect_timeout 600s;
+
+    location / {
+        # Headers CORS permissifs
+        if ($request_method = 'OPTIONS') {
+            add_header 'Access-Control-Allow-Origin' '*' always;
+            add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, OPTIONS' always;
+            add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization' always;
+            add_header 'Access-Control-Max-Age' 1728000;
+            add_header 'Content-Type' 'text/plain; charset=utf-8';
+            add_header 'Content-Length' 0;
+            return 204;
+        }
+
+        add_header 'Access-Control-Allow-Origin' '*' always;
+        add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, OPTIONS' always;
+        add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization' always;
+        add_header 'Access-Control-Expose-Headers' 'Content-Length,Content-Range' always;
+
+        proxy_pass http://localhost:11434;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+        proxy_buffering off;
+        proxy_request_buffering off;
+    }
+}
+NGINXCORS
+
+# Remplacer la configuration Ollama dans Nginx
+if [ -f "/etc/nginx/sites-available/antislash-talk-ssl" ]; then
+    sudo cp /etc/nginx/sites-available/antislash-talk-ssl /etc/nginx/sites-available/antislash-talk-ssl.backup
+    sudo sed -i '/# Ollama API/,/^}$/d' /etc/nginx/sites-available/antislash-talk-ssl
+    cat /tmp/nginx-ollama-cors.conf | sudo tee -a /etc/nginx/sites-available/antislash-talk-ssl > /dev/null
+    print_success "Configuration Nginx mise à jour avec CORS pour Ollama"
+    sudo systemctl reload nginx
+fi
+
+rm -f /tmp/nginx-ollama-cors.conf
+
 print_header "🎉 DÉPLOIEMENT TERMINÉ AVEC SUCCÈS !"
 
 echo -e "${GREEN}╔════════════════════════════════════════════════════════════════╗${NC}"
