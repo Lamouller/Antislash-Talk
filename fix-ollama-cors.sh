@@ -94,7 +94,7 @@ if [ -f "/etc/nginx/sites-available/antislash-talk-ssl" ]; then
     sudo sed -i '/# Ollama API/,/^}$/d' /etc/nginx/sites-available/antislash-talk-ssl
     
     # Ajouter la nouvelle config
-    sudo cat /tmp/nginx-ollama-cors.conf >> /etc/nginx/sites-available/antislash-talk-ssl
+    cat /tmp/nginx-ollama-cors.conf | sudo tee -a /etc/nginx/sites-available/antislash-talk-ssl > /dev/null
     
     print_success "Configuration Nginx mise à jour avec CORS"
 else
