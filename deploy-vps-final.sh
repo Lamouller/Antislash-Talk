@@ -75,14 +75,58 @@ fi
 
 print_header "ÉTAPE 1/11 : Configuration initiale"
 
-# Détecter l'IP automatiquement
-print_info "Détection de l'IP du VPS..."
-DETECTED_IP=""
-
-# Méthode 1: curl ifconfig.me (forcer IPv4)
-if [ -z "$DETECTED_IP" ]; then
-    DETECTED_IP=$(curl -4 -s --max-time 5 ifconfig.me 2>/dev/null | grep -E '^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$' || true)
+# Vérifier si un .env.monorepo existe déjà
+if [ -f ".env.monorepo" ]; then
+    print_warning "Un fichier .env.monorepo existe déjà"
+    echo ""
+    read -p "Voulez-vous le conserver et sauter la configuration ? (oui/non) [non] : " KEEP_ENV
+    if [ "${KEEP_ENV}" = "oui" ] || [ "${KEEP_ENV}" = "o" ] || [ "${KEEP_ENV}" = "yes" ] || [ "${KEEP_ENV}" = "y" ]; then
+        print_success "Conservation de .env.monorepo existant"
+        print_info "Passage directement au déploiement..."
+        
+        # Charger les variables existantes
+        source .env.monorepo
+        
+        # Passer à l'étape de déploiement (ligne après génération des clés)
+        SKIP_CONFIG=true
+    else
+        print_info "Suppression de l'ancien .env.monorepo"
+        rm -f .env.monorepo
+        SKIP_CONFIG=false
+    fi
+else
+    SKIP_CONFIG=false
 fi
+
+# Si on garde la config existante, sauter la configuration
+if [ "$SKIP_CONFIG" = "true" ]; then
+    print_info "Saut de la configuration interactive"
+    # S'assurer que VPS_HOST est défini
+    if [ -z "$VPS_HOST" ]; then
+        VPS_HOST=$(grep "^VPS_HOST=" .env.monorepo | cut -d= -f2 || echo "")
+    fi
+    # Extraire les variables nécessaires
+    STUDIO_PASSWORD=$(grep "^STUDIO_PASSWORD=" .env.monorepo | cut -d= -f2 || generate_password)
+    APP_USER_EMAIL=$(grep "^APP_USER_EMAIL=" .env.monorepo | cut -d= -f2 || echo "admin@antislash-talk.fr")
+    APP_USER_PASSWORD=$(grep "^APP_USER_PASSWORD=" .env.monorepo | cut -d= -f2 || generate_password)
+    
+    print_success "Configuration chargée depuis .env.monorepo"
+    
+    # Passer directement à l'étape 4 (build)
+    GOTO_BUILD=true
+else
+    GOTO_BUILD=false
+fi
+
+# Détecter l'IP automatiquement
+if [ "$GOTO_BUILD" != "true" ]; then
+    print_info "Détection de l'IP du VPS..."
+    DETECTED_IP=""
+
+    # Méthode 1: curl ifconfig.me (forcer IPv4)
+    if [ -z "$DETECTED_IP" ]; then
+        DETECTED_IP=$(curl -4 -s --max-time 5 ifconfig.me 2>/dev/null | grep -E '^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$' || true)
+    fi
 
 # Méthode 2: curl ipinfo.io (forcer IPv4)
 if [ -z "$DETECTED_IP" ]; then
@@ -176,7 +220,19 @@ VITE_HIDE_MARKETING_PAGES=$([ "${HIDE_MARKETING:-oui}" = "oui" ] && echo "true" 
 # HuggingFace token
 read -p "Token HuggingFace (optionnel, Entrée pour ignorer) : " HUGGINGFACE_TOKEN
 
+fi # Fin du if [ "$GOTO_BUILD" != "true" ]
+
 print_header "ÉTAPE 2/11 : Génération des clés et mots de passe"
+
+# Si on saute la config, charger les clés depuis .env.monorepo
+if [ "$GOTO_BUILD" = "true" ]; then
+    print_info "Chargement des clés depuis .env.monorepo..."
+    POSTGRES_PASSWORD=$(grep "^POSTGRES_PASSWORD=" .env.monorepo | cut -d= -f2)
+    JWT_SECRET=$(grep "^JWT_SECRET=" .env.monorepo | cut -d= -f2)
+    ANON_KEY=$(grep "^ANON_KEY=" .env.monorepo | cut -d= -f2)
+    SERVICE_ROLE_KEY=$(grep "^SERVICE_ROLE_KEY=" .env.monorepo | cut -d= -f2)
+    print_success "Clés chargées"
+else
 
 # Générer toutes les clés nécessaires
 POSTGRES_PASSWORD=$(generate_password)
@@ -268,7 +324,14 @@ fi
 
 print_success "Clés générées avec succès"
 
+fi # Fin du else (génération des clés)
+
 print_header "ÉTAPE 3/11 : Création du fichier .env.monorepo"
+
+# Si on a gardé la config, skip cette étape aussi
+if [ "$GOTO_BUILD" = "true" ]; then
+    print_info "Fichier .env.monorepo déjà existant, étape ignorée"
+else
 
 # Créer le fichier .env.monorepo avec toutes les variables
 cat > .env.monorepo << EOF
@@ -357,6 +420,8 @@ IMGPROXY_ENABLE_WEBP_DETECTION=true
 EOF
 
 print_success "Configuration créée"
+
+fi # Fin du else (création de .env.monorepo)
 
 print_header "ÉTAPE 4/11 : Arrêt des services existants"
 
