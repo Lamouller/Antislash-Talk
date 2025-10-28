@@ -52,6 +52,10 @@ sleep 3
 print_info "Génération du nouveau fichier .htpasswd..."
 STUDIO_PASSWORD_HASH=$(docker run --rm httpd:alpine htpasswd -nbB antislash "$STUDIO_PASSWORD" | cut -d: -f2)
 
+# FORCER la suppression du répertoire .htpasswd s'il existe
+print_info "Suppression forcée de l'ancien .htpasswd..."
+docker exec antislash-talk-studio-proxy sh -c "if [ -e /etc/nginx/.htpasswd ]; then rm -rf /etc/nginx/.htpasswd; fi"
+
 # Créer directement le fichier dans le container
 docker exec antislash-talk-studio-proxy sh -c "echo 'antislash:$STUDIO_PASSWORD_HASH' > /etc/nginx/.htpasswd"
 docker exec antislash-talk-studio-proxy sh -c "chmod 644 /etc/nginx/.htpasswd"
@@ -75,7 +79,8 @@ else
     # Attendre que le container démarre
     sleep 5
     
-    # Créer le fichier .htpasswd
+    # Forcer la suppression et créer le fichier .htpasswd
+    docker exec antislash-talk-studio-proxy sh -c "rm -rf /etc/nginx/.htpasswd 2>/dev/null || true"
     docker exec antislash-talk-studio-proxy sh -c "echo 'antislash:$STUDIO_PASSWORD_HASH' > /etc/nginx/.htpasswd"
     docker exec antislash-talk-studio-proxy sh -c "chmod 644 /etc/nginx/.htpasswd"
 fi
