@@ -1208,15 +1208,32 @@ fi
 
 # Configuration Nginx pour Studio
 print_info "Configuration de l'authentification Studio..."
+
+# CRITICAL: S'assurer que .htpasswd n'existe pas comme répertoire
+docker exec antislash-talk-studio-proxy sh -c "if [ -d /etc/nginx/.htpasswd ]; then rm -rf /etc/nginx/.htpasswd; fi"
+
+# Générer le hash du mot de passe
 STUDIO_PASSWORD_HASH=$(docker run --rm httpd:alpine htpasswd -nbB antislash "$STUDIO_PASSWORD" | cut -d: -f2)
 
+# Créer le fichier temporaire
 cat > studio.htpasswd << EOF
 antislash:$STUDIO_PASSWORD_HASH
 EOF
 
-# Copier dans le container avec une méthode qui évite le "device busy"
+# Copier dans le container en s'assurant que c'est bien un fichier
 docker cp studio.htpasswd antislash-talk-studio-proxy:/tmp/.htpasswd.new
+docker exec antislash-talk-studio-proxy sh -c "rm -rf /etc/nginx/.htpasswd 2>/dev/null || true"
 docker exec antislash-talk-studio-proxy sh -c "mv /tmp/.htpasswd.new /etc/nginx/.htpasswd && chmod 644 /etc/nginx/.htpasswd"
+
+# Vérifier que c'est bien un fichier et non un répertoire
+if docker exec antislash-talk-studio-proxy test -f /etc/nginx/.htpasswd; then
+    print_success "Fichier .htpasswd créé correctement"
+else
+    print_error "Erreur: .htpasswd n'a pas été créé correctement"
+    # Essayer une méthode alternative
+    docker exec antislash-talk-studio-proxy sh -c "echo 'antislash:$STUDIO_PASSWORD_HASH' > /etc/nginx/.htpasswd && chmod 644 /etc/nginx/.htpasswd"
+fi
+
 docker exec antislash-talk-studio-proxy nginx -s reload 2>/dev/null || docker restart antislash-talk-studio-proxy
 rm -f studio.htpasswd
 

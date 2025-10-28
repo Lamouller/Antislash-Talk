@@ -1,62 +1,75 @@
 #!/bin/bash
+# Script de correction pour le problème .htpasswd Studio
+
 set -e
 
-echo "🔧 Fix studio.htpasswd file"
-echo "============================="
+# Couleurs pour l'affichage
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
 
-cd ~/antislash-talk
+print_success() {
+    echo -e "${GREEN}✅ $1${NC}"
+}
 
-# 1. Arrêter le container studio
-echo ""
-echo "🛑 Arrêt du container studio..."
-docker compose -f docker-compose.monorepo.yml stop studio 2>/dev/null || true
+print_error() {
+    echo -e "${RED}❌ $1${NC}"
+}
 
-# 2. Supprimer le fichier/dossier problématique
-echo ""
-echo "🗑️  Nettoyage du fichier htpasswd..."
-rm -rf studio.htpasswd 2>/dev/null || true
+print_info() {
+    echo -e "${BLUE}ℹ️  $1${NC}"
+}
 
-# 3. Extraire le mot de passe depuis .env.monorepo
-STUDIO_PASSWORD=$(grep "^STUDIO_PASSWORD=" .env.monorepo | cut -d= -f2)
+print_info "Correction du problème .htpasswd pour Studio..."
 
-if [ -z "$STUDIO_PASSWORD" ]; then
-    echo "⚠️  STUDIO_PASSWORD non trouvé, génération d'un nouveau..."
-    STUDIO_PASSWORD=$(openssl rand -base64 16 | tr -d "=+/" | cut -c1-12)
-    echo "STUDIO_PASSWORD=${STUDIO_PASSWORD}" >> .env.monorepo
-fi
-
-# 4. Créer le fichier htpasswd avec le bon mot de passe
-echo ""
-echo "📝 Création du fichier htpasswd..."
-echo "   Username: antislash"
-echo "   Password: ${STUDIO_PASSWORD}"
-
-# Créer le fichier avec htpasswd ou openssl
-if command -v htpasswd &> /dev/null; then
-    htpasswd -bc studio.htpasswd antislash "${STUDIO_PASSWORD}"
+# Vérifier si on a le mot de passe dans .env.monorepo
+if [ -f ".env.monorepo" ]; then
+    STUDIO_PASSWORD=$(grep "^STUDIO_PASSWORD=" .env.monorepo | cut -d= -f2)
+    if [ -z "$STUDIO_PASSWORD" ]; then
+        print_error "Mot de passe Studio introuvable dans .env.monorepo"
+        read -sp "Entrez le mot de passe Studio : " STUDIO_PASSWORD
+        echo
+    fi
 else
-    # Utiliser openssl comme fallback
-    echo "antislash:$(openssl passwd -apr1 ${STUDIO_PASSWORD})" > studio.htpasswd
+    print_error "Fichier .env.monorepo introuvable"
+    read -sp "Entrez le mot de passe Studio : " STUDIO_PASSWORD
+    echo
 fi
 
-# 5. Vérifier que le fichier existe
-if [ ! -f "studio.htpasswd" ]; then
-    echo "❌ Erreur: Impossible de créer studio.htpasswd"
+# Supprimer le répertoire .htpasswd s'il existe
+print_info "Nettoyage de l'ancien .htpasswd..."
+docker exec antislash-talk-studio-proxy sh -c "rm -rf /etc/nginx/.htpasswd"
+
+# Générer le hash du mot de passe
+print_info "Génération du nouveau fichier .htpasswd..."
+STUDIO_PASSWORD_HASH=$(docker run --rm httpd:alpine htpasswd -nbB antislash "$STUDIO_PASSWORD" | cut -d: -f2)
+
+# Créer directement le fichier dans le container
+docker exec antislash-talk-studio-proxy sh -c "echo 'antislash:$STUDIO_PASSWORD_HASH' > /etc/nginx/.htpasswd"
+docker exec antislash-talk-studio-proxy sh -c "chmod 644 /etc/nginx/.htpasswd"
+
+# Vérifier que c'est bien un fichier
+if docker exec antislash-talk-studio-proxy test -f /etc/nginx/.htpasswd; then
+    print_success "Fichier .htpasswd créé correctement"
+    
+    # Afficher le contenu (sans le hash complet)
+    print_info "Vérification du fichier :"
+    docker exec antislash-talk-studio-proxy sh -c "ls -la /etc/nginx/.htpasswd"
+    docker exec antislash-talk-studio-proxy sh -c "head -c 20 /etc/nginx/.htpasswd && echo '...'"
+else
+    print_error "Erreur: .htpasswd n'a pas été créé correctement"
     exit 1
 fi
 
-echo "✅ Fichier studio.htpasswd créé"
-ls -lh studio.htpasswd
+# Recharger nginx
+print_info "Rechargement de nginx..."
+docker exec antislash-talk-studio-proxy nginx -s reload || docker restart antislash-talk-studio-proxy
 
-# 6. Redémarrer le container studio
+print_success "Correction terminée !"
 echo ""
-echo "🚀 Redémarrage du container studio..."
-docker compose -f docker-compose.monorepo.yml up -d studio
-
-echo ""
-echo "✅ Correction terminée !"
-echo ""
-echo "📋 Identifiants Supabase Studio:"
-echo "   URL: https://$(grep '^VPS_HOST=' .env.monorepo | cut -d= -f2 || echo 'localhost'):8444"
-echo "   Username: antislash"
-echo "   Password: ${STUDIO_PASSWORD}"
+echo "Vous pouvez maintenant accéder à Studio :"
+echo "URL : https://$(hostname -I | awk '{print $1}'):8444"
+echo "User : antislash"
+echo "Pass : $STUDIO_PASSWORD"
