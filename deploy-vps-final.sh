@@ -991,15 +991,16 @@ BEGIN
     
     -- Policies pour storage.objects
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'storage' AND table_name = 'objects') THEN
-        -- Service role bypass pour tous les objets
+        -- Service role bypass pour tous les objets (CRITIQUE pour Storage service)
         DROP POLICY IF EXISTS "Service role bypass" ON storage.objects;
-        CREATE POLICY "Service role bypass" 
+        DROP POLICY IF EXISTS "service_role_all" ON storage.objects;
+        CREATE POLICY "service_role_all" 
         ON storage.objects FOR ALL 
-        TO service_role, postgres
+        TO service_role, postgres, supabase_storage_admin
         USING (true)
         WITH CHECK (true);
         
-        -- Policies pour users authentifiés (plus permissives pour déboguer)
+        -- Nettoyer les anciennes policies
         DROP POLICY IF EXISTS "Users can upload to recordings" ON storage.objects;
         DROP POLICY IF EXISTS "Users can view own recordings" ON storage.objects;
         DROP POLICY IF EXISTS "Users can delete own recordings" ON storage.objects;
@@ -1007,27 +1008,38 @@ BEGIN
         DROP POLICY IF EXISTS "Authenticated users can upload" ON storage.objects;
         DROP POLICY IF EXISTS "Authenticated users can select" ON storage.objects;
         DROP POLICY IF EXISTS "Authenticated users can delete" ON storage.objects;
+        DROP POLICY IF EXISTS "authenticated_insert_all" ON storage.objects;
+        DROP POLICY IF EXISTS "authenticated_select_all" ON storage.objects;
+        DROP POLICY IF EXISTS "authenticated_update_all" ON storage.objects;
+        DROP POLICY IF EXISTS "authenticated_delete_all" ON storage.objects;
+        DROP POLICY IF EXISTS "anon_select_public" ON storage.objects;
         
-        -- Policies permissives pour tous les buckets (pour les utilisateurs authentifiés)
-        CREATE POLICY "Authenticated users can upload" 
+        -- Policies ULTRA-PERMISSIVES pour authenticated (pas de vérification de bucket ou UUID)
+        CREATE POLICY "authenticated_insert_all" 
         ON storage.objects FOR INSERT 
         TO authenticated
-        WITH CHECK (bucket_id IN (SELECT id FROM storage.buckets) AND auth.uid() IS NOT NULL);
+        WITH CHECK (true);
 
-        CREATE POLICY "Authenticated users can select" 
+        CREATE POLICY "authenticated_select_all" 
         ON storage.objects FOR SELECT 
         TO authenticated
-        USING (bucket_id IN (SELECT id FROM storage.buckets) AND auth.uid() IS NOT NULL);
+        USING (true);
 
-        CREATE POLICY "Authenticated users can delete" 
+        CREATE POLICY "authenticated_update_all" 
+        ON storage.objects FOR UPDATE 
+        TO authenticated
+        USING (true)
+        WITH CHECK (true);
+
+        CREATE POLICY "authenticated_delete_all" 
         ON storage.objects FOR DELETE 
         TO authenticated
-        USING (bucket_id IN (SELECT id FROM storage.buckets) AND auth.uid() IS NOT NULL);
+        USING (true);
         
-        -- Public buckets viewable by all
-        CREATE POLICY "Public buckets are viewable"
+        -- Public buckets viewable by anon
+        CREATE POLICY "anon_select_public"
         ON storage.objects FOR SELECT
-        TO anon, authenticated
+        TO anon
         USING (bucket_id IN (SELECT id FROM storage.buckets WHERE public = TRUE));
     END IF;
 END \$\$;
