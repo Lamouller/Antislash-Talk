@@ -1,5 +1,5 @@
 #!/bin/bash
-# Script de correction pour le problème .htpasswd Studio
+# Script de correction FORCÉE pour le problème .htpasswd Studio
 
 set -e
 
@@ -22,7 +22,7 @@ print_info() {
     echo -e "${BLUE}ℹ️  $1${NC}"
 }
 
-print_info "Correction du problème .htpasswd pour Studio..."
+print_info "Correction FORCÉE du problème .htpasswd pour Studio..."
 
 # Vérifier si on a le mot de passe dans .env.monorepo
 if [ -f ".env.monorepo" ]; then
@@ -38,13 +38,15 @@ else
     echo
 fi
 
-# Supprimer le répertoire .htpasswd s'il existe
-print_info "Nettoyage de l'ancien .htpasswd..."
-# Arrêter nginx temporairement pour libérer le fichier
-docker exec antislash-talk-studio-proxy sh -c "nginx -s stop" 2>/dev/null || true
-sleep 1
-# Maintenant on peut supprimer
-docker exec antislash-talk-studio-proxy sh -c "rm -rf /etc/nginx/.htpasswd" 2>/dev/null || true
+print_info "Méthode 1 : Redémarrage complet du container..."
+
+# Arrêter complètement le container
+docker stop antislash-talk-studio-proxy
+sleep 2
+
+# Le redémarrer (cela va recréer le système de fichiers)
+docker start antislash-talk-studio-proxy
+sleep 3
 
 # Générer le hash du mot de passe
 print_info "Génération du nouveau fichier .htpasswd..."
@@ -61,15 +63,25 @@ if docker exec antislash-talk-studio-proxy test -f /etc/nginx/.htpasswd; then
     # Afficher le contenu (sans le hash complet)
     print_info "Vérification du fichier :"
     docker exec antislash-talk-studio-proxy sh -c "ls -la /etc/nginx/.htpasswd"
-    docker exec antislash-talk-studio-proxy sh -c "head -c 20 /etc/nginx/.htpasswd && echo '...'"
 else
-    print_error "Erreur: .htpasswd n'a pas été créé correctement"
-    exit 1
+    print_error "Méthode 1 échouée, essai de la méthode 2..."
+    
+    # Méthode 2 : Recréer le container
+    print_info "Méthode 2 : Recréation du container proxy..."
+    
+    docker rm -f antislash-talk-studio-proxy
+    docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo up -d studio-proxy
+    
+    # Attendre que le container démarre
+    sleep 5
+    
+    # Créer le fichier .htpasswd
+    docker exec antislash-talk-studio-proxy sh -c "echo 'antislash:$STUDIO_PASSWORD_HASH' > /etc/nginx/.htpasswd"
+    docker exec antislash-talk-studio-proxy sh -c "chmod 644 /etc/nginx/.htpasswd"
 fi
 
-# Redémarrer nginx (il était arrêté)
-print_info "Redémarrage de nginx..."
-docker exec antislash-talk-studio-proxy nginx || docker restart antislash-talk-studio-proxy
+# Recharger nginx
+docker exec antislash-talk-studio-proxy nginx -s reload
 
 print_success "Correction terminée !"
 echo ""
