@@ -62,7 +62,7 @@ cat << "EOF"
 
 EOF
 echo -e "${NC}"
-echo -e "${PURPLE}Script de Déploiement Complet Final v4.0${NC}"
+echo -e "${PURPLE}Script de Déploiement Complet Final v5.0 - HTTPS + Storage RLS${NC}"
 
 # Vérifier les permissions Docker
 if ! docker ps >/dev/null 2>&1; then
@@ -73,7 +73,7 @@ if ! docker ps >/dev/null 2>&1; then
     exit 1
 fi
 
-print_header "ÉTAPE 1/10 : Configuration initiale"
+print_header "ÉTAPE 1/11 : Configuration initiale"
 
 # Détecter l'IP automatiquement
 print_info "Détection de l'IP du VPS..."
@@ -176,7 +176,7 @@ VITE_HIDE_MARKETING_PAGES=$([ "${HIDE_MARKETING:-oui}" = "oui" ] && echo "true" 
 # HuggingFace token
 read -p "Token HuggingFace (optionnel, Entrée pour ignorer) : " HUGGINGFACE_TOKEN
 
-print_header "ÉTAPE 2/10 : Génération des clés et mots de passe"
+print_header "ÉTAPE 2/11 : Génération des clés et mots de passe"
 
 # Générer toutes les clés nécessaires
 POSTGRES_PASSWORD=$(generate_password)
@@ -268,14 +268,14 @@ fi
 
 print_success "Clés générées avec succès"
 
-print_header "ÉTAPE 3/10 : Création du fichier .env.monorepo"
+print_header "ÉTAPE 3/11 : Création du fichier .env.monorepo"
 
 # Créer le fichier .env.monorepo avec toutes les variables
 cat > .env.monorepo << EOF
 # Configuration de base
 NODE_ENV=production
-API_EXTERNAL_URL=http://${VPS_HOST}:54321
-VITE_SUPABASE_URL=http://${VPS_HOST}:54321
+API_EXTERNAL_URL=https://${VPS_HOST}:8443
+VITE_SUPABASE_URL=https://${VPS_HOST}:8443
 VITE_SUPABASE_ANON_KEY=${ANON_KEY}
 VITE_HIDE_MARKETING_PAGES=${VITE_HIDE_MARKETING_PAGES}
 
@@ -356,31 +356,31 @@ EOF
 
 print_success "Configuration créée"
 
-print_header "ÉTAPE 4/10 : Arrêt des services existants"
+print_header "ÉTAPE 4/11 : Arrêt des services existants"
 
 # Arrêter et nettoyer les services existants
 docker compose -f docker-compose.monorepo.yml down -v --remove-orphans || true
 docker system prune -f
 
-print_header "ÉTAPE 5/10 : Construction de l'image web"
+print_header "ÉTAPE 5/11 : Construction de l'image web"
 
 print_info "Création du fichier apps/web/.env pour le build..."
 cat > apps/web/.env << EOF
-VITE_SUPABASE_URL=http://${VPS_HOST}:54321
+VITE_SUPABASE_URL=https://${VPS_HOST}:8443
 VITE_SUPABASE_ANON_KEY=${ANON_KEY}
 VITE_HIDE_MARKETING_PAGES=${VITE_HIDE_MARKETING_PAGES}
 EOF
 
 print_info "Export des variables pour le build..."
-export API_EXTERNAL_URL="http://${VPS_HOST}:54321"
-export VITE_SUPABASE_URL="http://${VPS_HOST}:54321"
+export API_EXTERNAL_URL="https://${VPS_HOST}:8443"
+export VITE_SUPABASE_URL="https://${VPS_HOST}:8443"
 export VITE_SUPABASE_ANON_KEY="$ANON_KEY"
 export VITE_HIDE_MARKETING_PAGES="$VITE_HIDE_MARKETING_PAGES"
 
 print_info "Construction de l'image web..."
 docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo build web
 
-print_header "ÉTAPE 6/10 : Démarrage de PostgreSQL"
+print_header "ÉTAPE 6/11 : Démarrage de PostgreSQL"
 
 print_info "Démarrage de PostgreSQL seul..."
 docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo up -d db
@@ -404,7 +404,7 @@ fi
 print_success "PostgreSQL prêt"
 sleep 5
 
-print_header "ÉTAPE 7/10 : Configuration de PostgreSQL"
+print_header "ÉTAPE 7/11 : Configuration de PostgreSQL"
 
 print_info "Configuration complète de PostgreSQL..."
 docker exec -i antislash-talk-db psql -U postgres << EOF
@@ -540,7 +540,7 @@ EOF"
 docker exec antislash-talk-db psql -U postgres -c "SELECT pg_reload_conf();"
 print_success "PostgreSQL configuré"
 
-print_header "ÉTAPE 8/10 : Application des migrations et démarrage des services"
+print_header "ÉTAPE 8/11 : Application des migrations et démarrage des services"
 
 # Appliquer les migrations
 print_info "Application des migrations..."
@@ -619,7 +619,125 @@ print_success "Kong mis à jour avec les nouvelles clés"
 # Restaurer le template pour les prochains déploiements
 mv packages/supabase/kong.yml.backup packages/supabase/kong.yml 2>/dev/null || true
 
-print_header "ÉTAPE 9/10 : Création des données initiales"
+print_header "ÉTAPE 9/10 : Configuration Nginx HTTPS"
+
+print_info "Installation de Nginx si nécessaire..."
+if ! command -v nginx &> /dev/null; then
+    sudo apt-get update
+    sudo apt-get install -y nginx
+fi
+
+print_info "Génération des certificats SSL auto-signés..."
+sudo mkdir -p /etc/nginx/ssl
+if [ ! -f /etc/nginx/ssl/selfsigned.crt ]; then
+    sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+        -keyout /etc/nginx/ssl/selfsigned.key \
+        -out /etc/nginx/ssl/selfsigned.crt \
+        -subj "/C=FR/ST=France/L=Paris/O=Antislash/CN=${VPS_HOST}"
+    print_success "Certificats SSL générés"
+else
+    print_info "Certificats SSL déjà existants"
+fi
+
+print_info "Configuration de Nginx pour HTTPS..."
+sudo tee /etc/nginx/sites-available/antislash-talk-ssl > /dev/null << 'NGINXCONF'
+# Redirection HTTP vers HTTPS
+server {
+    listen 80;
+    server_name _;
+    return 301 https://$host$request_uri;
+}
+
+# Application Web (HTTPS sur 443)
+server {
+    listen 443 ssl http2;
+    server_name _;
+
+    ssl_certificate /etc/nginx/ssl/selfsigned.crt;
+    ssl_certificate_key /etc/nginx/ssl/selfsigned.key;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+    }
+}
+
+# API Supabase (HTTPS sur 8443)
+server {
+    listen 8443 ssl http2;
+    server_name _;
+
+    ssl_certificate /etc/nginx/ssl/selfsigned.crt;
+    ssl_certificate_key /etc/nginx/ssl/selfsigned.key;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+
+    client_max_body_size 100M;
+
+    location / {
+        proxy_pass http://localhost:54321;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+        proxy_read_timeout 300s;
+        proxy_connect_timeout 75s;
+    }
+}
+
+# Studio Supabase (HTTPS sur 8444)
+server {
+    listen 8444 ssl http2;
+    server_name _;
+
+    ssl_certificate /etc/nginx/ssl/selfsigned.crt;
+    ssl_certificate_key /etc/nginx/ssl/selfsigned.key;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+
+    location / {
+        proxy_pass http://localhost:54327;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+    }
+}
+NGINXCONF
+
+# Activer le site
+sudo ln -sf /etc/nginx/sites-available/antislash-talk-ssl /etc/nginx/sites-enabled/
+sudo rm -f /etc/nginx/sites-enabled/default
+
+# Tester et recharger Nginx
+print_info "Test de la configuration Nginx..."
+if sudo nginx -t; then
+    print_success "Configuration Nginx valide"
+    sudo systemctl reload nginx
+    print_success "Nginx rechargé avec HTTPS"
+else
+    print_error "Erreur dans la configuration Nginx"
+    exit 1
+fi
+
+print_header "ÉTAPE 10/11 : Création des données initiales"
 
 # Attendre que les tables existent (créées par les migrations)
 print_info "Attente de la création des tables par les migrations..."
@@ -764,7 +882,10 @@ ON CONFLICT (id) DO NOTHING;
 GRANT USAGE ON SCHEMA storage TO postgres, anon, authenticated, service_role, supabase_storage_admin;
 GRANT ALL ON ALL TABLES IN SCHEMA storage TO postgres, service_role, supabase_storage_admin;
 GRANT ALL ON ALL SEQUENCES IN SCHEMA storage TO postgres, service_role, supabase_storage_admin;
-GRANT SELECT ON ALL TABLES IN SCHEMA storage TO anon, authenticated;
+GRANT ALL ON ALL TABLES IN SCHEMA storage TO authenticated;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA storage TO authenticated;
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA storage GRANT ALL ON TABLES TO authenticated, supabase_storage_admin;
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA storage GRANT ALL ON SEQUENCES TO authenticated, supabase_storage_admin;
 
 -- Réactiver RLS avec FORCE pour s'assurer que les policies s'appliquent
 ALTER TABLE auth.users ENABLE ROW LEVEL SECURITY;
@@ -878,32 +999,36 @@ BEGIN
         USING (true)
         WITH CHECK (true);
         
-        -- Policies pour users authentifiés
+        -- Policies pour users authentifiés (plus permissives pour déboguer)
         DROP POLICY IF EXISTS "Users can upload to recordings" ON storage.objects;
         DROP POLICY IF EXISTS "Users can view own recordings" ON storage.objects;
         DROP POLICY IF EXISTS "Users can delete own recordings" ON storage.objects;
         DROP POLICY IF EXISTS "Public buckets are viewable" ON storage.objects;
+        DROP POLICY IF EXISTS "Authenticated users can upload" ON storage.objects;
+        DROP POLICY IF EXISTS "Authenticated users can select" ON storage.objects;
+        DROP POLICY IF EXISTS "Authenticated users can delete" ON storage.objects;
         
-        CREATE POLICY "Users can upload to recordings" 
+        -- Policies permissives pour tous les buckets (pour les utilisateurs authentifiés)
+        CREATE POLICY "Authenticated users can upload" 
         ON storage.objects FOR INSERT 
         TO authenticated
-        WITH CHECK (bucket_id = 'recordings' AND auth.uid()::text = (storage.foldername(name))[1]);
+        WITH CHECK (bucket_id IN (SELECT id FROM storage.buckets) AND auth.uid() IS NOT NULL);
 
-        CREATE POLICY "Users can view own recordings" 
+        CREATE POLICY "Authenticated users can select" 
         ON storage.objects FOR SELECT 
         TO authenticated
-        USING (bucket_id = 'recordings' AND auth.uid()::text = (storage.foldername(name))[1]);
+        USING (bucket_id IN (SELECT id FROM storage.buckets) AND auth.uid() IS NOT NULL);
 
-        CREATE POLICY "Users can delete own recordings" 
+        CREATE POLICY "Authenticated users can delete" 
         ON storage.objects FOR DELETE 
         TO authenticated
-        USING (bucket_id = 'recordings' AND auth.uid()::text = (storage.foldername(name))[1]);
+        USING (bucket_id IN (SELECT id FROM storage.buckets) AND auth.uid() IS NOT NULL);
         
         -- Public buckets viewable by all
         CREATE POLICY "Public buckets are viewable"
         ON storage.objects FOR SELECT
         TO anon, authenticated
-        USING (bucket_id IN ('public', 'avatars'));
+        USING (bucket_id IN (SELECT id FROM storage.buckets WHERE public = TRUE));
     END IF;
 END \$\$;
 
@@ -913,7 +1038,7 @@ else
     print_warning "Les tables n'ont pas été créées automatiquement"
 fi
 
-print_header "ÉTAPE 10/10 : Vérification du déploiement"
+print_header "ÉTAPE 11/11 : Vérification du déploiement"
 
 # Vérifier l'état des services
 print_info "État des services :"
@@ -966,6 +1091,7 @@ if [ "$DEPLOYMENT_OK" = true ]; then
 SELECT 'Utilisateurs' as type, count(*) as count, string_agg(email, ', ') as details FROM auth.users
 UNION ALL
 SELECT 'Buckets' as type, count(*) as count, string_agg(name, ', ') as details FROM storage.buckets;"
+fi
 
 # Configuration Nginx pour Studio
 print_info "Configuration de l'authentification Studio..."
@@ -987,12 +1113,12 @@ print_header "🎉 DÉPLOIEMENT TERMINÉ AVEC SUCCÈS !"
 echo -e "${GREEN}╔════════════════════════════════════════════════════════════════╗${NC}"
 echo -e "${GREEN}║                     INFORMATIONS D'ACCÈS                       ║${NC}"
 echo -e "${GREEN}╠════════════════════════════════════════════════════════════════╣${NC}"
-echo -e "${GREEN}║${NC} Application Web    : ${CYAN}http://${VPS_HOST}:3000${NC}"
-echo -e "${GREEN}║${NC} Supabase Studio    : ${CYAN}http://${VPS_HOST}:54323${NC}"
+echo -e "${GREEN}║${NC} Application Web    : ${CYAN}https://${VPS_HOST}${NC}"
+echo -e "${GREEN}║${NC} Supabase Studio    : ${CYAN}https://${VPS_HOST}:8444${NC}"
 echo -e "${GREEN}║${NC}   Utilisateur      : ${YELLOW}antislash${NC}"
 echo -e "${GREEN}║${NC}   Mot de passe     : ${YELLOW}${STUDIO_PASSWORD}${NC}"
 echo -e "${GREEN}║${NC}"
-echo -e "${GREEN}║${NC} API Supabase       : ${CYAN}http://${VPS_HOST}:54321${NC}"
+echo -e "${GREEN}║${NC} API Supabase       : ${CYAN}https://${VPS_HOST}:8443${NC}"
 echo -e "${GREEN}║${NC}"
 echo -e "${GREEN}║${NC} Compte Admin App   :"
 echo -e "${GREEN}║${NC}   Email            : ${YELLOW}${APP_USER_EMAIL}${NC}"
@@ -1012,9 +1138,9 @@ Déploiement Antislash Talk - $(date)
 =====================================
 
 URLs d'accès :
-- Application : http://${VPS_HOST}:3000
-- Studio : http://${VPS_HOST}:54323 (user: antislash, pass: ${STUDIO_PASSWORD})
-- API : http://${VPS_HOST}:54321
+- Application : https://${VPS_HOST} (HTTPS)
+- Studio : https://${VPS_HOST}:8444 (HTTPS, user: antislash, pass: ${STUDIO_PASSWORD})
+- API : https://${VPS_HOST}:8443 (HTTPS)
 - Ollama : http://${VPS_HOST}:11434
 
 Compte admin :
