@@ -82,11 +82,11 @@ Transform your voice recordings into intelligent insights with advanced AI trans
 The fastest way to deploy the complete stack with Supabase + AI:
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/Lamouller/Antislash-Talk/main/deploy-vps-complete.sh | bash
+curl -sSL https://raw.githubusercontent.com/Lamouller/Antislash-Talk/main/deploy-vps-final.sh | bash
 ```
 
-**This installs everything:** Database, Auth, Storage, API, Admin UI, AI transcription, and more!  
-**Requirements:** Ubuntu/Debian server with 8GB+ RAM
+**This installs everything:** Database, Auth, Storage, API, Admin UI, AI transcription, Ollama with LLM models, and more!  
+**Requirements:** Ubuntu/Debian server with 8GB+ RAM, 4+ CPU cores, 50GB+ storage
 
 ---
 
@@ -152,19 +152,21 @@ Deploy the complete stack (Supabase + App + PyTorch) in one command:
 
 ```bash
 # On your VPS/server, run:
-curl -sSL https://raw.githubusercontent.com/Lamouller/Antislash-Talk/main/deploy-vps-complete.sh | bash
+curl -sSL https://raw.githubusercontent.com/Lamouller/Antislash-Talk/main/deploy-vps-final.sh | bash
 ```
 
 **What this deploys:**
 - ✅ Complete self-hosted Supabase stack (14 services)
-- ✅ PostgreSQL database
-- ✅ Authentication (GoTrue)
-- ✅ Storage API
+- ✅ PostgreSQL database with automatic setup
+- ✅ Authentication (GoTrue) with admin user
+- ✅ Storage API with buckets configured
 - ✅ Realtime subscriptions
-- ✅ Supabase Studio (admin interface)
-- ✅ React application (frontend)
-- ✅ PyTorch transcription service (AI)
-- ✅ Ollama (local LLM - optional)
+- ✅ Supabase Studio (admin interface) with HTTPS
+- ✅ React application (frontend) with HTTPS
+- ✅ PyTorch transcription service (AI - optional)
+- ✅ Ollama with LLM model for titles/summaries
+- ✅ Nginx with SSL certificates (HTTPS)
+- ✅ CORS configured for all services
 
 **Requirements:**
 - Ubuntu 20.04+ or Debian 11+
@@ -179,13 +181,19 @@ curl -sSL https://raw.githubusercontent.com/Lamouller/Antislash-Talk/main/deploy
 3. Generates secure secrets (JWT, passwords)
 4. Configures environment variables
 5. Builds and starts all services
-6. Saves credentials to `deployment-info.txt`
+6. Sets up HTTPS with self-signed certificates
+7. Configures authentication for Studio
+8. Installs Ollama with llama3.2:3b model
+9. Configures CORS for frontend access
+10. Creates admin user and storage buckets
+11. Saves all credentials to `deployment-info.txt`
 
 **After deployment, access:**
-- 🌐 **Application**: `http://YOUR_IP:3000`
-- 📡 **API**: `http://YOUR_IP:54321`
-- 🎨 **Studio Admin**: `http://YOUR_IP:54323`
-- 🤖 **PyTorch API**: `http://YOUR_IP:8000`
+- 🌐 **Application**: `https://YOUR_IP` (HTTPS)
+- 📡 **API**: `https://YOUR_IP:8443` (HTTPS)
+- 🎨 **Studio Admin**: `https://YOUR_IP:8444` (HTTPS with auth)
+- 🤖 **Ollama API**: `https://YOUR_IP:8445` (HTTPS with CORS)
+- 🧠 **PyTorch API**: `http://YOUR_IP:8000` (if enabled)
 
 ---
 
