@@ -191,6 +191,51 @@ else
     done
 fi
 
+# Détecter si c'est un domaine ou une IP
+IS_DOMAIN=false
+if echo "$VPS_HOST" | grep -qE '^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$'; then
+    print_info "Configuration avec IP : $VPS_HOST"
+else
+    IS_DOMAIN=true
+    print_info "Configuration avec domaine : $VPS_HOST"
+    
+    # Demander si on veut utiliser des sous-domaines
+    read -p "Voulez-vous utiliser des sous-domaines ? (ex: app.$VPS_HOST, api.$VPS_HOST) [non] : " USE_SUBDOMAINS
+    
+    if [ "${USE_SUBDOMAINS}" = "oui" ] || [ "${USE_SUBDOMAINS}" = "o" ] || [ "${USE_SUBDOMAINS}" = "yes" ] || [ "${USE_SUBDOMAINS}" = "y" ]; then
+        print_info "Configuration avec sous-domaines"
+        APP_URL="https://app.${VPS_HOST}"
+        API_URL="https://api.${VPS_HOST}"
+        STUDIO_URL="https://studio.${VPS_HOST}"
+        OLLAMA_URL="https://ollama.${VPS_HOST}"
+        
+        # Variables internes restent avec ports pour la configuration
+        API_EXTERNAL_URL="https://api.${VPS_HOST}"
+        VITE_SUPABASE_URL="https://api.${VPS_HOST}"
+        VITE_OLLAMA_URL="https://ollama.${VPS_HOST}"
+    else
+        print_info "Configuration avec domaine unique et ports"
+        APP_URL="https://${VPS_HOST}"
+        API_URL="https://${VPS_HOST}:8443"
+        STUDIO_URL="https://${VPS_HOST}:8444"
+        OLLAMA_URL="https://${VPS_HOST}:8445"
+        
+        API_EXTERNAL_URL="https://${VPS_HOST}:8443"
+        VITE_SUPABASE_URL="https://${VPS_HOST}:8443"
+        VITE_OLLAMA_URL="https://${VPS_HOST}:8445"
+    fi
+else
+    # Configuration IP (par défaut)
+    APP_URL="https://${VPS_HOST}"
+    API_URL="https://${VPS_HOST}:8443"
+    STUDIO_URL="https://${VPS_HOST}:8444"
+    OLLAMA_URL="https://${VPS_HOST}:8445"
+    
+    API_EXTERNAL_URL="https://${VPS_HOST}:8443"
+    VITE_SUPABASE_URL="https://${VPS_HOST}:8443"
+    VITE_OLLAMA_URL="https://${VPS_HOST}:8445"
+fi
+
 # Studio password
 print_info "Génération d'un mot de passe sécurisé pour Studio..."
 GENERATED_STUDIO_PASSWORD=$(generate_password)
@@ -338,11 +383,11 @@ cat > .env.monorepo << EOF
 # Configuration de base
 NODE_ENV=production
 VPS_HOST=${VPS_HOST}
-API_EXTERNAL_URL=https://${VPS_HOST}:8443
-VITE_SUPABASE_URL=https://${VPS_HOST}:8443
+API_EXTERNAL_URL=${API_EXTERNAL_URL}
+VITE_SUPABASE_URL=${VITE_SUPABASE_URL}
 VITE_SUPABASE_ANON_KEY=${ANON_KEY}
 VITE_HIDE_MARKETING_PAGES=${VITE_HIDE_MARKETING_PAGES}
-VITE_OLLAMA_URL=https://${VPS_HOST}:8445
+VITE_OLLAMA_URL=${VITE_OLLAMA_URL}
 
 # PostgreSQL
 POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
@@ -433,25 +478,25 @@ print_header "ÉTAPE 5/13 : Construction de l'image web"
 
 print_info "Création du fichier apps/web/.env pour le build..."
 cat > apps/web/.env << EOF
-VITE_SUPABASE_URL=https://${VPS_HOST}:8443
+VITE_SUPABASE_URL=${VITE_SUPABASE_URL}
 VITE_SUPABASE_ANON_KEY=${ANON_KEY}
 VITE_HIDE_MARKETING_PAGES=${VITE_HIDE_MARKETING_PAGES}
-VITE_OLLAMA_URL=https://${VPS_HOST}:8445
+VITE_OLLAMA_URL=${VITE_OLLAMA_URL}
 EOF
 
 print_info "Export des variables pour le build..."
-export API_EXTERNAL_URL="https://${VPS_HOST}:8443"
-export VITE_SUPABASE_URL="https://${VPS_HOST}:8443"
+export API_EXTERNAL_URL="${API_EXTERNAL_URL}"
+export VITE_SUPABASE_URL="${VITE_SUPABASE_URL}"
 export VITE_SUPABASE_ANON_KEY="$ANON_KEY"
 export VITE_HIDE_MARKETING_PAGES="$VITE_HIDE_MARKETING_PAGES"
-export VITE_OLLAMA_URL="https://${VPS_HOST}:8445"
+export VITE_OLLAMA_URL="${VITE_OLLAMA_URL}"
 
 print_info "Construction de l'image web..."
 docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo build \
-  --build-arg VITE_SUPABASE_URL="https://${VPS_HOST}:8443" \
+  --build-arg VITE_SUPABASE_URL="${VITE_SUPABASE_URL}" \
   --build-arg VITE_SUPABASE_ANON_KEY="${ANON_KEY}" \
   --build-arg VITE_HIDE_MARKETING_PAGES="${VITE_HIDE_MARKETING_PAGES}" \
-  --build-arg VITE_OLLAMA_URL="https://${VPS_HOST}:8445" \
+  --build-arg VITE_OLLAMA_URL="${VITE_OLLAMA_URL}" \
   web
 
 print_header "ÉTAPE 6/13 : Démarrage de PostgreSQL"
@@ -714,7 +759,139 @@ else
 fi
 
 print_info "Configuration de Nginx pour HTTPS..."
-sudo tee /etc/nginx/sites-available/antislash-talk-ssl > /dev/null << 'NGINXCONF'
+
+# Configuration différente selon domaine ou IP
+if [ "$IS_DOMAIN" = "true" ] && ([ "${USE_SUBDOMAINS}" = "oui" ] || [ "${USE_SUBDOMAINS}" = "o" ] || [ "${USE_SUBDOMAINS}" = "yes" ] || [ "${USE_SUBDOMAINS}" = "y" ]); then
+    print_info "Configuration Nginx avec sous-domaines..."
+    
+    # Configuration avec sous-domaines (app, api, studio, ollama)
+    sudo tee /etc/nginx/sites-available/antislash-talk-ssl > /dev/null << NGINXCONF
+# Redirection HTTP vers HTTPS
+server {
+    listen 80;
+    server_name app.${VPS_HOST} api.${VPS_HOST} studio.${VPS_HOST} ollama.${VPS_HOST};
+    return 301 https://\$host\$request_uri;
+}
+
+# Application Web (app.domain.com)
+server {
+    listen 443 ssl http2;
+    server_name app.${VPS_HOST};
+
+    ssl_certificate /etc/nginx/ssl/selfsigned.crt;
+    ssl_certificate_key /etc/nginx/ssl/selfsigned.key;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_cache_bypass \$http_upgrade;
+    }
+}
+
+# API Supabase (api.domain.com)
+server {
+    listen 443 ssl http2;
+    server_name api.${VPS_HOST};
+
+    ssl_certificate /etc/nginx/ssl/selfsigned.crt;
+    ssl_certificate_key /etc/nginx/ssl/selfsigned.key;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+
+    client_max_body_size 100M;
+
+    location / {
+        proxy_pass http://localhost:54321;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_cache_bypass \$http_upgrade;
+        proxy_read_timeout 300s;
+        proxy_connect_timeout 75s;
+    }
+}
+
+# Studio Supabase (studio.domain.com)
+server {
+    listen 443 ssl http2;
+    server_name studio.${VPS_HOST};
+
+    ssl_certificate /etc/nginx/ssl/selfsigned.crt;
+    ssl_certificate_key /etc/nginx/ssl/selfsigned.key;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+
+    location / {
+        proxy_pass http://localhost:54327;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_cache_bypass \$http_upgrade;
+    }
+}
+
+# Ollama API (ollama.domain.com)
+server {
+    listen 443 ssl http2;
+    server_name ollama.${VPS_HOST};
+
+    ssl_certificate /etc/nginx/ssl/selfsigned.crt;
+    ssl_certificate_key /etc/nginx/ssl/selfsigned.key;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+
+    client_max_body_size 500M;
+    proxy_read_timeout 600s;
+    proxy_connect_timeout 600s;
+
+    location / {
+        # Headers CORS
+        if (\$request_method = 'OPTIONS') {
+            add_header 'Access-Control-Allow-Origin' '*' always;
+            add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, OPTIONS' always;
+            add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization' always;
+            add_header 'Access-Control-Max-Age' 1728000;
+            add_header 'Content-Type' 'text/plain; charset=utf-8';
+            add_header 'Content-Length' 0;
+            return 204;
+        }
+
+        add_header 'Access-Control-Allow-Origin' '*' always;
+        add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, OPTIONS' always;
+        add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization' always;
+
+        proxy_pass http://localhost:11434;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_cache_bypass \$http_upgrade;
+    }
+}
+NGINXCONF
+
+else
+    print_info "Configuration Nginx standard (avec ports)..."
+    sudo tee /etc/nginx/sites-available/antislash-talk-ssl > /dev/null << 'NGINXCONF'
 # Redirection HTTP vers HTTPS
 server {
     listen 80;
@@ -1328,13 +1505,13 @@ print_header "🎉 DÉPLOIEMENT TERMINÉ AVEC SUCCÈS !"
 echo -e "${GREEN}╔════════════════════════════════════════════════════════════════╗${NC}"
 echo -e "${GREEN}║                     INFORMATIONS D'ACCÈS                       ║${NC}"
 echo -e "${GREEN}╠════════════════════════════════════════════════════════════════╣${NC}"
-echo -e "${GREEN}║${NC} Application Web    : ${CYAN}https://${VPS_HOST}${NC}"
-echo -e "${GREEN}║${NC} Supabase Studio    : ${CYAN}https://${VPS_HOST}:8444${NC}"
+echo -e "${GREEN}║${NC} Application Web    : ${CYAN}${APP_URL}${NC}"
+echo -e "${GREEN}║${NC} Supabase Studio    : ${CYAN}${STUDIO_URL}${NC}"
 echo -e "${GREEN}║${NC}   Utilisateur      : ${YELLOW}antislash${NC}"
 echo -e "${GREEN}║${NC}   Mot de passe     : ${YELLOW}${STUDIO_PASSWORD}${NC}"
 echo -e "${GREEN}║${NC}"
-echo -e "${GREEN}║${NC} API Supabase       : ${CYAN}https://${VPS_HOST}:8443${NC}"
-echo -e "${GREEN}║${NC} Ollama API         : ${CYAN}https://${VPS_HOST}:8445${NC}"
+echo -e "${GREEN}║${NC} API Supabase       : ${CYAN}${API_URL}${NC}"
+echo -e "${GREEN}║${NC} Ollama API         : ${CYAN}${OLLAMA_URL}${NC}"
 echo -e "${GREEN}║${NC}"
 echo -e "${GREEN}║${NC} Compte Admin App   :"
 echo -e "${GREEN}║${NC}   Email            : ${YELLOW}${APP_USER_EMAIL}${NC}"
@@ -1346,16 +1523,31 @@ echo -e "${GREEN}╚════════════════════
 
 print_info "Toutes les informations ont été sauvegardées dans deployment-info.txt"
 
+# Afficher une note sur le DNS si on utilise des sous-domaines
+if [ "$IS_DOMAIN" = "true" ] && ([ "${USE_SUBDOMAINS}" = "oui" ] || [ "${USE_SUBDOMAINS}" = "o" ] || [ "${USE_SUBDOMAINS}" = "yes" ] || [ "${USE_SUBDOMAINS}" = "y" ]); then
+    echo ""
+    print_warning "IMPORTANT : Configuration DNS requise !"
+    echo ""
+    echo "Vous devez configurer les enregistrements DNS suivants :"
+    echo "  - app.${VPS_HOST}    → ${DETECTED_IP:-VOTRE_IP}"
+    echo "  - api.${VPS_HOST}    → ${DETECTED_IP:-VOTRE_IP}"
+    echo "  - studio.${VPS_HOST} → ${DETECTED_IP:-VOTRE_IP}"
+    echo "  - ollama.${VPS_HOST} → ${DETECTED_IP:-VOTRE_IP}"
+    echo ""
+    echo "Pour Let's Encrypt (certificats SSL valides), exécutez après configuration DNS :"
+    echo "  sudo certbot --nginx -d app.${VPS_HOST} -d api.${VPS_HOST} -d studio.${VPS_HOST} -d ollama.${VPS_HOST}"
+fi
+
 # Sauvegarder les informations
 cat > deployment-info.txt << EOF
 Déploiement Antislash Talk - $(date)
 =====================================
 
 URLs d'accès :
-- Application : https://${VPS_HOST} (HTTPS)
-- Studio : https://${VPS_HOST}:8444 (HTTPS, user: antislash, pass: ${STUDIO_PASSWORD})
-- API : https://${VPS_HOST}:8443 (HTTPS)
-- Ollama : https://${VPS_HOST}:8445 (HTTPS)
+- Application : ${APP_URL}
+- Studio : ${STUDIO_URL} (user: antislash, pass: ${STUDIO_PASSWORD})
+- API : ${API_URL}
+- Ollama : ${OLLAMA_URL}
 
 Compte admin :
 - Email : ${APP_USER_EMAIL}
