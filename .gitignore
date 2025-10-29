@@ -64,3 +64,5 @@ docs/
 
 # Dossiers obsolètes archivés
 .old/
+_archive_scripts/
+_backup_cleanup_*/

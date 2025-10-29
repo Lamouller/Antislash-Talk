@@ -228,14 +228,7 @@ docker compose -f docker-compose.monorepo.yml --profile pytorch up -d
 
 ### ☁️ Cloud Platforms (Frontend Only)
 
-#### Option 1: Netlify
-
-```bash
-npm run build
-netlify deploy --prod --dir=dist
-```
-
-#### Option 2: Vercel
+#### Vercel
 
 ```bash
 vercel --prod
@@ -382,6 +375,10 @@ Add your API keys in **Settings → API Keys** or via environment variables:
 
 ## 🛠️ Development
 
+### 📜 Scripts Documentation
+
+For a complete list of available scripts and their usage, see [SCRIPTS.md](SCRIPTS.md).
+
 ### Project Structure
 
 ```
@@ -398,7 +395,7 @@ Antislash-Talk/
 │   ├── pages/           # App pages/routes
 │   └── main.tsx         # App entry point
 ├── supabase/            # Database schema & functions
-├── netlify/             # Serverless functions
+├── packages/            # Monorepo packages
 └── public/              # Static assets
 ```
 
