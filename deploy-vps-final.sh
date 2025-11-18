@@ -1,5 +1,5 @@
 #!/bin/bash
-# Script de déploiement VPS COMPLET avec toutes les corrections
+# Script de déploiement VPS COMPLET - Compatible multi-OS
 set -e
 
 # Couleurs pour l'affichage
@@ -11,8 +11,54 @@ PURPLE='\033[0;35m'
 CYAN='\033[0;36m'
 NC='\033[0m'
 
-# Configuration
-PROJECT_DIR="/home/debian/antislash-talk"
+# Détection de l'OS
+OS_TYPE=""
+PACKAGE_MANAGER=""
+PACKAGE_UPDATE_CMD=""
+PACKAGE_INSTALL_CMD=""
+
+detect_os() {
+    if [ -f /etc/os-release ]; then
+        . /etc/os-release
+        OS_TYPE=$ID
+        case $OS_TYPE in
+            ubuntu|debian)
+                PACKAGE_MANAGER="apt"
+                PACKAGE_UPDATE_CMD="sudo apt-get update"
+                PACKAGE_INSTALL_CMD="sudo apt-get install -y"
+                ;;
+            fedora|centos|rhel|rocky|almalinux)
+                PACKAGE_MANAGER="yum"
+                if command -v dnf &> /dev/null; then
+                    PACKAGE_MANAGER="dnf"
+                fi
+                PACKAGE_UPDATE_CMD="sudo $PACKAGE_MANAGER update -y"
+                PACKAGE_INSTALL_CMD="sudo $PACKAGE_MANAGER install -y"
+                ;;
+            arch|manjaro)
+                PACKAGE_MANAGER="pacman"
+                PACKAGE_UPDATE_CMD="sudo pacman -Syu --noconfirm"
+                PACKAGE_INSTALL_CMD="sudo pacman -S --noconfirm"
+                ;;
+            alpine)
+                PACKAGE_MANAGER="apk"
+                PACKAGE_UPDATE_CMD="sudo apk update"
+                PACKAGE_INSTALL_CMD="sudo apk add --no-cache"
+                ;;
+            *)
+                echo "OS non supporté: $OS_TYPE"
+                echo "OS supportés: Ubuntu, Debian, Fedora, CentOS, RHEL, Rocky Linux, AlmaLinux, Arch, Manjaro, Alpine"
+                exit 1
+                ;;
+        esac
+    else
+        echo "Impossible de détecter l'OS"
+        exit 1
+    fi
+}
+
+# Configuration - sera définie par l'utilisateur
+PROJECT_DIR=""
 REQUIRED_TOOLS=("docker" "git" "openssl" "curl" "jq" "envsubst")
 
 print_header() {
@@ -42,14 +88,40 @@ generate_password() {
     openssl rand -base64 32 | tr -d "=+/" | cut -c1-25
 }
 
-# Vérifier qu'on est dans le bon répertoire
+# Détection de l'OS
+detect_os
+print_success "OS détecté : $OS_TYPE (Package Manager: $PACKAGE_MANAGER)"
+
+# Demander le répertoire d'installation
+print_header "Configuration du répertoire d'installation"
+
+# Proposer le répertoire par défaut selon l'utilisateur
+DEFAULT_DIR="$HOME/antislash-talk"
+print_info "Répertoire par défaut suggéré : $DEFAULT_DIR"
+
+read -p "Répertoire d'installation [$DEFAULT_DIR] : " USER_DIR
+PROJECT_DIR=${USER_DIR:-$DEFAULT_DIR}
+
+# Créer le répertoire s'il n'existe pas
+if [ ! -d "$PROJECT_DIR" ]; then
+    print_info "Création du répertoire $PROJECT_DIR..."
+    mkdir -p "$PROJECT_DIR"
+    
+    # Cloner le repository si nécessaire
+    if [ ! -f "$PROJECT_DIR/docker-compose.monorepo.yml" ]; then
+        print_info "Clonage du repository..."
+        git clone https://github.com/Lamouller/Antislash-Talk.git "$PROJECT_DIR"
+    fi
+fi
+
+# Vérifier qu'on a bien le projet
 if [ ! -f "$PROJECT_DIR/docker-compose.monorepo.yml" ]; then
-    print_error "Ce script doit être exécuté depuis le répertoire du projet"
-    print_info "Répertoire attendu: $PROJECT_DIR"
+    print_error "Impossible de trouver docker-compose.monorepo.yml dans $PROJECT_DIR"
     exit 1
 fi
 
 cd "$PROJECT_DIR"
+print_success "Répertoire de travail : $PROJECT_DIR"
 
 # ASCII Art
 echo -e "${CYAN}"
@@ -62,7 +134,89 @@ cat << "EOF"
 
 EOF
 echo -e "${NC}"
-echo -e "${PURPLE}Script de Déploiement Complet Final v5.0 - HTTPS + Storage RLS${NC}"
+echo -e "${PURPLE}Script de Déploiement v6.0 - Multi-OS + HTTPS + Storage RLS${NC}"
+echo -e "${BLUE}Compatible avec : Ubuntu, Debian, Fedora, CentOS, RHEL, Rocky Linux, AlmaLinux, Arch, Manjaro, Alpine${NC}"
+
+# Vérifier les permissions Docker
+# Installation des outils si nécessaires
+print_header "Installation des prérequis"
+
+# Installation de Docker si nécessaire
+if ! command -v docker &> /dev/null; then
+    print_info "Installation de Docker..."
+    
+    case $OS_TYPE in
+        ubuntu|debian)
+            # Installation Docker officielle
+            $PACKAGE_UPDATE_CMD
+            $PACKAGE_INSTALL_CMD ca-certificates curl gnupg
+            sudo install -m 0755 -d /etc/apt/keyrings
+            curl -fsSL https://download.docker.com/linux/$OS_TYPE/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+            sudo chmod a+r /etc/apt/keyrings/docker.gpg
+            echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/$OS_TYPE $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+            $PACKAGE_UPDATE_CMD
+            $PACKAGE_INSTALL_CMD docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+            ;;
+        fedora|centos|rhel|rocky|almalinux)
+            $PACKAGE_INSTALL_CMD yum-utils
+            sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+            $PACKAGE_INSTALL_CMD docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+            sudo systemctl start docker
+            sudo systemctl enable docker
+            ;;
+        arch|manjaro)
+            $PACKAGE_INSTALL_CMD docker docker-compose
+            sudo systemctl start docker
+            sudo systemctl enable docker
+            ;;
+        alpine)
+            $PACKAGE_INSTALL_CMD docker docker-compose
+            rc-service docker start
+            rc-update add docker boot
+            ;;
+    esac
+    
+    # Ajouter l'utilisateur au groupe docker
+    sudo usermod -aG docker $USER
+    print_success "Docker installé"
+fi
+
+# Vérifier les autres outils
+print_info "Vérification des outils nécessaires..."
+for tool in "${REQUIRED_TOOLS[@]}"; do
+    if [ "$tool" = "docker" ]; then
+        continue  # Déjà vérifié
+    fi
+    
+    if ! command -v $tool &> /dev/null; then
+        print_warning "Installation de $tool..."
+        
+        case $tool in
+            jq)
+                $PACKAGE_INSTALL_CMD jq
+                ;;
+            envsubst)
+                case $OS_TYPE in
+                    ubuntu|debian)
+                        $PACKAGE_INSTALL_CMD gettext-base
+                        ;;
+                    *)
+                        $PACKAGE_INSTALL_CMD gettext
+                        ;;
+                esac
+                ;;
+            git|openssl|curl)
+                $PACKAGE_INSTALL_CMD $tool
+                ;;
+            *)
+                print_error "Outil $tool non géré automatiquement"
+                exit 1
+                ;;
+        esac
+    else
+        print_success "$tool ✓"
+    fi
+done
 
 # Vérifier les permissions Docker
 if ! docker ps >/dev/null 2>&1; then
@@ -742,8 +896,26 @@ print_header "ÉTAPE 9/13 : Configuration Nginx HTTPS"
 
 print_info "Installation de Nginx si nécessaire..."
 if ! command -v nginx &> /dev/null; then
-    sudo apt-get update
-    sudo apt-get install -y nginx
+    $PACKAGE_UPDATE_CMD
+    
+    # Installation selon l'OS
+    case $OS_TYPE in
+        ubuntu|debian)
+            $PACKAGE_INSTALL_CMD nginx
+            ;;
+        fedora|centos|rhel|rocky|almalinux)
+            $PACKAGE_INSTALL_CMD nginx
+            sudo systemctl enable nginx
+            ;;
+        arch|manjaro)
+            $PACKAGE_INSTALL_CMD nginx
+            sudo systemctl enable nginx
+            ;;
+        alpine)
+            $PACKAGE_INSTALL_CMD nginx
+            rc-update add nginx default
+            ;;
+    esac
 fi
 
 print_info "Génération des certificats SSL auto-signés..."

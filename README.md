@@ -169,24 +169,26 @@ curl -sSL https://raw.githubusercontent.com/Lamouller/Antislash-Talk/main/deploy
 - ✅ CORS configured for all services
 
 **Requirements:**
-- Ubuntu 20.04+ or Debian 11+
+- Compatible OS: Ubuntu, Debian, Fedora, CentOS, RHEL, Rocky Linux, AlmaLinux, Arch, Manjaro, Alpine
 - 8GB RAM minimum (16GB recommended with PyTorch)
 - 4 vCPU minimum
 - 100GB SSD storage
 - Docker & Docker Compose (auto-installed by script)
 
 **What the script does:**
-1. Installs Docker and dependencies
-2. Clones the repository
-3. Generates secure secrets (JWT, passwords)
-4. Configures environment variables
-5. Builds and starts all services
-6. Sets up HTTPS with self-signed certificates
-7. Configures authentication for Studio
-8. Installs Ollama with llama3.2:3b model
-9. Configures CORS for frontend access
-10. Creates admin user and storage buckets
-11. Saves all credentials to `deployment-info.txt`
+1. Detects OS and package manager automatically
+2. Asks for installation directory (default: ~/antislash-talk)
+3. Installs Docker and dependencies based on your OS
+4. Clones the repository (if needed)
+5. Generates secure secrets (JWT, passwords)
+6. Configures environment variables
+7. Builds and starts all services
+8. Sets up HTTPS with self-signed certificates
+9. Configures authentication for Studio
+10. Installs Ollama with llama3.2:3b model
+11. Configures CORS for frontend access
+12. Creates admin user and storage buckets
+13. Saves all credentials to `deployment-info.txt`
 
 **After deployment, access:**
 - 🌐 **Application**: `https://YOUR_IP` (HTTPS)
