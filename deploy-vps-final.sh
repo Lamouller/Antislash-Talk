@@ -1170,6 +1170,7 @@ server {
     }
 }
 NGINXCONF
+fi
 
 # Activer le site
 sudo ln -sf /etc/nginx/sites-available/antislash-talk-ssl /etc/nginx/sites-enabled/
