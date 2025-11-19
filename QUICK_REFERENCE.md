@@ -26,6 +26,16 @@ cd ~/antislash-talk && curl -sSL https://raw.githubusercontent.com/Lamouller/Ant
 cd ~/antislash-talk && curl -sSL https://raw.githubusercontent.com/Lamouller/Antislash-Talk/main/fix-auth-after-domain.sh -o fix-auth.sh && chmod +x fix-auth.sh && sudo ./fix-auth.sh
 ```
 
+### Fix Studio Only (Can't Create Users, 400/403 Errors)
+```bash
+cd ~/antislash-talk && curl -sSL https://raw.githubusercontent.com/Lamouller/Antislash-Talk/main/fix-studio-complete.sh -o fix-studio-complete.sh && chmod +x fix-studio-complete.sh && ./fix-studio-complete.sh
+```
+
+### Switch to Single Port 443 (If Ports 8443-8445 Blocked)
+```bash
+cd ~/antislash-talk && curl -sSL https://raw.githubusercontent.com/Lamouller/Antislash-Talk/main/fix-single-port-443.sh -o fix-single-port-443.sh && chmod +x fix-single-port-443.sh && sudo ./fix-single-port-443.sh
+```
+
 ### Install Let's Encrypt SSL (Ports Mode)
 ```bash
 sudo certbot --nginx -d yourdomain.com
@@ -69,6 +79,21 @@ cd ~/antislash-talk && docker compose -f docker-compose.monorepo.yml up -d
 ```
 
 ## 🔍 Diagnostics
+
+### Run Full Authentication Diagnostic
+```bash
+cd ~/antislash-talk && curl -sSL https://raw.githubusercontent.com/Lamouller/Antislash-Talk/main/diagnose-auth-complete.sh -o diagnose-auth-complete.sh && chmod +x diagnose-auth-complete.sh && ./diagnose-auth-complete.sh
+```
+
+### Run Studio Diagnostic (Create User Issues)
+```bash
+cd ~/antislash-talk && curl -sSL https://raw.githubusercontent.com/Lamouller/Antislash-Talk/main/diagnose-studio.sh -o diagnose-studio.sh && chmod +x diagnose-studio.sh && ./diagnose-studio.sh
+```
+
+### Run Complete Deployment Diagnostic
+```bash
+cd ~/antislash-talk && curl -sSL https://raw.githubusercontent.com/Lamouller/Antislash-Talk/main/diagnose-deployment.sh -o diagnose-deployment.sh && chmod +x diagnose-deployment.sh && ./diagnose-deployment.sh
+```
 
 ### Check All Services Status
 ```bash

@@ -251,6 +251,74 @@ TTL: 300
 
 ---
 
+### 🔧 Fix Deployment Issues (Post-Domain or Auth Problems)
+
+If you encounter authentication issues, Studio problems, or other post-deployment errors:
+
+#### 🚑 **Fix Everything (Recommended)**
+
+One command to fix all common issues:
+
+```bash
+cd ~/antislash-talk
+curl -sSL https://raw.githubusercontent.com/Lamouller/Antislash-Talk/main/fix-everything.sh -o fix-everything.sh
+chmod +x fix-everything.sh
+sudo ./fix-everything.sh
+```
+
+**What this fixes:**
+- ✅ Environment variables loading
+- ✅ Database password synchronization
+- ✅ `pgcrypto` extension activation
+- ✅ Studio `.htpasswd` creation
+- ✅ Web application rebuild with correct env vars
+- ✅ All services restart with proper configuration
+
+#### 🎨 **Fix Studio Only**
+
+If only Supabase Studio has issues (can't create users, 400/403 errors):
+
+```bash
+cd ~/antislash-talk
+curl -sSL https://raw.githubusercontent.com/Lamouller/Antislash-Talk/main/fix-studio-complete.sh -o fix-studio-complete.sh
+chmod +x fix-studio-complete.sh
+./fix-studio-complete.sh
+```
+
+#### 🔍 **Diagnostic Tools**
+
+Run diagnostics before fixing:
+
+```bash
+# Full authentication diagnostic
+./diagnose-auth-complete.sh
+
+# Studio-specific diagnostic
+./diagnose-studio.sh
+
+# General deployment check
+./diagnose-deployment.sh
+```
+
+#### 📡 **Switch to Single Port 443 (Alternative)**
+
+If ports 8443-8445 are blocked by your hosting provider:
+
+```bash
+cd ~/antislash-talk
+curl -sSL https://raw.githubusercontent.com/Lamouller/Antislash-Talk/main/fix-single-port-443.sh -o fix-single-port-443.sh
+chmod +x fix-single-port-443.sh
+sudo ./fix-single-port-443.sh
+```
+
+This puts everything on port 443 with different paths:
+- Application: `https://yourdomain.com/`
+- API: `https://yourdomain.com/api/`
+- Studio: `https://yourdomain.com/studio/`
+- Ollama: `https://yourdomain.com/ollama/`
+
+---
+
 ### 🐳 Docker Compose - Local Development
 
 Deploy locally with all services:
