@@ -726,6 +726,11 @@ docker system prune -f
 
 print_header "ÉTAPE 5/13 : Construction de l'image web"
 
+# Créer le lien symbolique .env -> .env.monorepo (CRUCIAL pour docker compose)
+print_info "Création du lien symbolique .env -> .env.monorepo..."
+ln -sf .env.monorepo .env
+print_success "Lien symbolique créé"
+
 print_info "Création du fichier apps/web/.env pour le build..."
 cat > apps/web/.env << EOF
 VITE_SUPABASE_URL=${VITE_SUPABASE_URL}
@@ -742,10 +747,17 @@ export VITE_SUPABASE_URL="${VITE_SUPABASE_URL}"
 export VITE_SUPABASE_ANON_KEY="$ANON_KEY"
 export VITE_HIDE_MARKETING_PAGES="$VITE_HIDE_MARKETING_PAGES"
 export VITE_OLLAMA_URL="${VITE_OLLAMA_URL}"
+export VITE_WHISPERX_URL="${VITE_WHISPERX_URL}"
 export VITE_PYTORCH_SERVICE_URL="${VITE_PYTORCH_SERVICE_URL}"
 
+print_info "📋 Variables VITE à compiler dans le build :"
+echo "   VITE_SUPABASE_URL: ${VITE_SUPABASE_URL}"
+echo "   VITE_OLLAMA_URL: ${VITE_OLLAMA_URL}"
+echo "   VITE_WHISPERX_URL: ${VITE_WHISPERX_URL}"
+echo "   VITE_PYTORCH_SERVICE_URL: ${VITE_PYTORCH_SERVICE_URL}"
+
 print_info "Construction de l'image web..."
-docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo build \
+docker compose -f docker-compose.monorepo.yml --env-file .env build \
   --build-arg VITE_SUPABASE_URL="${VITE_SUPABASE_URL}" \
   --build-arg VITE_SUPABASE_ANON_KEY="${ANON_KEY}" \
   --build-arg VITE_HIDE_MARKETING_PAGES="${VITE_HIDE_MARKETING_PAGES}" \
@@ -753,6 +765,8 @@ docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo build \
   --build-arg VITE_WHISPERX_URL="${VITE_WHISPERX_URL}" \
   --build-arg VITE_PYTORCH_SERVICE_URL="${VITE_PYTORCH_SERVICE_URL}" \
   web
+
+print_success "✅ Image web construite avec les variables VITE"
 
 print_header "ÉTAPE 6/13 : Démarrage de PostgreSQL"
 
@@ -1580,6 +1594,14 @@ NGINXCONF
     # Activer le site
     sudo ln -sf /etc/nginx/sites-available/antislash-talk-ssl /etc/nginx/sites-enabled/
     sudo rm -f /etc/nginx/sites-enabled/default
+    
+    # Si Let's Encrypt existe, forcer son utilisation (au cas où le template aurait mis auto-signé)
+    if [ "$USE_LETSENCRYPT" = true ] && [ -f "/etc/letsencrypt/live/${VPS_HOST}/fullchain.pem" ]; then
+        print_info "🔧 Forçage des certificats Let's Encrypt dans la config Nginx..."
+        sudo sed -i "s|/etc/nginx/ssl/selfsigned.crt|/etc/letsencrypt/live/${VPS_HOST}/fullchain.pem|g" /etc/nginx/sites-enabled/antislash-talk-ssl
+        sudo sed -i "s|/etc/nginx/ssl/selfsigned.key|/etc/letsencrypt/live/${VPS_HOST}/privkey.pem|g" /etc/nginx/sites-enabled/antislash-talk-ssl
+        print_success "✅ Certificats Let's Encrypt forcés dans la config"
+    fi
     
     # Tester et recharger Nginx
     print_info "Test de la configuration Nginx..."
