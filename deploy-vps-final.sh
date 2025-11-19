@@ -1168,16 +1168,99 @@ else
         esac
     fi
     
-    print_info "Génération des certificats SSL auto-signés..."
-    sudo mkdir -p /etc/nginx/ssl
-    if [ ! -f /etc/nginx/ssl/selfsigned.crt ]; then
-        sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-            -keyout /etc/nginx/ssl/selfsigned.key \
-            -out /etc/nginx/ssl/selfsigned.crt \
-            -subj "/C=FR/ST=France/L=Paris/O=Antislash/CN=${VPS_HOST}"
-        print_success "Certificats SSL générés"
+    # Demander explicitement si l'utilisateur veut utiliser Let's Encrypt
+    echo ""
+    print_header "Configuration SSL/TLS"
+    
+    USE_LETSENCRYPT=false
+    if [ -f "/etc/letsencrypt/live/${VPS_HOST}/fullchain.pem" ]; then
+        print_success "Certificats Let's Encrypt détectés pour ${VPS_HOST}"
+        USE_LETSENCRYPT=true
     else
-        print_info "Certificats SSL déjà existants"
+        print_warning "Aucun certificat Let's Encrypt trouvé pour ${VPS_HOST}"
+        echo ""
+        echo "Voulez-vous utiliser Let's Encrypt pour les certificats SSL ?"
+        echo "  - Let's Encrypt : Certificats GRATUITS, valides, reconnus par tous les navigateurs"
+        echo "  - Auto-signés : Certificats locaux, erreur 'connexion non privée' dans le navigateur"
+        echo ""
+        read -p "Utiliser Let's Encrypt ? (recommandé) [Y/n] " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+            USE_LETSENCRYPT=true
+            print_info "Installation des certificats Let's Encrypt..."
+            
+            # Vérifier que certbot est installé
+            if ! command -v certbot &> /dev/null; then
+                print_info "Installation de Certbot..."
+                sudo apt-get update
+                sudo apt-get install -y certbot python3-certbot-nginx
+            fi
+            
+            # Proposer wildcard ou sous-domaines individuels
+            echo ""
+            echo "Type de certificat Let's Encrypt :"
+            echo "  1) Wildcard (*.${VPS_HOST}) - couvre automatiquement tous les sous-domaines"
+            echo "  2) Sous-domaines individuels (app, api, studio, ollama) - plus simple mais moins flexible"
+            echo ""
+            read -p "Votre choix [1/2] : " -n 1 -r CERT_TYPE
+            echo
+            
+            if [[ $CERT_TYPE == "1" ]]; then
+                print_info "Configuration d'un certificat wildcard..."
+                print_warning "Pour un certificat wildcard, vous devez valider par DNS (ajout d'un TXT record)"
+                echo ""
+                echo "Commande à exécuter (après ce script) :"
+                echo "  sudo certbot certonly --manual --preferred-challenges dns -d ${VPS_HOST} -d *.${VPS_HOST}"
+                echo ""
+                read -p "Appuyez sur Entrée pour continuer (vous configurerez Let's Encrypt après le déploiement)..."
+                USE_LETSENCRYPT=false  # On utilisera auto-signés temporairement
+            else
+                print_info "Configuration des certificats pour sous-domaines individuels..."
+                
+                # Installer nginx temporairement si pas déjà fait
+                if ! systemctl is-active --quiet nginx; then
+                    print_info "Installation temporaire de Nginx pour la validation Let's Encrypt..."
+                    sudo apt-get install -y nginx
+                    sudo systemctl start nginx
+                fi
+                
+                # Obtenir les certificats
+                print_info "Obtention des certificats Let's Encrypt..."
+                print_warning "Cette étape peut prendre quelques minutes..."
+                
+                DOMAINS="${VPS_HOST},app.${VPS_HOST},api.${VPS_HOST},studio.${VPS_HOST},ollama.${VPS_HOST}"
+                
+                if sudo certbot certonly --nginx --non-interactive --agree-tos \
+                    --email admin@${VPS_HOST} \
+                    -d ${DOMAINS} 2>&1 | tee /tmp/certbot.log; then
+                    
+                    print_success "Certificats Let's Encrypt obtenus avec succès !"
+                    USE_LETSENCRYPT=true
+                else
+                    print_error "Échec de l'obtention des certificats Let's Encrypt"
+                    cat /tmp/certbot.log
+                    print_warning "Les certificats auto-signés seront utilisés temporairement"
+                    USE_LETSENCRYPT=false
+                fi
+            fi
+        fi
+    fi
+    
+    # Générer les certificats auto-signés si nécessaire
+    if [ "$USE_LETSENCRYPT" = false ]; then
+        print_info "Génération des certificats SSL auto-signés..."
+        sudo mkdir -p /etc/nginx/ssl
+        if [ ! -f /etc/nginx/ssl/selfsigned.crt ]; then
+            sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+                -keyout /etc/nginx/ssl/selfsigned.key \
+                -out /etc/nginx/ssl/selfsigned.crt \
+                -subj "/C=FR/ST=France/L=Paris/O=Antislash/CN=${VPS_HOST}"
+            print_success "Certificats SSL auto-signés générés"
+            print_warning "⚠️  Les navigateurs afficheront une erreur de sécurité"
+            print_info "💡 Utilisez ./setup-wildcard-ssl.sh pour configurer Let's Encrypt après le déploiement"
+        else
+            print_info "Certificats SSL auto-signés déjà existants"
+        fi
     fi
     
     print_info "Configuration de Nginx pour HTTPS..."
@@ -1195,17 +1278,17 @@ else
         if [ -f "nginx-subdomains-ssl.conf" ]; then
             print_info "Utilisation du template nginx-subdomains-ssl.conf"
             
-            # Déterminer les certificats SSL à utiliser
-            if [ -f "/etc/letsencrypt/live/${VPS_HOST}/fullchain.pem" ]; then
+            # Déterminer les certificats SSL à utiliser (basé sur USE_LETSENCRYPT)
+            if [ "$USE_LETSENCRYPT" = true ] && [ -f "/etc/letsencrypt/live/${VPS_HOST}/fullchain.pem" ]; then
                 SSL_CERT="/etc/letsencrypt/live/${VPS_HOST}/fullchain.pem"
                 SSL_KEY="/etc/letsencrypt/live/${VPS_HOST}/privkey.pem"
                 SSL_TRUSTED="/etc/letsencrypt/live/${VPS_HOST}/chain.pem"
-                print_success "Certificats Let's Encrypt détectés"
+                print_success "✅ Configuration avec certificats Let's Encrypt"
             else
                 SSL_CERT="/etc/nginx/ssl/selfsigned.crt"
                 SSL_KEY="/etc/nginx/ssl/selfsigned.key"
                 SSL_TRUSTED="/etc/nginx/ssl/selfsigned.crt"
-                print_info "Utilisation des certificats auto-signés"
+                print_warning "⚠️  Configuration avec certificats auto-signés"
             fi
             
             # Copier et adapter le template
@@ -1352,17 +1435,17 @@ NGINXCONF
         if [ -f "nginx-secure-ssl.conf" ]; then
             print_info "Utilisation du template nginx-secure-ssl.conf"
             
-            # Déterminer les certificats SSL à utiliser
-            if [ -f "/etc/letsencrypt/live/${VPS_HOST}/fullchain.pem" ]; then
+            # Déterminer les certificats SSL à utiliser (basé sur USE_LETSENCRYPT)
+            if [ "$USE_LETSENCRYPT" = true ] && [ -f "/etc/letsencrypt/live/${VPS_HOST}/fullchain.pem" ]; then
                 SSL_CERT="/etc/letsencrypt/live/${VPS_HOST}/fullchain.pem"
                 SSL_KEY="/etc/letsencrypt/live/${VPS_HOST}/privkey.pem"
                 SSL_TRUSTED="/etc/letsencrypt/live/${VPS_HOST}/chain.pem"
-                print_success "Certificats Let's Encrypt détectés"
+                print_success "✅ Configuration avec certificats Let's Encrypt"
             else
                 SSL_CERT="/etc/nginx/ssl/selfsigned.crt"
                 SSL_KEY="/etc/nginx/ssl/selfsigned.key"
                 SSL_TRUSTED="/etc/nginx/ssl/selfsigned.crt"
-                print_info "Utilisation des certificats auto-signés"
+                print_warning "⚠️  Configuration avec certificats auto-signés"
             fi
             
             # Copier et adapter le template
