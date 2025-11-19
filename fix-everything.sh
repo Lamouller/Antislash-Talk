@@ -89,6 +89,11 @@ fi
 
 print_header "3️⃣  Arrêt de tous les services"
 
+# Charger TOUTES les variables avant toute commande
+set -a
+source .env.monorepo
+set +a
+
 docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo down
 print_success "Services arrêtés"
 
@@ -96,17 +101,26 @@ sleep 3
 
 print_header "4️⃣  Activation de l'extension pgcrypto"
 
-# Charger les variables dans l'environnement shell
-set -a
-source .env.monorepo
-set +a
-
 # Démarrer juste la DB avec les bonnes variables
 docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo up -d db
 sleep 10
 
+# Vérifier que la DB est démarrée
+print_info "Vérification que la DB répond..."
+MAX_TRIES=30
+TRIES=0
+until docker exec -i antislash-talk-db psql -U postgres -d postgres -c "SELECT 1" > /dev/null 2>&1; do
+    TRIES=$((TRIES+1))
+    if [ $TRIES -ge $MAX_TRIES ]; then
+        print_error "La DB ne démarre pas"
+        exit 1
+    fi
+    sleep 1
+done
+print_success "DB opérationnelle"
+
 # Activer pgcrypto
-docker exec -i antislash-talk-db psql -U supabase_admin postgres << 'SQL'
+docker exec -i antislash-talk-db psql -U postgres postgres << 'SQL'
 CREATE EXTENSION IF NOT EXISTS pgcrypto SCHEMA extensions;
 CREATE EXTENSION IF NOT EXISTS pgcrypto SCHEMA auth;
 SQL
