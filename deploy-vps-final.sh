@@ -1176,11 +1176,14 @@ else
     echo ""
     print_header "Configuration SSL/TLS"
     
-    USE_LETSENCRYPT=false
+    # Auto-détecter Let's Encrypt
     if [ -f "/etc/letsencrypt/live/${VPS_HOST}/fullchain.pem" ]; then
-        print_success "Certificats Let's Encrypt détectés pour ${VPS_HOST}"
         USE_LETSENCRYPT=true
+        print_success "✅ Certificats Let's Encrypt détectés et seront utilisés automatiquement"
+        sudo certbot certificates 2>/dev/null | grep -A 5 "Certificate Name: ${VPS_HOST}" || true
+        echo ""
     else
+        USE_LETSENCRYPT=false
         print_warning "Aucun certificat Let's Encrypt trouvé pour ${VPS_HOST}"
         echo ""
         echo "Voulez-vous utiliser Let's Encrypt pour les certificats SSL ?"
