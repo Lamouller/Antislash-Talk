@@ -348,7 +348,16 @@ fi
 # Détecter si c'est un domaine ou une IP
 IS_DOMAIN=false
 if echo "$VPS_HOST" | grep -qE '^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$'; then
+    # Configuration IP (par défaut)
     print_info "Configuration avec IP : $VPS_HOST"
+    APP_URL="https://${VPS_HOST}"
+    API_URL="https://${VPS_HOST}:8443"
+    STUDIO_URL="https://${VPS_HOST}:8444"
+    OLLAMA_URL="https://${VPS_HOST}:8445"
+    
+    API_EXTERNAL_URL="https://${VPS_HOST}:8443"
+    VITE_SUPABASE_URL="https://${VPS_HOST}:8443"
+    VITE_OLLAMA_URL="https://${VPS_HOST}:8445"
 else
     IS_DOMAIN=true
     print_info "Configuration avec domaine : $VPS_HOST"
@@ -378,16 +387,6 @@ else
         VITE_SUPABASE_URL="https://${VPS_HOST}:8443"
         VITE_OLLAMA_URL="https://${VPS_HOST}:8445"
     fi
-else
-    # Configuration IP (par défaut)
-    APP_URL="https://${VPS_HOST}"
-    API_URL="https://${VPS_HOST}:8443"
-    STUDIO_URL="https://${VPS_HOST}:8444"
-    OLLAMA_URL="https://${VPS_HOST}:8445"
-    
-    API_EXTERNAL_URL="https://${VPS_HOST}:8443"
-    VITE_SUPABASE_URL="https://${VPS_HOST}:8443"
-    VITE_OLLAMA_URL="https://${VPS_HOST}:8445"
 fi
 
 # Studio password
