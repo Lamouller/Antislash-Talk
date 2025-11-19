@@ -89,15 +89,20 @@ fi
 
 print_header "3️⃣  Arrêt de tous les services"
 
-docker compose -f docker-compose.monorepo.yml down
+docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo down
 print_success "Services arrêtés"
 
 sleep 3
 
 print_header "4️⃣  Activation de l'extension pgcrypto"
 
-# Démarrer juste la DB
-docker compose -f docker-compose.monorepo.yml up -d db
+# Charger les variables dans l'environnement shell
+set -a
+source .env.monorepo
+set +a
+
+# Démarrer juste la DB avec les bonnes variables
+docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo up -d db
 sleep 10
 
 # Activer pgcrypto
@@ -115,7 +120,7 @@ STUDIO_PASSWORD="${STUDIO_PASSWORD:-admin}"
 print_info "Mot de passe Studio : $STUDIO_PASSWORD"
 
 # Attendre que studio-proxy démarre
-docker compose -f docker-compose.monorepo.yml up -d studio-proxy
+docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo up -d studio-proxy
 sleep 5
 
 # Créer le fichier .htpasswd
@@ -141,7 +146,7 @@ export VITE_HIDE_MARKETING_PAGES="${VITE_HIDE_MARKETING_PAGES:-false}"
 export API_EXTERNAL_URL="${API_EXTERNAL_URL}"
 
 # Rebuild SANS cache
-if docker compose -f docker-compose.monorepo.yml build --no-cache \
+if docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo build --no-cache \
   --build-arg VITE_SUPABASE_URL="$VITE_SUPABASE_URL" \
   --build-arg VITE_SUPABASE_ANON_KEY="$VITE_SUPABASE_ANON_KEY" \
   --build-arg VITE_HIDE_MARKETING_PAGES="${VITE_HIDE_MARKETING_PAGES}" \
@@ -160,7 +165,7 @@ source .env.monorepo
 set +a
 
 # Démarrer tous les services
-docker compose -f docker-compose.monorepo.yml up -d
+docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo up -d
 
 print_success "Services démarrés"
 print_info "Attente du démarrage complet (45 secondes)..."
@@ -168,10 +173,10 @@ sleep 45
 
 print_header "8️⃣  Vérification de l'état des services"
 
-docker compose -f docker-compose.monorepo.yml ps
+docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo ps
 
 # Compter les services qui tournent
-RUNNING=$(docker compose -f docker-compose.monorepo.yml ps | grep "Up" | wc -l)
+RUNNING=$(docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo ps | grep "Up" | wc -l)
 print_info "$RUNNING services en cours d'exécution"
 
 print_header "9️⃣  Création d'un utilisateur admin"
