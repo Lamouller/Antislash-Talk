@@ -251,6 +251,63 @@ TTL: 300
 
 ---
 
+### ⚡ Activate WhisperX (Optional - Ultra-Fast Transcription)
+
+WhisperX provides **6x faster transcription** with built-in speaker diarization.
+
+#### 🚀 **During Deployment**
+
+The deployment script will ask if you want to enable WhisperX:
+
+```bash
+./deploy-vps-final.sh
+# Will prompt: "Voulez-vous activer WhisperX ? (oui/non)"
+```
+
+#### 🎯 **After Deployment**
+
+Activate WhisperX anytime with the dedicated script:
+
+```bash
+cd ~/antislash-talk
+./activate-whisperx.sh
+```
+
+**Or manually:**
+
+```bash
+# Build the image
+docker compose -f docker-compose.monorepo.yml build whisperx
+
+# Start the service
+docker compose -f docker-compose.monorepo.yml --profile whisperx up -d
+```
+
+#### 📊 **Verify WhisperX Status**
+
+```bash
+# Check if running
+docker ps | grep whisperx
+
+# Test the API
+curl http://localhost:8082/health
+
+# View logs
+docker compose -f docker-compose.monorepo.yml logs whisperx -f
+```
+
+#### 🎭 **Why WhisperX?**
+
+- ✅ **6x faster** than standard PyTorch Whisper
+- ✅ **Native speaker diarization** (who said what)
+- ✅ **Built on faster-whisper** (C++ optimized)
+- ✅ **Same accuracy** as original Whisper
+- ⚠️ **Resource intensive**: ~3GB RAM, CPU intensive
+
+**Note:** The app works fine without WhisperX (falls back to PyTorch or cloud APIs).
+
+---
+
 ### 🔧 Fix Deployment Issues (Post-Domain or Auth Problems)
 
 If you encounter authentication issues, Studio problems, or other post-deployment errors:

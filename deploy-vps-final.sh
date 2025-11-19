@@ -870,6 +870,66 @@ fi
 print_info "Attente de stabilisation (15s)..."
 sleep 15
 
+# ============================================
+# OPTIONAL: WhisperX Service
+# ============================================
+print_header "Service Optionnel : WhisperX"
+
+echo ""
+echo "WhisperX est un service de transcription ultra-rapide avec diarization (identification des locuteurs)."
+echo "  ⚡ Performances : 6x plus rapide que PyTorch"
+echo "  🎭 Diarization : Identification native des locuteurs"
+echo "  💾 Ressources  : ~3GB RAM, CPU intensif"
+echo ""
+echo "Note : L'application fonctionne sans WhisperX (fallback sur PyTorch ou Gemini)"
+echo ""
+
+read -p "Voulez-vous activer WhisperX ? (oui/non) [non] : " ENABLE_WHISPERX
+ENABLE_WHISPERX=${ENABLE_WHISPERX:-non}
+
+WHISPERX_ENABLED=false
+
+if [ "$ENABLE_WHISPERX" = "oui" ] || [ "$ENABLE_WHISPERX" = "o" ] || [ "$ENABLE_WHISPERX" = "yes" ] || [ "$ENABLE_WHISPERX" = "y" ]; then
+    print_info "🏗️  Build de l'image WhisperX (cela peut prendre 5-10 minutes)..."
+    
+    if docker compose -f docker-compose.monorepo.yml build whisperx; then
+        print_success "Image WhisperX construite avec succès"
+        
+        print_info "🚀 Démarrage du service WhisperX..."
+        if docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo --profile whisperx up -d; then
+            print_success "Service WhisperX démarré"
+            
+            # Vérifier que WhisperX est prêt
+            print_info "Vérification du service WhisperX (jusqu'à 60s)..."
+            WHISPERX_READY=false
+            for i in {1..30}; do
+                if docker exec antislash-talk-whisperx curl -f http://localhost:8082/health 2>/dev/null | grep -q "ok"; then
+                    WHISPERX_READY=true
+                    WHISPERX_ENABLED=true
+                    print_success "✅ Service WhisperX opérationnel !"
+                    break
+                fi
+                sleep 2
+            done
+            
+            if [ "$WHISPERX_READY" = false ]; then
+                print_warning "⚠️  WhisperX n'est pas encore prêt (peut prendre plus de temps au premier démarrage)"
+                print_info "Vérifiez les logs : docker compose -f docker-compose.monorepo.yml logs whisperx"
+                WHISPERX_ENABLED=true  # On le marque quand même comme activé
+            fi
+        else
+            print_error "❌ Échec du démarrage de WhisperX"
+            print_warning "L'application fonctionnera quand même sans WhisperX"
+        fi
+    else
+        print_error "❌ Échec du build de WhisperX"
+        print_warning "L'application fonctionnera quand même sans WhisperX"
+    fi
+else
+    print_info "WhisperX non activé (peut être activé plus tard)"
+    print_info "Commande : docker compose -f docker-compose.monorepo.yml --profile whisperx up -d"
+fi
+
 # CRITIQUE: Mettre à jour Kong avec les bonnes clés
 print_info "Mise à jour de Kong avec les clés JWT..."
 
@@ -1684,6 +1744,15 @@ echo -e "${GREEN}║${NC}   Mot de passe     : ${YELLOW}${STUDIO_PASSWORD}${NC}"
 echo -e "${GREEN}║${NC}"
 echo -e "${GREEN}║${NC} API Supabase       : ${CYAN}${API_URL}${NC}"
 echo -e "${GREEN}║${NC} Ollama API         : ${CYAN}${OLLAMA_URL}${NC}"
+if [ "$WHISPERX_ENABLED" = true ]; then
+    WHISPERX_PORT="8082"
+    if [ "$IS_DOMAIN" = "true" ]; then
+        WHISPERX_URL="http://${VPS_HOST}:${WHISPERX_PORT}"
+    else
+        WHISPERX_URL="http://${VPS_HOST}:${WHISPERX_PORT}"
+    fi
+    echo -e "${GREEN}║${NC} WhisperX API       : ${CYAN}${WHISPERX_URL}${NC}"
+fi
 echo -e "${GREEN}║${NC}"
 echo -e "${GREEN}║${NC} Compte Admin App   :"
 echo -e "${GREEN}║${NC}   Email            : ${YELLOW}${APP_USER_EMAIL}${NC}"
@@ -1720,6 +1789,13 @@ URLs d'accès :
 - Studio : ${STUDIO_URL} (user: antislash, pass: ${STUDIO_PASSWORD})
 - API : ${API_URL}
 - Ollama : ${OLLAMA_URL}
+EOF
+
+if [ "$WHISPERX_ENABLED" = true ]; then
+    echo "- WhisperX : ${WHISPERX_URL}" >> deployment-info.txt
+fi
+
+cat >> deployment-info.txt << EOF
 
 Compte admin :
 - Email : ${APP_USER_EMAIL}
