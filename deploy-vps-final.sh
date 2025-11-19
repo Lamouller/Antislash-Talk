@@ -418,6 +418,7 @@ if echo "$VPS_HOST" | grep -qE '^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$
     VITE_SUPABASE_URL="https://${VPS_HOST}:8443"
     VITE_OLLAMA_URL="https://${VPS_HOST}:8445"
     VITE_WHISPERX_URL="https://${VPS_HOST}/whisperx"
+    VITE_PYTORCH_SERVICE_URL="https://${VPS_HOST}/pytorch"
 else
     IS_DOMAIN=true
     print_info "Configuration avec domaine : $VPS_HOST"
@@ -437,6 +438,7 @@ else
         VITE_SUPABASE_URL="https://api.${VPS_HOST}"
         VITE_OLLAMA_URL="https://ollama.${VPS_HOST}"
         VITE_WHISPERX_URL="https://app.${VPS_HOST}/whisperx"
+        VITE_PYTORCH_SERVICE_URL="https://app.${VPS_HOST}/pytorch"
     else
         print_info "Configuration avec domaine unique et ports"
         APP_URL="https://${VPS_HOST}"
@@ -448,6 +450,7 @@ else
         VITE_SUPABASE_URL="https://${VPS_HOST}:8443"
         VITE_OLLAMA_URL="https://${VPS_HOST}:8445"
         VITE_WHISPERX_URL="https://${VPS_HOST}/whisperx"
+        VITE_PYTORCH_SERVICE_URL="https://${VPS_HOST}/pytorch"
     fi
 fi
 
@@ -726,6 +729,7 @@ VITE_SUPABASE_ANON_KEY=${ANON_KEY}
 VITE_HIDE_MARKETING_PAGES=${VITE_HIDE_MARKETING_PAGES}
 VITE_OLLAMA_URL=${VITE_OLLAMA_URL}
 VITE_WHISPERX_URL=${VITE_WHISPERX_URL}
+VITE_PYTORCH_SERVICE_URL=${VITE_PYTORCH_SERVICE_URL}
 EOF
 
 print_info "Export des variables pour le build..."
@@ -734,6 +738,7 @@ export VITE_SUPABASE_URL="${VITE_SUPABASE_URL}"
 export VITE_SUPABASE_ANON_KEY="$ANON_KEY"
 export VITE_HIDE_MARKETING_PAGES="$VITE_HIDE_MARKETING_PAGES"
 export VITE_OLLAMA_URL="${VITE_OLLAMA_URL}"
+export VITE_PYTORCH_SERVICE_URL="${VITE_PYTORCH_SERVICE_URL}"
 
 print_info "Construction de l'image web..."
 docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo build \
@@ -742,6 +747,7 @@ docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo build \
   --build-arg VITE_HIDE_MARKETING_PAGES="${VITE_HIDE_MARKETING_PAGES}" \
   --build-arg VITE_OLLAMA_URL="${VITE_OLLAMA_URL}" \
   --build-arg VITE_WHISPERX_URL="${VITE_WHISPERX_URL}" \
+  --build-arg VITE_PYTORCH_SERVICE_URL="${VITE_PYTORCH_SERVICE_URL}" \
   web
 
 print_header "ÉTAPE 6/13 : Démarrage de PostgreSQL"
