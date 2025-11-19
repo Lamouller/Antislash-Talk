@@ -333,6 +333,8 @@ services:
     restart: unless-stopped
     # profiles:
     #   - ollama  # Service OPTIONNEL - Commenté pour démarrage automatique
+    environment:
+      OLLAMA_ORIGINS: ${OLLAMA_ORIGINS:-http://localhost,https://localhost}
     ports:
       - "11434:11434"  # API Ollama
     networks:
