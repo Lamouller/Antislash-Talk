@@ -16,6 +16,11 @@ curl -sSL https://raw.githubusercontent.com/Lamouller/Antislash-Talk/main/deploy
 cd ~/antislash-talk && curl -sSL https://raw.githubusercontent.com/Lamouller/Antislash-Talk/main/add-domain.sh -o add-domain.sh && chmod +x add-domain.sh && ./add-domain.sh
 ```
 
+### Fix Everything (Auth, SSL, DB, Studio, Web) - One Command
+```bash
+cd ~/antislash-talk && curl -sSL https://raw.githubusercontent.com/Lamouller/Antislash-Talk/main/fix-everything.sh -o fix-everything.sh && chmod +x fix-everything.sh && sudo ./fix-everything.sh
+```
+
 ### Fix Auth + SSL After Domain Change (One Command)
 ```bash
 cd ~/antislash-talk && curl -sSL https://raw.githubusercontent.com/Lamouller/Antislash-Talk/main/fix-auth-after-domain.sh -o fix-auth.sh && chmod +x fix-auth.sh && sudo ./fix-auth.sh
