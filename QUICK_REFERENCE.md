@@ -16,6 +16,11 @@ curl -sSL https://raw.githubusercontent.com/Lamouller/Antislash-Talk/main/deploy
 cd ~/antislash-talk && curl -sSL https://raw.githubusercontent.com/Lamouller/Antislash-Talk/main/add-domain.sh -o add-domain.sh && chmod +x add-domain.sh && ./add-domain.sh
 ```
 
+### Fix Auth + SSL After Domain Change (One Command)
+```bash
+cd ~/antislash-talk && curl -sSL https://raw.githubusercontent.com/Lamouller/Antislash-Talk/main/fix-auth-after-domain.sh -o fix-auth.sh && chmod +x fix-auth.sh && sudo ./fix-auth.sh
+```
+
 ### Install Let's Encrypt SSL (Ports Mode)
 ```bash
 sudo certbot --nginx -d yourdomain.com
