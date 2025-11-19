@@ -1184,8 +1184,36 @@ else
     # Configuration différente selon domaine ou IP
     if [ "$IS_DOMAIN" = "true" ] && ([ "${USE_SUBDOMAINS}" = "oui" ] || [ "${USE_SUBDOMAINS}" = "o" ] || [ "${USE_SUBDOMAINS}" = "yes" ] || [ "${USE_SUBDOMAINS}" = "y" ]); then
         print_info "Configuration Nginx avec sous-domaines..."
-    
-    # Configuration avec sous-domaines (app, api, studio, ollama)
+        
+        # Utiliser le template avec sous-domaines
+        if [ -f "nginx-subdomains-ssl.conf" ]; then
+            print_info "Utilisation du template nginx-subdomains-ssl.conf"
+            
+            # Déterminer les certificats SSL à utiliser
+            if [ -f "/etc/letsencrypt/live/${VPS_HOST}/fullchain.pem" ]; then
+                SSL_CERT="/etc/letsencrypt/live/${VPS_HOST}/fullchain.pem"
+                SSL_KEY="/etc/letsencrypt/live/${VPS_HOST}/privkey.pem"
+                SSL_TRUSTED="/etc/letsencrypt/live/${VPS_HOST}/chain.pem"
+                print_success "Certificats Let's Encrypt détectés"
+            else
+                SSL_CERT="/etc/nginx/ssl/selfsigned.crt"
+                SSL_KEY="/etc/nginx/ssl/selfsigned.key"
+                SSL_TRUSTED="/etc/nginx/ssl/selfsigned.crt"
+                print_info "Utilisation des certificats auto-signés"
+            fi
+            
+            # Copier et adapter le template
+            sed -e "s|riquelme-talk.antislash.studio|${VPS_HOST}|g" \
+                -e "s|/etc/letsencrypt/live/riquelme-talk.antislash.studio/fullchain.pem|${SSL_CERT}|g" \
+                -e "s|/etc/letsencrypt/live/riquelme-talk.antislash.studio/privkey.pem|${SSL_KEY}|g" \
+                -e "s|/etc/letsencrypt/live/riquelme-talk.antislash.studio/chain.pem|${SSL_TRUSTED}|g" \
+                nginx-subdomains-ssl.conf | sudo tee /etc/nginx/sites-available/antislash-talk-ssl > /dev/null
+            
+            print_success "Configuration nginx avec sous-domaines appliquée"
+        else
+            print_warning "Template nginx-subdomains-ssl.conf non trouvé, génération basique"
+            
+    # Configuration avec sous-domaines (app, api, studio, ollama) - FALLBACK
     sudo tee /etc/nginx/sites-available/antislash-talk-ssl > /dev/null << NGINXCONF
 # Redirection HTTP vers HTTPS
 server {
@@ -1309,9 +1337,39 @@ server {
     }
 }
 NGINXCONF
-
-else
-    print_info "Configuration Nginx standard (avec ports)..."
+        fi  # Fin du if template nginx-subdomains-ssl.conf
+        
+    else
+        print_info "Configuration Nginx standard (avec ports)..."
+        
+        # Utiliser le template avec ports si disponible
+        if [ -f "nginx-secure-ssl.conf" ]; then
+            print_info "Utilisation du template nginx-secure-ssl.conf"
+            
+            # Déterminer les certificats SSL à utiliser
+            if [ -f "/etc/letsencrypt/live/${VPS_HOST}/fullchain.pem" ]; then
+                SSL_CERT="/etc/letsencrypt/live/${VPS_HOST}/fullchain.pem"
+                SSL_KEY="/etc/letsencrypt/live/${VPS_HOST}/privkey.pem"
+                SSL_TRUSTED="/etc/letsencrypt/live/${VPS_HOST}/chain.pem"
+                print_success "Certificats Let's Encrypt détectés"
+            else
+                SSL_CERT="/etc/nginx/ssl/selfsigned.crt"
+                SSL_KEY="/etc/nginx/ssl/selfsigned.key"
+                SSL_TRUSTED="/etc/nginx/ssl/selfsigned.crt"
+                print_info "Utilisation des certificats auto-signés"
+            fi
+            
+            # Copier et adapter le template
+            sed -e "s|riquelme-talk.antislash.studio|${VPS_HOST}|g" \
+                -e "s|/etc/letsencrypt/live/riquelme-talk.antislash.studio/fullchain.pem|${SSL_CERT}|g" \
+                -e "s|/etc/letsencrypt/live/riquelme-talk.antislash.studio/privkey.pem|${SSL_KEY}|g" \
+                -e "s|/etc/letsencrypt/live/riquelme-talk.antislash.studio/chain.pem|${SSL_TRUSTED}|g" \
+                nginx-secure-ssl.conf | sudo tee /etc/nginx/sites-available/antislash-talk-ssl > /dev/null
+            
+            print_success "Configuration nginx avec ports appliquée"
+        else
+            print_warning "Template nginx-secure-ssl.conf non trouvé, génération basique"
+            
     sudo tee /etc/nginx/sites-available/antislash-talk-ssl > /dev/null << 'NGINXCONF'
 # Redirection HTTP vers HTTPS
 server {
@@ -1420,7 +1478,8 @@ server {
     }
 }
 NGINXCONF
-fi
+        fi  # Fin du if template nginx-secure-ssl.conf
+    fi  # Fin du if sous-domaines vs ports
 
     # Activer le site
     sudo ln -sf /etc/nginx/sites-available/antislash-talk-ssl /etc/nginx/sites-enabled/
