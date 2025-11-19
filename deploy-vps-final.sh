@@ -229,6 +229,65 @@ fi
 
 print_header "ÉTAPE 1/13 : Configuration initiale"
 
+# ============================================
+# DÉTECTION D'INSTALLATION EXISTANTE
+# ============================================
+EXISTING_INSTALL=false
+KEEP_NGINX=false
+PRESERVE_EXTRA_SERVICES=false
+
+# Détecter nginx configuré
+if [ -f "/etc/nginx/sites-enabled/antislash-talk-ssl" ]; then
+    EXISTING_INSTALL=true
+    print_warning "Installation nginx existante détectée !"
+fi
+
+# Détecter containers existants
+EXISTING_CONTAINERS=$(docker ps -a --format '{{.Names}}' | grep -E "antislash|nocodb|n8n" || true)
+if [ -n "$EXISTING_CONTAINERS" ]; then
+    EXISTING_INSTALL=true
+    print_warning "Containers existants détectés :"
+    echo "$EXISTING_CONTAINERS" | sed 's/^/  • /'
+fi
+
+# Si installation existante, proposer le mode UPDATE
+if [ "$EXISTING_INSTALL" = "true" ]; then
+    echo ""
+    print_header "🔄 MODE DE DÉPLOIEMENT"
+    echo ""
+    echo "Une installation existante a été détectée."
+    echo ""
+    echo "Options disponibles :"
+    echo "  1) UPDATE  - Mise à jour (préserve nginx, SSL, services additionnels)"
+    echo "  2) FRESH   - Installation complète (⚠️  ÉCRASE TOUT)"
+    echo ""
+    read -p "Votre choix [1] : " DEPLOY_MODE
+    DEPLOY_MODE=${DEPLOY_MODE:-1}
+    
+    if [ "$DEPLOY_MODE" = "1" ]; then
+        print_success "Mode UPDATE sélectionné"
+        KEEP_NGINX=true
+        PRESERVE_EXTRA_SERVICES=true
+        print_info "✅ Nginx/SSL sera préservé"
+        print_info "✅ Services additionnels (NocoDB, n8n) seront préservés"
+        
+        # Détecter les services additionnels
+        EXTRA_SERVICES=""
+        if docker ps -a --format '{{.Names}}' | grep -q "nocodb"; then
+            EXTRA_SERVICES="$EXTRA_SERVICES nocodb"
+            print_info "  → NocoDB détecté"
+        fi
+        if docker ps -a --format '{{.Names}}' | grep -q "n8n"; then
+            EXTRA_SERVICES="$EXTRA_SERVICES n8n"
+            print_info "  → n8n détecté"
+        fi
+    else
+        print_warning "Mode FRESH sélectionné - Tout sera réinstallé"
+        KEEP_NGINX=false
+        PRESERVE_EXTRA_SERVICES=false
+    fi
+fi
+
 # Vérifier si un .env.monorepo existe déjà
 if [ -f ".env.monorepo" ]; then
     print_warning "Un fichier .env.monorepo existe déjà"
@@ -358,6 +417,7 @@ if echo "$VPS_HOST" | grep -qE '^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$
     API_EXTERNAL_URL="https://${VPS_HOST}:8443"
     VITE_SUPABASE_URL="https://${VPS_HOST}:8443"
     VITE_OLLAMA_URL="https://${VPS_HOST}:8445"
+    VITE_WHISPERX_URL="https://${VPS_HOST}/whisperx"
 else
     IS_DOMAIN=true
     print_info "Configuration avec domaine : $VPS_HOST"
@@ -376,6 +436,7 @@ else
         API_EXTERNAL_URL="https://api.${VPS_HOST}"
         VITE_SUPABASE_URL="https://api.${VPS_HOST}"
         VITE_OLLAMA_URL="https://ollama.${VPS_HOST}"
+        VITE_WHISPERX_URL="https://app.${VPS_HOST}/whisperx"
     else
         print_info "Configuration avec domaine unique et ports"
         APP_URL="https://${VPS_HOST}"
@@ -386,6 +447,7 @@ else
         API_EXTERNAL_URL="https://${VPS_HOST}:8443"
         VITE_SUPABASE_URL="https://${VPS_HOST}:8443"
         VITE_OLLAMA_URL="https://${VPS_HOST}:8445"
+        VITE_WHISPERX_URL="https://${VPS_HOST}/whisperx"
     fi
 fi
 
@@ -541,6 +603,7 @@ VITE_SUPABASE_URL=${VITE_SUPABASE_URL}
 VITE_SUPABASE_ANON_KEY=${ANON_KEY}
 VITE_HIDE_MARKETING_PAGES=${VITE_HIDE_MARKETING_PAGES}
 VITE_OLLAMA_URL=${VITE_OLLAMA_URL}
+VITE_WHISPERX_URL=${VITE_WHISPERX_URL}
 
 # PostgreSQL
 POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
@@ -624,7 +687,34 @@ fi # Fin du else (création de .env.monorepo)
 print_header "ÉTAPE 4/13 : Arrêt des services existants"
 
 # Arrêter et nettoyer les services existants
-docker compose -f docker-compose.monorepo.yml down -v --remove-orphans || true
+if [ "$PRESERVE_EXTRA_SERVICES" = "true" ]; then
+    print_info "Mode UPDATE : Arrêt sélectif des containers Antislash uniquement"
+    
+    # Arrêter uniquement les containers antislash-talk-*
+    ANTISLASH_CONTAINERS=$(docker ps -a --format '{{.Names}}' | grep "^antislash-talk-" || true)
+    if [ -n "$ANTISLASH_CONTAINERS" ]; then
+        echo "$ANTISLASH_CONTAINERS" | while read container; do
+            print_info "Arrêt de $container"
+            docker stop "$container" 2>/dev/null || true
+            docker rm "$container" 2>/dev/null || true
+        done
+    fi
+    
+    # NE PAS faire down -v pour préserver les volumes et services additionnels
+    print_success "Services Antislash arrêtés, services additionnels préservés"
+    
+    # Liste des services préservés
+    PRESERVED=$(docker ps --format '{{.Names}}' | grep -E "nocodb|n8n" || true)
+    if [ -n "$PRESERVED" ]; then
+        print_info "Services additionnels toujours actifs :"
+        echo "$PRESERVED" | sed 's/^/  ✅ /'
+    fi
+else
+    print_info "Arrêt complet de tous les services"
+    docker compose -f docker-compose.monorepo.yml down -v --remove-orphans || true
+fi
+
+# Nettoyage Docker léger
 docker system prune -f
 
 print_header "ÉTAPE 5/13 : Construction de l'image web"
@@ -635,6 +725,7 @@ VITE_SUPABASE_URL=${VITE_SUPABASE_URL}
 VITE_SUPABASE_ANON_KEY=${ANON_KEY}
 VITE_HIDE_MARKETING_PAGES=${VITE_HIDE_MARKETING_PAGES}
 VITE_OLLAMA_URL=${VITE_OLLAMA_URL}
+VITE_WHISPERX_URL=${VITE_WHISPERX_URL}
 EOF
 
 print_info "Export des variables pour le build..."
@@ -650,6 +741,7 @@ docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo build \
   --build-arg VITE_SUPABASE_ANON_KEY="${ANON_KEY}" \
   --build-arg VITE_HIDE_MARKETING_PAGES="${VITE_HIDE_MARKETING_PAGES}" \
   --build-arg VITE_OLLAMA_URL="${VITE_OLLAMA_URL}" \
+  --build-arg VITE_WHISPERX_URL="${VITE_WHISPERX_URL}" \
   web
 
 print_header "ÉTAPE 6/13 : Démarrage de PostgreSQL"
@@ -953,47 +1045,80 @@ mv packages/supabase/kong.yml.backup packages/supabase/kong.yml 2>/dev/null || t
 
 print_header "ÉTAPE 9/13 : Configuration Nginx HTTPS"
 
-print_info "Installation de Nginx si nécessaire..."
-if ! command -v nginx &> /dev/null; then
-    $PACKAGE_UPDATE_CMD
+# Si mode UPDATE et nginx existe, on skip cette étape
+if [ "$KEEP_NGINX" = "true" ] && [ -f "/etc/nginx/sites-enabled/antislash-talk-ssl" ]; then
+    print_success "Configuration Nginx existante préservée ✅"
+    print_info "Fichier : /etc/nginx/sites-enabled/antislash-talk-ssl"
     
-    # Installation selon l'OS
-    case $OS_TYPE in
-        ubuntu|debian)
-            $PACKAGE_INSTALL_CMD nginx
-            ;;
-        fedora|centos|rhel|rocky|almalinux)
-            $PACKAGE_INSTALL_CMD nginx
-            sudo systemctl enable nginx
-            ;;
-        arch|manjaro)
-            $PACKAGE_INSTALL_CMD nginx
-            sudo systemctl enable nginx
-            ;;
-        alpine)
-            $PACKAGE_INSTALL_CMD nginx
-            rc-update add nginx default
-            ;;
-    esac
-fi
-
-print_info "Génération des certificats SSL auto-signés..."
-sudo mkdir -p /etc/nginx/ssl
-if [ ! -f /etc/nginx/ssl/selfsigned.crt ]; then
-    sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-        -keyout /etc/nginx/ssl/selfsigned.key \
-        -out /etc/nginx/ssl/selfsigned.crt \
-        -subj "/C=FR/ST=France/L=Paris/O=Antislash/CN=${VPS_HOST}"
-    print_success "Certificats SSL générés"
+    # Vérifier si Let's Encrypt est configuré
+    if grep -q "letsencrypt" /etc/nginx/sites-enabled/antislash-talk-ssl; then
+        print_success "Certificats Let's Encrypt détectés ✅"
+    elif [ -f "/etc/nginx/ssl/selfsigned.crt" ]; then
+        print_info "Certificats auto-signés utilisés"
+    fi
+    
+    # Vérifier si WhisperX est dans la config
+    if grep -q "whisperx" /etc/nginx/sites-enabled/antislash-talk-ssl; then
+        print_success "Route WhisperX détectée dans nginx ✅"
+    else
+        print_warning "Route WhisperX non trouvée dans nginx"
+        print_info "Pour l'ajouter, consulter: nginx-secure-ssl.conf"
+    fi
+    
+    # Recharger nginx pour être sûr
+    print_info "Rechargement de nginx..."
+    sudo nginx -t && sudo systemctl reload nginx
+    
+    SKIP_NGINX_CONFIG=true
 else
-    print_info "Certificats SSL déjà existants"
+    SKIP_NGINX_CONFIG=false
+    
+    print_info "Installation de Nginx si nécessaire..."
+    if ! command -v nginx &> /dev/null; then
+        $PACKAGE_UPDATE_CMD
+        
+        # Installation selon l'OS
+        case $OS_TYPE in
+            ubuntu|debian)
+                $PACKAGE_INSTALL_CMD nginx
+                ;;
+            fedora|centos|rhel|rocky|almalinux)
+                $PACKAGE_INSTALL_CMD nginx
+                sudo systemctl enable nginx
+                ;;
+            arch|manjaro)
+                $PACKAGE_INSTALL_CMD nginx
+                sudo systemctl enable nginx
+                ;;
+            alpine)
+                $PACKAGE_INSTALL_CMD nginx
+                rc-update add nginx default
+                ;;
+        esac
+    fi
+    
+    print_info "Génération des certificats SSL auto-signés..."
+    sudo mkdir -p /etc/nginx/ssl
+    if [ ! -f /etc/nginx/ssl/selfsigned.crt ]; then
+        sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+            -keyout /etc/nginx/ssl/selfsigned.key \
+            -out /etc/nginx/ssl/selfsigned.crt \
+            -subj "/C=FR/ST=France/L=Paris/O=Antislash/CN=${VPS_HOST}"
+        print_success "Certificats SSL générés"
+    else
+        print_info "Certificats SSL déjà existants"
+    fi
+    
+    print_info "Configuration de Nginx pour HTTPS..."
 fi
 
-print_info "Configuration de Nginx pour HTTPS..."
-
-# Configuration différente selon domaine ou IP
-if [ "$IS_DOMAIN" = "true" ] && ([ "${USE_SUBDOMAINS}" = "oui" ] || [ "${USE_SUBDOMAINS}" = "o" ] || [ "${USE_SUBDOMAINS}" = "yes" ] || [ "${USE_SUBDOMAINS}" = "y" ]); then
-    print_info "Configuration Nginx avec sous-domaines..."
+# Skip écriture config si mode UPDATE
+if [ "$SKIP_NGINX_CONFIG" = "true" ]; then
+    print_info "Configuration nginx non modifiée (mode UPDATE)"
+else
+    # Configuration différente selon domaine ou IP
+    if [ "$IS_DOMAIN" = "true" ] && ([ "${USE_SUBDOMAINS}" = "oui" ] || [ "${USE_SUBDOMAINS}" = "o" ] || [ "${USE_SUBDOMAINS}" = "yes" ] || [ "${USE_SUBDOMAINS}" = "y" ]); then
+        print_info "Configuration Nginx avec sous-domaines..."
     
     # Configuration avec sous-domaines (app, api, studio, ollama)
     sudo tee /etc/nginx/sites-available/antislash-talk-ssl > /dev/null << NGINXCONF
@@ -1232,20 +1357,21 @@ server {
 NGINXCONF
 fi
 
-# Activer le site
-sudo ln -sf /etc/nginx/sites-available/antislash-talk-ssl /etc/nginx/sites-enabled/
-sudo rm -f /etc/nginx/sites-enabled/default
-
-# Tester et recharger Nginx
-print_info "Test de la configuration Nginx..."
-if sudo nginx -t; then
-    print_success "Configuration Nginx valide"
-    sudo systemctl reload nginx
-    print_success "Nginx rechargé avec HTTPS"
-else
-    print_error "Erreur dans la configuration Nginx"
-    exit 1
-fi
+    # Activer le site
+    sudo ln -sf /etc/nginx/sites-available/antislash-talk-ssl /etc/nginx/sites-enabled/
+    sudo rm -f /etc/nginx/sites-enabled/default
+    
+    # Tester et recharger Nginx
+    print_info "Test de la configuration Nginx..."
+    if sudo nginx -t; then
+        print_success "Configuration Nginx valide"
+        sudo systemctl reload nginx
+        print_success "Nginx rechargé avec HTTPS"
+    else
+        print_error "Erreur dans la configuration Nginx"
+        exit 1
+    fi
+fi # Fin du bloc SKIP_NGINX_CONFIG
 
 print_header "ÉTAPE 10/13 : Création des données initiales"
 
