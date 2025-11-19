@@ -771,7 +771,7 @@ print_success "✅ Image web construite avec les variables VITE"
 print_header "ÉTAPE 6/13 : Démarrage de PostgreSQL"
 
 print_info "Démarrage de PostgreSQL seul..."
-docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo up -d db
+docker compose -f docker-compose.monorepo.yml --env-file .env up -d db
 
 # Attendre que PostgreSQL soit prêt
 print_info "Attente de PostgreSQL..."
@@ -945,7 +945,7 @@ done
 
 # Démarrer tous les services
 print_info "Démarrage de tous les services..."
-docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo up -d
+docker compose -f docker-compose.monorepo.yml --env-file .env up -d
 
 # Attendre que les services critiques soient prêts
 print_info "Attente du démarrage des services..."
@@ -1012,7 +1012,7 @@ if [ "$ENABLE_WHISPERX" = "oui" ] || [ "$ENABLE_WHISPERX" = "o" ] || [ "$ENABLE_
         print_success "Image WhisperX construite avec succès"
         
         print_info "🚀 Démarrage du service WhisperX..."
-        if docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo --profile whisperx up -d; then
+        if docker compose -f docker-compose.monorepo.yml --env-file .env --profile whisperx up -d; then
             print_success "Service WhisperX démarré"
             
             # Vérifier que WhisperX est prêt
@@ -1076,7 +1076,7 @@ if [ "$ENABLE_PYTORCH" = "oui" ] || [ "$ENABLE_PYTORCH" = "o" ] || [ "$ENABLE_PY
         print_success "Image PyTorch construite avec succès"
         
         print_info "🚀 Démarrage du service PyTorch..."
-        if docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo --profile pytorch up -d; then
+        if docker compose -f docker-compose.monorepo.yml --env-file .env --profile pytorch up -d; then
             print_success "Service PyTorch démarré"
             
             # Vérifier que PyTorch est prêt
