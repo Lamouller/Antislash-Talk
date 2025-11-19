@@ -35,22 +35,41 @@ print_info() {
 }
 
 # Détecter automatiquement le répertoire du projet
-if [ -f "docker-compose.monorepo.yml" ] && [ -f ".env.monorepo" ]; then
+# Argument optionnel : chemin du projet
+if [ -n "$1" ]; then
+    PROJECT_DIR="$1"
+    print_info "Utilisation du chemin fourni : $PROJECT_DIR"
+elif [ -f "docker-compose.monorepo.yml" ] && [ -f ".env.monorepo" ]; then
     PROJECT_DIR=$(pwd)
     print_success "Projet détecté dans le répertoire courant : $PROJECT_DIR"
-elif [ -d "$HOME/antislash-talk" ]; then
-    PROJECT_DIR="$HOME/antislash-talk"
-    cd "$PROJECT_DIR"
+elif [ -d "/root/antislash-talk" ] && [ -f "/root/antislash-talk/docker-compose.monorepo.yml" ]; then
+    PROJECT_DIR="/root/antislash-talk"
     print_success "Projet trouvé dans $PROJECT_DIR"
-else
+elif [ -d "/home/*/antislash-talk" ]; then
+    PROJECT_DIR=$(find /home -maxdepth 2 -name "antislash-talk" -type d 2>/dev/null | head -1)
+    if [ -n "$PROJECT_DIR" ] && [ -f "$PROJECT_DIR/docker-compose.monorepo.yml" ]; then
+        print_success "Projet trouvé dans $PROJECT_DIR"
+    else
+        PROJECT_DIR=""
+    fi
+fi
+
+# Si toujours pas trouvé, demander
+if [ -z "$PROJECT_DIR" ] || [ ! -d "$PROJECT_DIR" ]; then
     print_warning "Impossible de trouver automatiquement le projet"
+    print_info "Indice : Si vous êtes dans le dossier, tapez juste un point (.)"
     read -p "Chemin du projet : " PROJECT_DIR
+    if [ "$PROJECT_DIR" = "." ]; then
+        PROJECT_DIR=$(pwd)
+    fi
     if [ ! -d "$PROJECT_DIR" ]; then
         print_error "Répertoire introuvable : $PROJECT_DIR"
         exit 1
     fi
-    cd "$PROJECT_DIR"
 fi
+
+cd "$PROJECT_DIR" || exit 1
+print_success "Répertoire du projet : $PROJECT_DIR"
 
 print_header "🔐 DIAGNOSTIC ET CORRECTION DE L'AUTHENTIFICATION"
 
