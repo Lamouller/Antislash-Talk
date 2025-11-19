@@ -199,6 +199,58 @@ curl -sSL https://raw.githubusercontent.com/Lamouller/Antislash-Talk/main/deploy
 
 ---
 
+### 🌐 Add a Custom Domain (Post-Deployment)
+
+After initial deployment with IP, you can easily add a custom domain:
+
+```bash
+# On your VPS/server, run:
+cd ~/antislash-talk
+curl -sSL https://raw.githubusercontent.com/Lamouller/Antislash-Talk/main/add-domain.sh -o add-domain.sh
+chmod +x add-domain.sh
+./add-domain.sh
+```
+
+**What this script does:**
+- ✅ Configures Nginx for your domain
+- ✅ Updates all environment variables
+- ✅ Rebuilds the application with new URLs
+- ✅ Tests all services connectivity
+- ✅ Optionally installs Let's Encrypt SSL certificates
+- ✅ Provides DNS configuration instructions
+
+**Two configuration modes:**
+1. **Ports mode (recommended)** - Simple, one domain with different ports
+   - Application: `https://yourdomain.com/`
+   - API: `https://yourdomain.com:8443/`
+   - Studio: `https://yourdomain.com:8444/`
+   - Ollama: `https://yourdomain.com:8445/`
+
+2. **Subdomains mode** - Professional, requires DNS setup for each subdomain
+   - Application: `https://app.yourdomain.com/`
+   - API: `https://api.yourdomain.com/`
+   - Studio: `https://studio.yourdomain.com/`
+   - Ollama: `https://ollama.yourdomain.com/`
+
+**DNS Configuration Required:**
+Before running the script, point your domain's DNS to your server IP:
+```
+Type: A
+Name: @ (or your subdomain)
+Value: YOUR_SERVER_IP
+TTL: 300
+```
+
+**After adding domain:**
+- All services automatically accessible via your domain
+- Valid SSL certificates with Let's Encrypt (optional)
+- Automatic redirect from HTTP to HTTPS
+- Complete deployment info saved in `domain-deployment-info.txt`
+
+📖 **Full Documentation:** [Domain Configuration Guide](docs/DOMAIN_CONFIGURATION.md)
+
+---
+
 ### 🐳 Docker Compose - Local Development
 
 Deploy locally with all services:
@@ -381,6 +433,11 @@ Add your API keys in **Settings → API Keys** or via environment variables:
 
 For a complete list of available scripts and their usage, see [SCRIPTS.md](SCRIPTS.md).
 
+**Key deployment scripts:**
+- `deploy-vps-final.sh` - Complete VPS deployment with Supabase + AI
+- `add-domain.sh` - Add custom domain to existing deployment
+- `clean-and-deploy.sh` - Clean rebuild and redeploy
+
 ### Project Structure
 
 ```
@@ -513,6 +570,13 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Hugging Face** for Transformers.js
 - **Supabase** for backend infrastructure
 - **Useful Sensors** for Moonshine models
+
+## 📚 Documentation
+
+- **🚀 Quick Reference**: [One-line commands](QUICK_REFERENCE.md) for common operations
+- **🌐 Domain Setup**: [Domain Configuration Guide](docs/DOMAIN_CONFIGURATION.md)
+- **📜 All Scripts**: [Scripts Documentation](SCRIPTS.md)
+- **👥 Client Deployments**: [Client Deployment Guide](docs/CLIENT_DEPLOYMENT.md)
 
 ## 🆘 Support
 

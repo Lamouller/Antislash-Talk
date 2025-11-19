@@ -61,6 +61,7 @@ $RECYCLE.BIN/
 # Ignore docs/ except screenshots for GitHub README
 docs/
 !docs/screenshots/
+!docs/DOMAIN_CONFIGURATION.md
 
 # Dossiers obsolètes archivés
 .old/
