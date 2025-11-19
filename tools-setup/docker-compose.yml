@@ -1,0 +1,127 @@
+version: '3.8'
+
+services:
+  # ============================================
+  # N8N - Workflow Automation
+  # ============================================
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: n8n
+    restart: unless-stopped
+    environment:
+      - N8N_HOST=${N8N_HOST:-localhost}
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=https
+      - NODE_ENV=production
+      - WEBHOOK_URL=https://${DOMAIN}:8446/
+      - GENERIC_TIMEZONE=${TIMEZONE:-Europe/Paris}
+      - N8N_EDITOR_BASE_URL=https://${DOMAIN}:8446/
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
+      # Authentification basique
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=${N8N_USER:-admin}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_PASSWORD}
+      # Base de données PostgreSQL
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=n8n-db
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_DATABASE=${N8N_DB_NAME:-n8n}
+      - DB_POSTGRESDB_USER=${N8N_DB_USER:-n8n}
+      - DB_POSTGRESDB_PASSWORD=${N8N_DB_PASSWORD}
+    ports:
+      - "5678:5678"
+    volumes:
+      - n8n_data:/home/node/.n8n
+    depends_on:
+      n8n-db:
+        condition: service_healthy
+    networks:
+      - tools-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:5678/healthz || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Base de données PostgreSQL pour N8N
+  n8n-db:
+    image: postgres:15-alpine
+    container_name: n8n-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${N8N_DB_USER:-n8n}
+      - POSTGRES_PASSWORD=${N8N_DB_PASSWORD}
+      - POSTGRES_DB=${N8N_DB_NAME:-n8n}
+    volumes:
+      - n8n_db_data:/var/lib/postgresql/data
+    networks:
+      - tools-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${N8N_DB_USER:-n8n}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================
+  # NocoDB - No-Code Database
+  # ============================================
+  nocodb:
+    image: nocodb/nocodb:latest
+    container_name: nocodb
+    restart: unless-stopped
+    environment:
+      - NC_DB=pg://nocodb-db:5432?u=${NOCODB_DB_USER:-nocodb}&p=${NOCODB_DB_PASSWORD}&d=${NOCODB_DB_NAME:-nocodb}
+      - NC_AUTH_JWT_SECRET=${NOCODB_JWT_SECRET}
+      - NC_PUBLIC_URL=https://${DOMAIN}:8447
+      - NC_ADMIN_EMAIL=${NOCODB_ADMIN_EMAIL:-admin@example.com}
+      - NC_ADMIN_PASSWORD=${NOCODB_ADMIN_PASSWORD}
+      - NC_DISABLE_TELE=true
+      - PORT=8080
+    ports:
+      - "8080:8080"
+    volumes:
+      - nocodb_data:/usr/app/data
+    depends_on:
+      nocodb-db:
+        condition: service_healthy
+    networks:
+      - tools-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/api/v1/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Base de données PostgreSQL pour NocoDB
+  nocodb-db:
+    image: postgres:15-alpine
+    container_name: nocodb-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${NOCODB_DB_USER:-nocodb}
+      - POSTGRES_PASSWORD=${NOCODB_DB_PASSWORD}
+      - POSTGRES_DB=${NOCODB_DB_NAME:-nocodb}
+    volumes:
+      - nocodb_db_data:/var/lib/postgresql/data
+    networks:
+      - tools-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${NOCODB_DB_USER:-nocodb}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  n8n_data:
+    driver: local
+  n8n_db_data:
+    driver: local
+  nocodb_data:
+    driver: local
+  nocodb_db_data:
+    driver: local
+
+networks:
+  tools-network:
+    driver: bridge
+
