@@ -304,6 +304,8 @@ services:
         VITE_SUPABASE_URL: ${API_EXTERNAL_URL}
         VITE_SUPABASE_ANON_KEY: ${ANON_KEY}
         VITE_HIDE_MARKETING_PAGES: ${VITE_HIDE_MARKETING_PAGES:-false}
+        VITE_OLLAMA_URL: ${VITE_OLLAMA_URL:-https://riquelme-talk.antislash.studio:8445}
+        VITE_WHISPERX_URL: ${VITE_WHISPERX_URL:-https://riquelme-talk.antislash.studio/whisperx}
     container_name: antislash-talk-web
     restart: unless-stopped
     environment:
