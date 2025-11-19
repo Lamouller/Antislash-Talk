@@ -120,15 +120,17 @@ print_info "Attente du démarrage (30 secondes)..."
 sleep 30
 
 # ============================================
-# ÉTAPE 7 : Démarrage de WhisperX (optionnel)
+# ÉTAPE 7 : Services optionnels de transcription
 # ============================================
-print_header "ÉTAPE 7/7 : WhisperX (optionnel)"
+print_header "ÉTAPE 7/8 : Services optionnels de transcription"
 
+# WhisperX
 echo ""
-read -p "Voulez-vous activer WhisperX ? (o/N) " -n 1 -r
+print_info "WhisperX : Transcription ultra-rapide (6x plus rapide)"
+read -p "Voulez-vous activer WhisperX ? (o/N) " -n 1 -r WHISPERX_REPLY
 echo ""
 
-if [[ $REPLY =~ ^[Oo]$ ]]; then
+if [[ $WHISPERX_REPLY =~ ^[Oo]$ ]]; then
     print_info "Activation de WhisperX..."
     docker compose -f docker-compose.monorepo.yml --profile whisperx up -d
     
@@ -145,10 +147,33 @@ else
     print_info "WhisperX non activé"
 fi
 
+# PyTorch
+echo ""
+print_info "PyTorch : Transcription avec Whisper V3 + Diarization"
+read -p "Voulez-vous activer PyTorch Transcription ? (o/N) " -n 1 -r PYTORCH_REPLY
+echo ""
+
+if [[ $PYTORCH_REPLY =~ ^[Oo]$ ]]; then
+    print_info "Activation de PyTorch..."
+    docker compose -f docker-compose.monorepo.yml --profile pytorch up -d
+    
+    print_info "Attente du démarrage PyTorch (30 secondes)..."
+    sleep 30
+    
+    # Vérifier PyTorch
+    if curl -s http://localhost:8000/health > /dev/null 2>&1; then
+        print_success "PyTorch opérationnel !"
+    else
+        print_warning "PyTorch démarre encore (téléchargement des modèles ~1.5GB...)"
+    fi
+else
+    print_info "PyTorch non activé"
+fi
+
 # ============================================
 # VÉRIFICATIONS
 # ============================================
-print_header "Vérification des services"
+print_header "ÉTAPE 8/8 : Vérification des services"
 
 echo ""
 print_info "État des containers :"
@@ -190,8 +215,13 @@ echo "  • API Supabase : https://riquelme-talk.antislash.studio:8443"
 echo "  • Studio : https://riquelme-talk.antislash.studio:8444"
 echo "  • Ollama : https://riquelme-talk.antislash.studio:8445"
 
-if [[ $REPLY =~ ^[Oo]$ ]]; then
-    echo "  • WhisperX : https://riquelme-talk.antislash.studio/whisperx"
+# Services optionnels
+if [[ $WHISPERX_REPLY =~ ^[Oo]$ ]]; then
+    echo "  • WhisperX : https://riquelme-talk.antislash.studio/whisperx ⚡"
+fi
+
+if [[ $PYTORCH_REPLY =~ ^[Oo]$ ]]; then
+    echo "  • PyTorch : http://riquelme-talk.antislash.studio:8000 🎙️"
 fi
 
 echo ""
@@ -200,7 +230,8 @@ echo ""
 print_info "Logs en temps réel :"
 echo "  docker compose -f docker-compose.monorepo.yml logs -f"
 echo ""
-print_info "Activer WhisperX plus tard :"
-echo "  docker compose -f docker-compose.monorepo.yml --profile whisperx up -d"
+print_info "Activer les services optionnels plus tard :"
+echo "  WhisperX : docker compose -f docker-compose.monorepo.yml --profile whisperx up -d"
+echo "  PyTorch  : docker compose -f docker-compose.monorepo.yml --profile pytorch up -d"
 echo ""
 

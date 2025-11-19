@@ -1022,6 +1022,71 @@ else
     print_info "Commande : docker compose -f docker-compose.monorepo.yml --profile whisperx up -d"
 fi
 
+# ============================================
+# OPTIONAL: PyTorch Service
+# ============================================
+print_header "Service Optionnel : PyTorch Transcription"
+
+echo ""
+echo "PyTorch Transcription est un service avec Whisper V3 + Diarization (pyannote.audio)."
+echo "  🎙️  Modèle : OpenAI Whisper V3 (très précis)"
+echo "  🎭 Diarization : pyannote.audio (identification des locuteurs)"
+echo "  💾 Ressources  : ~2GB RAM, CPU/GPU"
+echo ""
+echo "Comparaison :"
+echo "  • WhisperX : Plus rapide (6x), diarization intégrée"
+echo "  • PyTorch  : Plus précis, modèles officiels OpenAI"
+echo ""
+echo "Note : L'application fonctionne sans PyTorch (fallback sur Gemini ou WhisperX si activé)"
+echo ""
+
+read -p "Voulez-vous activer PyTorch Transcription ? (oui/non) [non] : " ENABLE_PYTORCH
+ENABLE_PYTORCH=${ENABLE_PYTORCH:-non}
+
+PYTORCH_ENABLED=false
+
+if [ "$ENABLE_PYTORCH" = "oui" ] || [ "$ENABLE_PYTORCH" = "o" ] || [ "$ENABLE_PYTORCH" = "yes" ] || [ "$ENABLE_PYTORCH" = "y" ]; then
+    print_info "🏗️  Build de l'image PyTorch (cela peut prendre 5-10 minutes)..."
+    
+    if docker compose -f docker-compose.monorepo.yml build transcription-pytorch; then
+        print_success "Image PyTorch construite avec succès"
+        
+        print_info "🚀 Démarrage du service PyTorch..."
+        if docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo --profile pytorch up -d; then
+            print_success "Service PyTorch démarré"
+            
+            # Vérifier que PyTorch est prêt
+            print_info "Vérification du service PyTorch (jusqu'à 60s)..."
+            PYTORCH_READY=false
+            for i in {1..30}; do
+                if docker exec antislash-talk-transcription curl -f http://localhost:8000/health 2>/dev/null | grep -q "ok"; then
+                    PYTORCH_READY=true
+                    PYTORCH_ENABLED=true
+                    print_success "✅ Service PyTorch opérationnel !"
+                    break
+                fi
+                sleep 2
+            done
+            
+            if [ "$PYTORCH_READY" = false ]; then
+                print_warning "⚠️  PyTorch n'est pas encore prêt (peut prendre plus de temps au premier démarrage)"
+                print_info "Le service télécharge les modèles Whisper (~1.5GB au premier lancement)"
+                print_info "Vérifiez les logs : docker compose -f docker-compose.monorepo.yml logs transcription-pytorch"
+                PYTORCH_ENABLED=true  # On le marque quand même comme activé
+            fi
+        else
+            print_error "❌ Échec du démarrage de PyTorch"
+            print_warning "L'application fonctionnera quand même sans PyTorch"
+        fi
+    else
+        print_error "❌ Échec du build de PyTorch"
+        print_warning "L'application fonctionnera quand même sans PyTorch"
+    fi
+else
+    print_info "PyTorch non activé (peut être activé plus tard)"
+    print_info "Commande : docker compose -f docker-compose.monorepo.yml --profile pytorch up -d"
+fi
+
 # CRITIQUE: Mettre à jour Kong avec les bonnes clés
 print_info "Mise à jour de Kong avec les clés JWT..."
 
@@ -1870,6 +1935,8 @@ echo -e "${GREEN}║${NC}   Mot de passe     : ${YELLOW}${STUDIO_PASSWORD}${NC}"
 echo -e "${GREEN}║${NC}"
 echo -e "${GREEN}║${NC} API Supabase       : ${CYAN}${API_URL}${NC}"
 echo -e "${GREEN}║${NC} Ollama API         : ${CYAN}${OLLAMA_URL}${NC}"
+
+# Services optionnels de transcription
 if [ "$WHISPERX_ENABLED" = true ]; then
     WHISPERX_PORT="8082"
     if [ "$IS_DOMAIN" = "true" ]; then
@@ -1877,8 +1944,19 @@ if [ "$WHISPERX_ENABLED" = true ]; then
     else
         WHISPERX_URL="http://${VPS_HOST}:${WHISPERX_PORT}"
     fi
-    echo -e "${GREEN}║${NC} WhisperX API       : ${CYAN}${WHISPERX_URL}${NC}"
+    echo -e "${GREEN}║${NC} WhisperX API       : ${CYAN}${WHISPERX_URL} ⚡${NC}"
 fi
+
+if [ "$PYTORCH_ENABLED" = true ]; then
+    PYTORCH_PORT="8000"
+    if [ "$IS_DOMAIN" = "true" ]; then
+        PYTORCH_URL="http://${VPS_HOST}:${PYTORCH_PORT}"
+    else
+        PYTORCH_URL="http://${VPS_HOST}:${PYTORCH_PORT}"
+    fi
+    echo -e "${GREEN}║${NC} PyTorch API        : ${CYAN}${PYTORCH_URL} 🎙️${NC}"
+fi
+
 echo -e "${GREEN}║${NC}"
 echo -e "${GREEN}║${NC} Compte Admin App   :"
 echo -e "${GREEN}║${NC}   Email            : ${YELLOW}${APP_USER_EMAIL}${NC}"
@@ -1919,6 +1997,10 @@ EOF
 
 if [ "$WHISPERX_ENABLED" = true ]; then
     echo "- WhisperX : ${WHISPERX_URL}" >> deployment-info.txt
+fi
+
+if [ "$PYTORCH_ENABLED" = true ]; then
+    echo "- PyTorch : ${PYTORCH_URL}" >> deployment-info.txt
 fi
 
 cat >> deployment-info.txt << EOF
