@@ -153,17 +153,22 @@ print_header "6️⃣  Rebuild complet de l'application web"
 
 print_warning "Ceci peut prendre 3-5 minutes..."
 
-# Exporter toutes les variables
-export VITE_SUPABASE_URL="${VITE_SUPABASE_URL}"
-export VITE_SUPABASE_ANON_KEY="${VITE_SUPABASE_ANON_KEY}"
-export VITE_HIDE_MARKETING_PAGES="${VITE_HIDE_MARKETING_PAGES:-false}"
+# Exporter toutes les variables EXPLICITEMENT comme dans le script de déploiement
 export API_EXTERNAL_URL="${API_EXTERNAL_URL}"
+export VITE_SUPABASE_URL="${VITE_SUPABASE_URL}"
+export VITE_SUPABASE_ANON_KEY="${ANON_KEY}"  # Utiliser ANON_KEY comme dans le script original
+export VITE_HIDE_MARKETING_PAGES="${VITE_HIDE_MARKETING_PAGES:-false}"
+export VITE_OLLAMA_URL="${VITE_OLLAMA_URL}"
+export POSTGRES_PASSWORD="${POSTGRES_PASSWORD}"
+export JWT_SECRET="${JWT_SECRET}"
+export SERVICE_ROLE_KEY="${SERVICE_ROLE_KEY}"
 
-# Rebuild SANS cache
+# Rebuild SANS cache (utiliser ANON_KEY pour VITE_SUPABASE_ANON_KEY comme dans le déploiement)
 if docker compose -f docker-compose.monorepo.yml --env-file .env.monorepo build --no-cache \
-  --build-arg VITE_SUPABASE_URL="$VITE_SUPABASE_URL" \
-  --build-arg VITE_SUPABASE_ANON_KEY="$VITE_SUPABASE_ANON_KEY" \
+  --build-arg VITE_SUPABASE_URL="${VITE_SUPABASE_URL}" \
+  --build-arg VITE_SUPABASE_ANON_KEY="${ANON_KEY}" \
   --build-arg VITE_HIDE_MARKETING_PAGES="${VITE_HIDE_MARKETING_PAGES}" \
+  --build-arg VITE_OLLAMA_URL="${VITE_OLLAMA_URL}" \
   web; then
     print_success "Build terminé avec succès"
 else
