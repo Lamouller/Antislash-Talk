@@ -34,12 +34,23 @@ print_info() {
     echo -e "${CYAN}ℹ️  $1${NC}"
 }
 
-PROJECT_DIR="$HOME/antislash-talk"
-if [ ! -d "$PROJECT_DIR" ]; then
+# Détecter automatiquement le répertoire du projet
+if [ -f "docker-compose.monorepo.yml" ] && [ -f ".env.monorepo" ]; then
+    PROJECT_DIR=$(pwd)
+    print_success "Projet détecté dans le répertoire courant : $PROJECT_DIR"
+elif [ -d "$HOME/antislash-talk" ]; then
+    PROJECT_DIR="$HOME/antislash-talk"
+    cd "$PROJECT_DIR"
+    print_success "Projet trouvé dans $PROJECT_DIR"
+else
+    print_warning "Impossible de trouver automatiquement le projet"
     read -p "Chemin du projet : " PROJECT_DIR
+    if [ ! -d "$PROJECT_DIR" ]; then
+        print_error "Répertoire introuvable : $PROJECT_DIR"
+        exit 1
+    fi
+    cd "$PROJECT_DIR"
 fi
-
-cd "$PROJECT_DIR"
 
 print_header "🔐 DIAGNOSTIC ET CORRECTION DE L'AUTHENTIFICATION"
 
