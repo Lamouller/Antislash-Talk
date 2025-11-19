@@ -301,12 +301,12 @@ services:
       dockerfile: Dockerfile.web
       args:
         NODE_ENV: production
-        VITE_SUPABASE_URL: ${API_EXTERNAL_URL}
+        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:-${API_EXTERNAL_URL}}
         VITE_SUPABASE_ANON_KEY: ${ANON_KEY}
         VITE_HIDE_MARKETING_PAGES: ${VITE_HIDE_MARKETING_PAGES:-false}
-        VITE_OLLAMA_URL: ${VITE_OLLAMA_URL}
-        VITE_WHISPERX_URL: ${VITE_WHISPERX_URL}
-        VITE_PYTORCH_SERVICE_URL: ${VITE_PYTORCH_SERVICE_URL}
+        VITE_OLLAMA_URL: ${VITE_OLLAMA_URL:-https://ollama.localhost}
+        VITE_WHISPERX_URL: ${VITE_WHISPERX_URL:-https://localhost/whisperx}
+        VITE_PYTORCH_SERVICE_URL: ${VITE_PYTORCH_SERVICE_URL:-https://localhost/pytorch}
     container_name: antislash-talk-web
     restart: unless-stopped
     environment:
