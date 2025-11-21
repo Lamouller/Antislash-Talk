@@ -95,25 +95,65 @@ print_success "OS détecté : $OS_TYPE (Package Manager: $PACKAGE_MANAGER)"
 # Demander le répertoire d'installation
 print_header "Configuration du répertoire d'installation"
 
-# Proposer le répertoire par défaut selon l'utilisateur
-DEFAULT_DIR="$HOME/antislash-talk"
-print_info "Répertoire par défaut suggéré : $DEFAULT_DIR"
+echo ""
+echo "Choisissez un répertoire pour installer Antislash Talk :"
+echo ""
+echo "Options recommandées :"
+echo "  1) $HOME/antislash-talk (recommandé - pas de sudo requis)"
+echo "  2) /opt/antislash-talk (système - nécessite sudo)"
+echo "  3) Autre chemin personnalisé"
+echo ""
 
-read -p "Répertoire d'installation [$DEFAULT_DIR] : " USER_DIR
-PROJECT_DIR=${USER_DIR:-$DEFAULT_DIR}
+read -p "Votre choix [1/2/3] : " DIR_CHOICE
+
+case $DIR_CHOICE in
+    1|"")
+        PROJECT_DIR="$HOME/antislash-talk"
+        print_info "✅ Installation dans votre home : $PROJECT_DIR"
+        NEEDS_SUDO=false
+        ;;
+    2)
+        PROJECT_DIR="/opt/antislash-talk"
+        print_info "✅ Installation système : $PROJECT_DIR"
+        print_warning "Permissions sudo seront requises"
+        NEEDS_SUDO=true
+        ;;
+    3)
+        read -p "Entrez le chemin complet : " CUSTOM_DIR
+        PROJECT_DIR="$CUSTOM_DIR"
+        # Détecter si sudo nécessaire
+        PARENT_DIR=$(dirname "$PROJECT_DIR")
+        if [ ! -w "$PARENT_DIR" ] 2>/dev/null; then
+            print_warning "Ce répertoire nécessite des permissions sudo"
+            NEEDS_SUDO=true
+        else
+            NEEDS_SUDO=false
+        fi
+        ;;
+    *)
+        print_error "Choix invalide, utilisation du répertoire par défaut"
+        PROJECT_DIR="$HOME/antislash-talk"
+        NEEDS_SUDO=false
+        ;;
+esac
+
+print_info "📁 Répertoire d'installation : $PROJECT_DIR"
 
 # Créer le répertoire s'il n'existe pas
 if [ ! -d "$PROJECT_DIR" ]; then
     print_info "Création du répertoire $PROJECT_DIR..."
     
-    # Vérifier si on a besoin de sudo (répertoire système)
-    PARENT_DIR=$(dirname "$PROJECT_DIR")
-    if [ ! -w "$PARENT_DIR" ]; then
-        print_warning "Permissions sudo requises pour créer $PROJECT_DIR"
+    if [ "$NEEDS_SUDO" = true ]; then
         sudo mkdir -p "$PROJECT_DIR"
         sudo chown $USER:$USER "$PROJECT_DIR"
+        print_success "Répertoire créé avec sudo et propriétaire changé vers $USER"
     else
-        mkdir -p "$PROJECT_DIR"
+        mkdir -p "$PROJECT_DIR" || {
+            print_error "Impossible de créer $PROJECT_DIR"
+            print_info "Essayez avec sudo ou choisissez un autre répertoire"
+            exit 1
+        }
+        print_success "Répertoire créé"
     fi
     
     # Cloner le repository si nécessaire
@@ -129,20 +169,36 @@ if [ ! -f "$PROJECT_DIR/docker-compose.monorepo.yml" ]; then
     exit 1
 fi
 
-cd "$PROJECT_DIR"
+cd "$PROJECT_DIR" || {
+    print_error "Impossible d'accéder à $PROJECT_DIR"
+    exit 1
+}
+
 print_success "Répertoire de travail : $PROJECT_DIR"
 
-# Vérifier qu'on peut écrire dans ce répertoire
-if [ ! -w "$PROJECT_DIR" ]; then
+# Test d'écriture
+if ! touch .test_write 2>/dev/null; then
     print_error "Pas de permission d'écriture dans $PROJECT_DIR"
-    print_info "Tentative de correction des permissions..."
-    sudo chown -R $USER:$USER "$PROJECT_DIR"
-    if [ ! -w "$PROJECT_DIR" ]; then
-        print_error "Impossible d'obtenir les permissions. Utilisez sudo ou choisissez un autre répertoire."
+    
+    if [ "$NEEDS_SUDO" = true ] || [ "$EUID" -eq 0 ]; then
+        print_info "Tentative de correction des permissions..."
+        sudo chown -R $USER:$USER "$PROJECT_DIR" 2>/dev/null || true
+        
+        # Re-test
+        if ! touch .test_write 2>/dev/null; then
+            print_error "Impossible de corriger les permissions"
+            print_warning "Lancez le script avec : sudo $0"
+            exit 1
+        fi
+    else
+        print_warning "Essayez : sudo $0"
+        print_info "Ou choisissez un répertoire dans votre home (~/) lors du prochain lancement"
         exit 1
     fi
-    print_success "Permissions corrigées"
 fi
+
+rm -f .test_write
+print_success "✅ Permissions d'écriture OK"
 
 # ASCII Art
 echo -e "${CYAN}"
