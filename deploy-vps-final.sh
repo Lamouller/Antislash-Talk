@@ -1394,7 +1394,8 @@ else
     fi
     
     print_info "Configuration de Nginx pour HTTPS..."
-fi
+    fi  # Fin du if INSTALL_NGINX
+fi  # Fin du else (SKIP_NGINX_CONFIG = false)
 
 # Skip écriture config si mode UPDATE
 if [ "$SKIP_NGINX_CONFIG" = "true" ]; then
