@@ -61,6 +61,16 @@ detect_os() {
 PROJECT_DIR=""
 REQUIRED_TOOLS=("docker" "git" "openssl" "curl" "jq" "envsubst")
 
+# Détecter la commande docker compose (v2) ou docker-compose (v1)
+if docker compose version &>/dev/null; then
+    DOCKER_COMPOSE="docker compose"
+elif docker-compose version &>/dev/null; then
+    DOCKER_COMPOSE="docker-compose"
+else
+    echo "❌ Docker Compose non trouvé"
+    exit 1
+fi
+
 print_header() {
     echo -e "\n${BLUE}═══════════════════════════════════════════════════════════${NC}"
     echo -e "${BLUE}    $1${NC}"
@@ -795,7 +805,7 @@ if [ "$PRESERVE_EXTRA_SERVICES" = "true" ]; then
     fi
 else
     print_info "Arrêt complet de tous les services"
-    docker compose -f docker-compose.monorepo.yml down -v --remove-orphans || true
+    $DOCKER_COMPOSE -f docker-compose.monorepo.yml down -v --remove-orphans || true
 fi
 
 # Nettoyage Docker léger
@@ -834,7 +844,7 @@ echo "   VITE_WHISPERX_URL: ${VITE_WHISPERX_URL}"
 echo "   VITE_PYTORCH_SERVICE_URL: ${VITE_PYTORCH_SERVICE_URL}"
 
 print_info "Construction de l'image web..."
-docker compose -f docker-compose.monorepo.yml --env-file .env build \
+$DOCKER_COMPOSE -f docker-compose.monorepo.yml --env-file .env build \
   --build-arg VITE_SUPABASE_URL="${VITE_SUPABASE_URL}" \
   --build-arg VITE_SUPABASE_ANON_KEY="${ANON_KEY}" \
   --build-arg VITE_HIDE_MARKETING_PAGES="${VITE_HIDE_MARKETING_PAGES}" \
@@ -848,7 +858,7 @@ print_success "✅ Image web construite avec les variables VITE"
 print_header "ÉTAPE 6/13 : Démarrage de PostgreSQL"
 
 print_info "Démarrage de PostgreSQL seul..."
-docker compose -f docker-compose.monorepo.yml --env-file .env up -d db
+$DOCKER_COMPOSE -f docker-compose.monorepo.yml --env-file .env up -d db
 
 # Attendre que PostgreSQL soit prêt
 print_info "Attente de PostgreSQL..."
@@ -1022,7 +1032,7 @@ done
 
 # Démarrer tous les services
 print_info "Démarrage de tous les services..."
-docker compose -f docker-compose.monorepo.yml --env-file .env up -d
+$DOCKER_COMPOSE -f docker-compose.monorepo.yml --env-file .env up -d
 
 # Attendre que les services critiques soient prêts
 print_info "Attente du démarrage des services..."
@@ -1085,11 +1095,11 @@ WHISPERX_ENABLED=false
 if [ "$ENABLE_WHISPERX" = "oui" ] || [ "$ENABLE_WHISPERX" = "o" ] || [ "$ENABLE_WHISPERX" = "yes" ] || [ "$ENABLE_WHISPERX" = "y" ]; then
     print_info "🏗️  Build de l'image WhisperX (cela peut prendre 5-10 minutes)..."
     
-    if docker compose -f docker-compose.monorepo.yml build whisperx; then
+    if $DOCKER_COMPOSE -f docker-compose.monorepo.yml build whisperx; then
         print_success "Image WhisperX construite avec succès"
         
         print_info "🚀 Démarrage du service WhisperX..."
-        if docker compose -f docker-compose.monorepo.yml --env-file .env --profile whisperx up -d; then
+        if $DOCKER_COMPOSE -f docker-compose.monorepo.yml --env-file .env --profile whisperx up -d; then
             print_success "Service WhisperX démarré"
             
             # Vérifier que WhisperX est prêt
@@ -1107,7 +1117,7 @@ if [ "$ENABLE_WHISPERX" = "oui" ] || [ "$ENABLE_WHISPERX" = "o" ] || [ "$ENABLE_
             
             if [ "$WHISPERX_READY" = false ]; then
                 print_warning "⚠️  WhisperX n'est pas encore prêt (peut prendre plus de temps au premier démarrage)"
-                print_info "Vérifiez les logs : docker compose -f docker-compose.monorepo.yml logs whisperx"
+                print_info "Vérifiez les logs : $DOCKER_COMPOSE -f docker-compose.monorepo.yml logs whisperx"
                 WHISPERX_ENABLED=true  # On le marque quand même comme activé
             fi
         else
@@ -1120,7 +1130,7 @@ if [ "$ENABLE_WHISPERX" = "oui" ] || [ "$ENABLE_WHISPERX" = "o" ] || [ "$ENABLE_
     fi
 else
     print_info "WhisperX non activé (peut être activé plus tard)"
-    print_info "Commande : docker compose -f docker-compose.monorepo.yml --profile whisperx up -d"
+    print_info "Commande : $DOCKER_COMPOSE -f docker-compose.monorepo.yml --profile whisperx up -d"
 fi
 
 # ============================================
@@ -1149,11 +1159,11 @@ PYTORCH_ENABLED=false
 if [ "$ENABLE_PYTORCH" = "oui" ] || [ "$ENABLE_PYTORCH" = "o" ] || [ "$ENABLE_PYTORCH" = "yes" ] || [ "$ENABLE_PYTORCH" = "y" ]; then
     print_info "🏗️  Build de l'image PyTorch (cela peut prendre 5-10 minutes)..."
     
-    if docker compose -f docker-compose.monorepo.yml build transcription-pytorch; then
+    if $DOCKER_COMPOSE -f docker-compose.monorepo.yml build transcription-pytorch; then
         print_success "Image PyTorch construite avec succès"
         
         print_info "🚀 Démarrage du service PyTorch..."
-        if docker compose -f docker-compose.monorepo.yml --env-file .env --profile pytorch up -d; then
+        if $DOCKER_COMPOSE -f docker-compose.monorepo.yml --env-file .env --profile pytorch up -d; then
             print_success "Service PyTorch démarré"
             
             # Vérifier que PyTorch est prêt
@@ -1172,7 +1182,7 @@ if [ "$ENABLE_PYTORCH" = "oui" ] || [ "$ENABLE_PYTORCH" = "o" ] || [ "$ENABLE_PY
             if [ "$PYTORCH_READY" = false ]; then
                 print_warning "⚠️  PyTorch n'est pas encore prêt (peut prendre plus de temps au premier démarrage)"
                 print_info "Le service télécharge les modèles Whisper (~1.5GB au premier lancement)"
-                print_info "Vérifiez les logs : docker compose -f docker-compose.monorepo.yml logs transcription-pytorch"
+                print_info "Vérifiez les logs : $DOCKER_COMPOSE -f docker-compose.monorepo.yml logs transcription-pytorch"
                 PYTORCH_ENABLED=true  # On le marque quand même comme activé
             fi
         else
@@ -1185,7 +1195,7 @@ if [ "$ENABLE_PYTORCH" = "oui" ] || [ "$ENABLE_PYTORCH" = "o" ] || [ "$ENABLE_PY
     fi
 else
     print_info "PyTorch non activé (peut être activé plus tard)"
-    print_info "Commande : docker compose -f docker-compose.monorepo.yml --profile pytorch up -d"
+    print_info "Commande : $DOCKER_COMPOSE -f docker-compose.monorepo.yml --profile pytorch up -d"
 fi
 
 # CRITIQUE: Mettre à jour Kong avec les bonnes clés
@@ -2009,7 +2019,7 @@ print_header "ÉTAPE 11/13 : Vérification du déploiement"
 
 # Vérifier l'état des services
 print_info "État des services :"
-docker compose -f docker-compose.monorepo.yml ps
+$DOCKER_COMPOSE -f docker-compose.monorepo.yml ps
 
 # Vérifier les données créées avec diagnostic
 print_info "Vérification des données créées..."
