@@ -105,7 +105,16 @@ PROJECT_DIR=${USER_DIR:-$DEFAULT_DIR}
 # Créer le répertoire s'il n'existe pas
 if [ ! -d "$PROJECT_DIR" ]; then
     print_info "Création du répertoire $PROJECT_DIR..."
-    mkdir -p "$PROJECT_DIR"
+    
+    # Vérifier si on a besoin de sudo (répertoire système)
+    PARENT_DIR=$(dirname "$PROJECT_DIR")
+    if [ ! -w "$PARENT_DIR" ]; then
+        print_warning "Permissions sudo requises pour créer $PROJECT_DIR"
+        sudo mkdir -p "$PROJECT_DIR"
+        sudo chown $USER:$USER "$PROJECT_DIR"
+    else
+        mkdir -p "$PROJECT_DIR"
+    fi
     
     # Cloner le repository si nécessaire
     if [ ! -f "$PROJECT_DIR/docker-compose.monorepo.yml" ]; then
@@ -122,6 +131,18 @@ fi
 
 cd "$PROJECT_DIR"
 print_success "Répertoire de travail : $PROJECT_DIR"
+
+# Vérifier qu'on peut écrire dans ce répertoire
+if [ ! -w "$PROJECT_DIR" ]; then
+    print_error "Pas de permission d'écriture dans $PROJECT_DIR"
+    print_info "Tentative de correction des permissions..."
+    sudo chown -R $USER:$USER "$PROJECT_DIR"
+    if [ ! -w "$PROJECT_DIR" ]; then
+        print_error "Impossible d'obtenir les permissions. Utilisez sudo ou choisissez un autre répertoire."
+        exit 1
+    fi
+    print_success "Permissions corrigées"
+fi
 
 # ASCII Art
 echo -e "${CYAN}"
