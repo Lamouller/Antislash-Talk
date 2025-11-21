@@ -1249,9 +1249,31 @@ if [ "$KEEP_NGINX" = "true" ] && [ -f "/etc/nginx/sites-enabled/antislash-talk-s
 else
     SKIP_NGINX_CONFIG=false
     
-    print_info "Installation de Nginx si nécessaire..."
-    if ! command -v nginx &> /dev/null; then
-        $PACKAGE_UPDATE_CMD
+    # Demander si on veut Nginx (surtout pour déploiement local/IP)
+    INSTALL_NGINX=true
+    if [ "$IS_DOMAIN" = false ]; then
+        echo ""
+        print_header "Configuration Nginx (optionnel pour IP/localhost)"
+        echo ""
+        echo "Nginx permet d'accéder aux services via HTTPS avec un seul port (443)"
+        echo "Sans Nginx, vous accéderez aux services directement sur leurs ports :"
+        echo "  - Application : http://${VPS_HOST}:3000"
+        echo "  - API : http://${VPS_HOST}:54321"
+        echo "  - Studio : http://${VPS_HOST}:54327"
+        echo ""
+        read -p "Installer et configurer Nginx ? (recommandé pour production) [O/n] : " NGINX_CHOICE
+        
+        if [[ $NGINX_CHOICE =~ ^[Nn]$ ]]; then
+            INSTALL_NGINX=false
+            SKIP_NGINX_CONFIG=true
+            print_info "Nginx non installé - services accessibles directement sur leurs ports"
+        fi
+    fi
+    
+    if [ "$INSTALL_NGINX" = true ]; then
+        print_info "Installation de Nginx si nécessaire..."
+        if ! command -v nginx &> /dev/null; then
+            $PACKAGE_UPDATE_CMD
         
         # Installation selon l'OS
         case $OS_TYPE in
