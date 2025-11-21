@@ -2203,13 +2203,15 @@ server {
 }
 NGINXCORS
 
-# Remplacer la configuration Ollama dans Nginx
-if [ -f "/etc/nginx/sites-available/antislash-talk-ssl" ]; then
+# Remplacer la configuration Ollama dans Nginx (seulement si Nginx est installé)
+if [ "$INSTALL_NGINX" != false ] && [ -f "/etc/nginx/sites-available/antislash-talk-ssl" ] && command -v nginx &>/dev/null; then
     sudo cp /etc/nginx/sites-available/antislash-talk-ssl /etc/nginx/sites-available/antislash-talk-ssl.backup
     sudo sed -i '/# Ollama API/,/^}$/d' /etc/nginx/sites-available/antislash-talk-ssl
     cat /tmp/nginx-ollama-cors.conf | sudo tee -a /etc/nginx/sites-available/antislash-talk-ssl > /dev/null
     print_success "Configuration Nginx mise à jour avec CORS pour Ollama"
     sudo systemctl reload nginx
+else
+    print_info "Nginx non installé - Configuration Ollama skippée"
 fi
 
 rm -f /tmp/nginx-ollama-cors.conf
