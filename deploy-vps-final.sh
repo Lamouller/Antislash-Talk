@@ -1241,16 +1241,19 @@ if [ "$KEEP_NGINX" = "true" ] && [ -f "/etc/nginx/sites-enabled/antislash-talk-s
         print_info "Pour l'ajouter, consulter: nginx-secure-ssl.conf"
     fi
     
-    # Recharger nginx pour être sûr
-    print_info "Rechargement de nginx..."
-    sudo nginx -t && sudo systemctl reload nginx
+    # Recharger nginx pour être sûr (si installé)
+    if command -v nginx &>/dev/null; then
+        print_info "Rechargement de nginx..."
+        sudo nginx -t && sudo systemctl reload nginx
+    fi
     
     SKIP_NGINX_CONFIG=true
+    INSTALL_NGINX=true  # En mode UPDATE, on suppose que nginx existe
 else
     SKIP_NGINX_CONFIG=false
+    INSTALL_NGINX=true  # Par défaut, on installe Nginx
     
     # Demander si on veut Nginx (surtout pour déploiement local/IP)
-    INSTALL_NGINX=true
     if [ "$IS_DOMAIN" = false ]; then
         echo ""
         print_header "Configuration Nginx (optionnel pour IP/localhost)"
