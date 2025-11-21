@@ -1713,15 +1713,19 @@ NGINXCONF
         print_success "✅ Certificats Let's Encrypt forcés dans la config"
     fi
     
-    # Tester et recharger Nginx
-    print_info "Test de la configuration Nginx..."
-    if sudo nginx -t; then
-        print_success "Configuration Nginx valide"
-        sudo systemctl reload nginx
-        print_success "Nginx rechargé avec HTTPS"
+    # Tester et recharger Nginx (seulement si installé)
+    if [ "$INSTALL_NGINX" = true ] || command -v nginx &>/dev/null; then
+        print_info "Test de la configuration Nginx..."
+        if sudo nginx -t; then
+            print_success "Configuration Nginx valide"
+            sudo systemctl reload nginx
+            print_success "Nginx rechargé avec HTTPS"
+        else
+            print_error "Erreur dans la configuration Nginx"
+            exit 1
+        fi
     else
-        print_error "Erreur dans la configuration Nginx"
-        exit 1
+        print_info "Nginx non installé - skipping configuration"
     fi
 fi # Fin du bloc SKIP_NGINX_CONFIG
 
