@@ -198,8 +198,8 @@ Règles:
                             <button
                                 onClick={() => setActiveTab('list')}
                                 className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'list'
-                                        ? 'bg-white dark:bg-slate-600 text-blue-600 dark:text-blue-400 shadow-sm'
-                                        : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'
+                                    ? 'bg-white dark:bg-slate-600 text-blue-600 dark:text-blue-400 shadow-sm'
+                                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'
                                     }`}
                             >
                                 {t('prompts.tabs.my_prompts')}
@@ -207,8 +207,8 @@ Règles:
                             <button
                                 onClick={() => setActiveTab('assistant')}
                                 className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'assistant'
-                                        ? 'bg-white dark:bg-slate-600 text-purple-600 dark:text-purple-400 shadow-sm'
-                                        : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'
+                                    ? 'bg-white dark:bg-slate-600 text-purple-600 dark:text-purple-400 shadow-sm'
+                                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'
                                     }`}
                             >
                                 <Wand2 className="w-4 h-4" />
@@ -248,13 +248,13 @@ Règles:
                                             {prompt.category}
                                         </span>
                                         <div className="flex gap-2">
-                                            <Button variant="ghost" size="sm" onClick={() => {
+                                            <Button variant="ghost" size="small" onClick={() => {
                                                 setEditingPrompt(prompt);
                                                 setActiveTab('editor');
                                             }}>
                                                 <Edit3 className="w-4 h-4 text-slate-600" />
                                             </Button>
-                                            <Button variant="ghost" size="sm" onClick={() => handleDelete(prompt.id!)}>
+                                            <Button variant="ghost" size="small" onClick={() => handleDelete(prompt.id!)}>
                                                 <Trash2 className="w-4 h-4 text-red-500" />
                                             </Button>
                                         </div>
@@ -375,8 +375,8 @@ Règles:
                                         <button
                                             onClick={() => setWizardMode('describe')}
                                             className={`flex-1 p-3 rounded-lg border text-center transition-all ${wizardMode === 'describe'
-                                                    ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300'
-                                                    : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50'
+                                                ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300'
+                                                : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50'
                                                 }`}
                                         >
                                             <MessageSquare className="w-6 h-6 mx-auto mb-2" />
@@ -385,8 +385,8 @@ Règles:
                                         <button
                                             onClick={() => setWizardMode('analyze')}
                                             className={`flex-1 p-3 rounded-lg border text-center transition-all ${wizardMode === 'analyze'
-                                                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
-                                                    : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50'
+                                                ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
+                                                : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50'
                                                 }`}
                                         >
                                             <Bot className="w-6 h-6 mx-auto mb-2" />

@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { useOllama } from './useOllama';
-import toast from 'react-hot-toast';
+
 
 export type AIProvider = 'openai' | 'anthropic' | 'google' | 'mistral' | 'local';
 
