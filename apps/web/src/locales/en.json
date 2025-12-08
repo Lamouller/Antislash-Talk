@@ -18,6 +18,40 @@
         "community": "Community",
         "user": "User"
     },
+    "nav": {
+        "home": "Home",
+        "meetings": "Meetings",
+        "record": "Record",
+        "upload": "Upload",
+        "prompts": "Prompt Workshop",
+        "settings": "Settings",
+        "subtitle": "AI Meeting Assistant"
+    },
+    "prompts": {
+        "title": "Prompt Workshop",
+        "subtitle": "Create, manage and test your generation templates for perfect reports.",
+        "newPrompt": "New Prompt",
+        "aiAssistant": "AI Assistant",
+        "noPrompts": "No prompts created yet.",
+        "useAssistant": "Use AI Assistant to start",
+        "editor": {
+            "name": "Template Name",
+            "description": "Description (optional)",
+            "category": "Category",
+            "content": "Prompt Content",
+            "contentPlaceholder": "Write your system prompt here..."
+        },
+        "wizard": {
+            "title": "Creation Assistant",
+            "subtitle": "Let AI help you write the perfect prompt.",
+            "modeDescribe": "Describe my need",
+            "modeDescribePlaceholder": "Ex: I want a very concise summary with an action list...",
+            "modeExample": "Analyze an example",
+            "modeExamplePlaceholder": "Paste a perfect summary example here...",
+            "generate": "Generate Prompt",
+            "generating": "Generating..."
+        }
+    },
     "settings": {
         "title": "Settings",
         "general": "General",

@@ -18,6 +18,40 @@
         "community": "Communauté",
         "user": "Utilisateur"
     },
+    "nav": {
+        "home": "Accueil",
+        "meetings": "Réunions",
+        "record": "Enregistrer",
+        "upload": "Importer",
+        "prompts": "Atelier Prompts",
+        "settings": "Paramètres",
+        "subtitle": "Assistant de Réunion IA"
+    },
+    "prompts": {
+        "title": "Atelier Prompts",
+        "subtitle": "Créez, gérez et testez vos templates de génération pour des rapports parfaits.",
+        "newPrompt": "Nouveau Prompt",
+        "aiAssistant": "Assistant IA",
+        "noPrompts": "Aucun prompt créé pour le moment.",
+        "useAssistant": "Utiliser l'Assistant IA pour démarrer",
+        "editor": {
+            "name": "Nom du template",
+            "description": "Description (optionnelle)",
+            "category": "Catégorie",
+            "content": "Contenu du prompt",
+            "contentPlaceholder": "Écrivez votre prompt système ici..."
+        },
+        "wizard": {
+            "title": "Assistant de création",
+            "subtitle": "Laissez l'IA vous aider à rédiger le prompt parfait.",
+            "modeDescribe": "Décrire mon besoin",
+            "modeDescribePlaceholder": "Ex: Je veux un résumé très concis avec une liste de taches...",
+            "modeExample": "Analyser un exemple",
+            "modeExamplePlaceholder": "Collez ici un exemple de résumé parfait...",
+            "generate": "Générer le prompt",
+            "generating": "Génération en cours..."
+        }
+    },
     "settings": {
         "title": "Paramètres",
         "general": "Général",
