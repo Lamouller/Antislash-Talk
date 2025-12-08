@@ -128,22 +128,45 @@ export function useAI() {
             let profile;
             try {
                 profile = await getProfileSettings();
+                console.log('👤 useAI: Fetched profile:', profile);
             } catch (err) {
                 console.warn('⚠️ Failed to fetch user profile, using defaults:', err);
             }
 
-            // Determine provider and model
-            // Logic: Settings > Default to OpenAI if not set. BUT if override is provided, use that.
-            const provider = overrideProvider || profile?.preferred_llm || 'openai';
-            const model = overrideModel || (provider === 'local' ? profile?.preferred_llm_model : profile?.preferred_llm_model);
+            // 2. Determine provider and model
+            let provider = overrideProvider || profile?.preferred_llm || 'openai';
+            let model = overrideModel || (provider === 'local' ? profile?.preferred_llm_model : profile?.preferred_llm_model);
 
-            console.log(`🤖 AI Generation: Using ${provider.toUpperCase()} (${model || 'default model'})`);
+            console.log(`🤖 AI Generation: Initial Provider=${provider.toUpperCase()}`);
+
+            // 3. Smart Fallback: Check if we have the key for the selected provider
+            if (provider !== 'local') {
+                const apiKey = await getApiKey(provider);
+
+                if (!apiKey) {
+                    // Key missing for selected provider! Check others...
+                    console.warn(`⚠️ Key missing for ${provider}. Checking alternatives...`);
+
+                    const providers = ['google', 'mistral', 'openai'];
+                    for (const p of providers) {
+                        const key = await getApiKey(p);
+                        if (key) {
+                            console.log(`✅ Found valid key for ${p}. Switching provider.`);
+                            provider = p as any;
+                            // Reset model to default for that provider since the old model ID might be invalid
+                            model = undefined;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            console.log(`🤖 AI Generation: Final Provider=${provider.toUpperCase()} (${model || 'default'})`);
 
             let result = '';
 
             if (provider === 'local') {
                 // Use Ollama
-                // If model is 'none', well... we can't do much.
                 if (!model || model === 'none') {
                     throw new Error('No local model selected in settings');
                 }
