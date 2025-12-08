@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS public.prompt_templates (
     user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
     name TEXT NOT NULL,
     description TEXT,
-    category TEXT NOT NULL CHECK (category IN ('summary', 'title', 'system', 'transcript')),
+    category TEXT NOT NULL CHECK (category IN ('summary', 'title', 'system', 'transcript', 'custom')),
     content TEXT NOT NULL,
     is_favorite BOOLEAN DEFAULT false,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,

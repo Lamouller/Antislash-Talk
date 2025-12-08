@@ -23,6 +23,14 @@ const formatTime = (seconds: number): string => {
   return timeString;
 };
 
+// Prompt Template Interface for selection
+interface PromptTemplate {
+  id: string;
+  name: string;
+  category: 'summary' | 'custom' | 'title' | 'transcript' | 'system';
+  content: string;
+}
+
 type PageState = 'ready' | 'recording' | 'saving' | 'uploading' | 'processing' | 'error' | 'local-transcribing';
 
 export default function RecordingScreen() {
@@ -60,6 +68,11 @@ export default function RecordingScreen() {
   const [_speakerMapping, setSpeakerMapping] = useState<SpeakerMapping>({}); // 🎭 Mapping SPEAKER_00 -> "Marie" (stored for future use)
   const speakerMappingRef = useRef<SpeakerMapping>({}); // 🎭 Ref pour accès synchrone au mapping
   const transcriptionContainerRef = useRef<HTMLDivElement>(null); // 📜 Ref pour auto-scroll
+
+  // 📝 Prompt Selection State
+  const [availablePrompts, setAvailablePrompts] = useState<PromptTemplate[]>([]);
+  const [selectedPromptId, setSelectedPromptId] = useState<string>('default');
+  const [isLoadingPrompts, setIsLoadingPrompts] = useState(false);
 
   const {
     isRecording,
@@ -183,7 +196,31 @@ export default function RecordingScreen() {
       }
     };
 
+    const fetchPrompts = async () => {
+      try {
+        setIsLoadingPrompts(true);
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const { data, error } = await supabase
+          .from('prompt_templates')
+          .select('*')
+          .eq('user_id', user.id)
+          .in('category', ['summary', 'custom'])
+          .order('category', { ascending: false }) // 'summary' first usually
+          .order('name', { ascending: true });
+
+        if (error) throw error;
+        setAvailablePrompts(data || []);
+      } catch (err) {
+        console.error('Error fetching prompts:', err);
+      } finally {
+        setIsLoadingPrompts(false);
+      }
+    };
+
     fetchUserPreferences();
+    fetchPrompts();
   }, []);
 
   const handleStartRecording = async () => {
@@ -1045,6 +1082,49 @@ export default function RecordingScreen() {
 
                     {/* Automatic processing with user preferences */}
                     <div className="grid gap-3">
+
+                      {/* 🆕 Prompt Selector */}
+                      <div className="mb-2">
+                        <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5 block">
+                          {t('prompts.select_prompt') || 'Select Prompt'}
+                        </label>
+                        <select
+                          value={selectedPromptId}
+                          onChange={(e) => {
+                            const newId = e.target.value;
+                            setSelectedPromptId(newId);
+
+                            // Immediately update the prompt content used for logic
+                            if (newId === 'default') {
+                              // Revert to default or 'custom prompts' form logic if used
+                              console.log('Reverting to default prompt');
+                            } else {
+                              const p = availablePrompts.find(pr => pr.id === newId);
+                              if (p) {
+                                console.log('Selected custom prompt:', p.name);
+                                // Update userPrompts to use this content immediately
+                                setUserPrompts(prev => ({
+                                  ...prev,
+                                  summary: p.content
+                                }));
+                              }
+                            }
+                          }}
+                          className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white/50 dark:bg-gray-700/50 backdrop-blur-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all font-medium"
+                        >
+                          <option value="default">Default Summary Prompt</option>
+                          {availablePrompts.length > 0 && (
+                            <optgroup label="My Custom Prompts">
+                              {availablePrompts.map(p => (
+                                <option key={p.id} value={p.id}>
+                                  {p.category === 'summary' ? '📝 ' : '⚡️ '}{p.name}
+                                </option>
+                              ))}
+                            </optgroup>
+                          )}
+                        </select>
+                      </div>
+
                       <Button
                         onClick={() => {
                           if (userPreferences.transcription_provider === 'local') {
@@ -1059,7 +1139,10 @@ export default function RecordingScreen() {
                         {userPreferences.transcription_provider === 'local' ? (
                           <>
                             <Waves className="w-5 h-5 mr-2" />
-                            {t('record.transcribeLocal', { model: userPreferences.transcription_model })}
+                            {userPreferences.transcription_model === 'whisper-tiny' && !selectedPromptId && selectedPromptId !== 'default' ?
+                              t('record.transcribeLocal', { model: userPreferences.transcription_model }) :
+                              `Generate with ${selectedPromptId !== 'default' ? 'Custom Prompt' : 'Default'}`
+                            }
                           </>
                         ) : (
                           <>

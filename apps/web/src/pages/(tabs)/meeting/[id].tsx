@@ -903,50 +903,85 @@ export default function MeetingDetail() {
                   </h3>
 
                   {!summary && !generatingSummary && (
-                    <div className="flex flex-col gap-4">
-                      <div className="flex flex-col sm:flex-row gap-3 items-end">
-                        <div className="w-full sm:w-1/2">
-                          <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">
+                    <div className="bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-900/10 dark:to-indigo-900/10 rounded-xl p-5 border border-purple-100 dark:border-purple-800/30">
+                      <h4 className="text-sm font-semibold text-purple-900 dark:text-purple-100 mb-4 flex items-center">
+                        <Settings className="w-4 h-4 mr-2" />
+                        Options de Génération
+                      </h4>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                        {/* Title Prompt Selector */}
+                        <div className="space-y-2">
+                          <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide flex items-center">
+                            <FileType className="w-3 h-3 mr-1.5" />
                             Style de Titre
                           </label>
-                          <select
-                            className="w-full text-sm bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 rounded-lg p-2"
-                            value={selectedTitlePromptId}
-                            onChange={(e) => setSelectedTitlePromptId(e.target.value)}
-                          >
-                            <option value="default">Défaut (Standard)</option>
-                            {promptTemplates
-                              .filter(p => p.category === 'title')
-                              .map(p => (
-                                <option key={p.id} value={p.id}>{p.name}</option>
-                              ))
-                            }
-                          </select>
+                          <div className="relative group">
+                            <select
+                              className="w-full pl-4 pr-10 py-2.5 text-sm bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl appearance-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all shadow-sm group-hover:border-purple-300 dark:group-hover:border-purple-700"
+                              value={selectedTitlePromptId}
+                              onChange={(e) => setSelectedTitlePromptId(e.target.value)}
+                            >
+                              <option value="default">✨ Défaut (Standard)</option>
+                              {promptTemplates
+                                .filter(p => p.category === 'title')
+                                .length > 0 && (
+                                  <optgroup label="Mes Prompts Personnalisés">
+                                    {promptTemplates
+                                      .filter(p => p.category === 'title')
+                                      .map(p => (
+                                        <option key={p.id} value={p.id}>{p.name}</option>
+                                      ))
+                                    }
+                                  </optgroup>
+                                )
+                              }
+                            </select>
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                            </div>
+                          </div>
                         </div>
-                        <div className="w-full sm:w-1/2">
-                          <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">
+
+                        {/* Summary Prompt Selector */}
+                        <div className="space-y-2">
+                          <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide flex items-center">
+                            <FileText className="w-3 h-3 mr-1.5" />
                             Style de Résumé
                           </label>
-                          <select
-                            className="w-full text-sm bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 rounded-lg p-2"
-                            value={selectedSummaryPromptId}
-                            onChange={(e) => setSelectedSummaryPromptId(e.target.value)}
-                          >
-                            <option value="default">Défaut (Standard)</option>
-                            {promptTemplates
-                              .filter(p => p.category === 'summary')
-                              .map(p => (
-                                <option key={p.id} value={p.id}>{p.name}</option>
-                              ))
-                            }
-                          </select>
+                          <div className="relative group">
+                            <select
+                              className="w-full pl-4 pr-10 py-2.5 text-sm bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl appearance-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all shadow-sm group-hover:border-purple-300 dark:group-hover:border-purple-700"
+                              value={selectedSummaryPromptId}
+                              onChange={(e) => setSelectedSummaryPromptId(e.target.value)}
+                            >
+                              <option value="default">📝 Défaut (Standard)</option>
+                              {promptTemplates
+                                .filter(p => p.category === 'summary' || p.category === 'custom')
+                                .length > 0 && (
+                                  <optgroup label="Mes Prompts Personnalisés">
+                                    {promptTemplates
+                                      .filter(p => p.category === 'summary' || p.category === 'custom')
+                                      .map(p => (
+                                        <option key={p.id} value={p.id}>{p.name}</option>
+                                      ))
+                                    }
+                                  </optgroup>
+                                )
+                              }
+                            </select>
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                            </div>
+                          </div>
                         </div>
                       </div>
+
                       <Button
                         onClick={handleGenerateSummary}
-                        className="w-full sm:w-auto bg-purple-600 hover:bg-purple-700 text-white shadow-lg shadow-purple-500/20 self-end"
+                        className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-semibold py-3 rounded-xl shadow-lg shadow-purple-500/20 transition-all transform hover:-translate-y-0.5 active:translate-y-0"
                       >
-                        <Wand2 className="w-4 h-4 mr-2" />
+                        <Wand2 className="w-5 h-5 mr-2" />
                         {t('meetingDetail.buttonGenerateSummary')}
                       </Button>
                     </div>
