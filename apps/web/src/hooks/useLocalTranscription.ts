@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import { useOllama } from './useOllama';
+import { useAI } from './useAI';
 import {
   checkWhisperXAvailability,
   transcribeWithWhisperX as transcribeWithWhisperXClient,
@@ -1299,17 +1300,50 @@ RÉSUMÉ: [résumé des points clés et actions]`
     }
   }, [checkWhisperXAvailability]);
 
-  // Extraire les fonctions d'ollama pour préserver les types
-  const ollamaGenerateTitle = ollama.generateTitle;
-  const ollamaGenerateSummary = ollama.generateSummary;
+  // Use the unified AI hook for generation
+  const { generate: generateAI } = useAI();
 
-  // Wrapper functions pour AI generation avec custom prompts
+  // Wrapper functions pour AI generation avec custom prompts via le provider global
   const generateTitle = async (transcript: string, customPrompt?: string): Promise<string> => {
-    return await ollamaGenerateTitle(transcript, customPrompt);
+    console.log('🧠 Generating title using refined AI provider...');
+
+    // Default prompts if none provided
+    const defaultTitlePrompt = 'Generate a concise, descriptive title (maximum 60 characters) for the following meeting transcript. Return ONLY the title, nothing else.';
+
+    const sysPrompt = "You are an expert meeting assistant. Your task is to generate a concise title for the provided transcript.";
+    const userPrompt = `${customPrompt || defaultTitlePrompt}\n\nTranscript:\n${transcript.substring(0, 4000)}`;
+
+    try {
+      const result = await generateAI({
+        systemPrompt: sysPrompt,
+        userPrompt: userPrompt
+      });
+      // Clean result
+      return result.replace(/["']/g, '').substring(0, 60).replace(/\n/g, ' ').trim();
+    } catch (error) {
+      console.error('AI Title Gen Error:', error);
+      throw error;
+    }
   };
 
   const generateSummary = async (transcript: string, customPrompt?: string): Promise<string> => {
-    return await ollamaGenerateSummary(transcript, customPrompt);
+    console.log('🧠 Generating summary using refined AI provider...');
+
+    const defaultSummaryPrompt = 'Summarize the following meeting transcript in a concise and structured way. Include key points, decisions, and action items.';
+
+    const sysPrompt = "You are an expert meeting assistant. Your task is to summarize the provided transcript.";
+    const userPrompt = `${customPrompt || defaultSummaryPrompt}\n\nTranscript:\n${transcript.substring(0, 15000)}`;
+
+    try {
+      const result = await generateAI({
+        systemPrompt: sysPrompt,
+        userPrompt: userPrompt
+      });
+      return result.trim();
+    } catch (error) {
+      console.error('AI Summary Gen Error:', error);
+      throw error;
+    }
   };
 
   return {

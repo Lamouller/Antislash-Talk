@@ -125,18 +125,19 @@ export function useAI() {
         setIsGenerating(true);
         try {
             // 1. Get configurations
-            const profile = await getProfileSettings();
+            let profile;
+            try {
+                profile = await getProfileSettings();
+            } catch (err) {
+                console.warn('⚠️ Failed to fetch user profile, using defaults:', err);
+            }
 
             // Determine provider and model
             // Logic: Settings > Default to OpenAI if not set. BUT if override is provided, use that.
-            // Actually, for Prompt Workshop, we want to respect the Global Settings, but allow falling back to local if configured?
-            // "preferred_llm" in profile maps to 'openai', 'mistral', 'google', 'local' (conceptually, though UI might save 'openai' and model 'llama3' ?? No, see `prompts.tsx` logic)
-            // Let's assume Profile saves provider in `preferred_llm`
-
             const provider = overrideProvider || profile?.preferred_llm || 'openai';
-            const model = overrideModel || profile?.preferred_llm_model;
+            const model = overrideModel || (provider === 'local' ? profile?.preferred_llm_model : profile?.preferred_llm_model);
 
-            console.log(`🤖 AI Generation: Using ${provider} (${model})`);
+            console.log(`🤖 AI Generation: Using ${provider.toUpperCase()} (${model || 'default model'})`);
 
             let result = '';
 
@@ -153,7 +154,7 @@ export function useAI() {
                 const apiKey = await getApiKey(provider);
 
                 if (!apiKey) {
-                    throw new Error(`API Key for ${provider} not found. Please add it in Settings.`);
+                    throw new Error(`API Key for ${provider.toUpperCase()} not found. Please add it in Settings > AI Model.`);
                 }
 
                 switch (provider) {
