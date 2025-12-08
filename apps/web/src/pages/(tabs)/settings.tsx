@@ -739,8 +739,8 @@ export default function SettingsScreen() {
       email: user.email,
       updated_at: new Date().toISOString(),
       preferred_llm: selectedLlmProvider,
-      // Use Ollama model for local transcriptions, cloud LLM model otherwise
-      preferred_llm_model: preferredTranscriptionProvider === 'local' ? selectedOllamaModel : selectedLlmModel,
+      // Fix: Always save the selected Cloud LLM model. Local LLM logic (if any) should be handled explicitly.
+      preferred_llm_model: selectedLlmModel,
       preferred_transcription_provider: preferredTranscriptionProvider,
       preferred_transcription_model: preferredTranscriptionModel,
       preferred_tts_provider: selectedTtsProvider,
