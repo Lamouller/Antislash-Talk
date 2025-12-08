@@ -97,7 +97,8 @@ export function useAI() {
     const generateGoogle = async (apiKey: string, model: string, system: string, user: string) => {
         // Simple implementation for Google Gemini via REST API
         // Always strip 'models/' prefix just in case it crept in
-        const cleanModel = (model || 'gemini-1.5-flash').replace(/^models\//, '');
+        // Default to the latest stable flash model (002) which is very reliable
+        const cleanModel = (model || 'gemini-1.5-flash-002').replace(/^models\//, '');
 
         // Use v1beta for widespread compatibility (1.5, 2.0, etc.)
         const apiVersion = 'v1beta';
