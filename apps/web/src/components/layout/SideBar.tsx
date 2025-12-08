@@ -15,6 +15,7 @@ export default function SideBar() {
     { href: '/tabs/meetings', label: t('nav.meetings'), icon: ListMusic, color: 'from-green-500 to-emerald-600' },
     { href: '/tabs/record', label: t('nav.record'), icon: FilePlus, color: 'from-purple-500 to-pink-600' },
     { href: '/tabs/upload', label: t('nav.upload'), icon: Upload, color: 'from-pink-500 to-rose-600' },
+    { href: '/tabs/prompts', label: t('nav.prompts') || 'Atelier Prompts', icon: Sparkles, color: 'from-yellow-500 to-orange-600' },
     { href: '/tabs/settings', label: t('nav.settings'), icon: Settings, color: 'from-orange-500 to-red-600' },
   ];
 
@@ -69,8 +70,8 @@ export default function SideBar() {
                 className={({ isActive }) => {
                   const active = isActive; // Utiliser SEULEMENT notre logique custom
                   return `group flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 ${active
-                      ? 'bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 text-blue-700 dark:text-blue-300 shadow-md border border-blue-200/50 dark:border-blue-700/50'
-                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50/80 dark:hover:bg-gray-800/50 hover:text-blue-600 dark:hover:text-blue-400'
+                    ? 'bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 text-blue-700 dark:text-blue-300 shadow-md border border-blue-200/50 dark:border-blue-700/50'
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50/80 dark:hover:bg-gray-800/50 hover:text-blue-600 dark:hover:text-blue-400'
                     }`;
                 }}
               >
@@ -79,8 +80,8 @@ export default function SideBar() {
                   return (
                     <>
                       <div className={`p-2 rounded-lg mr-3 transition-all duration-200 ${active
-                          ? `bg-gradient-to-r ${item.color} shadow-lg`
-                          : 'bg-gray-100 dark:bg-gray-700 group-hover:bg-gray-200 dark:group-hover:bg-gray-600'
+                        ? `bg-gradient-to-r ${item.color} shadow-lg`
+                        : 'bg-gray-100 dark:bg-gray-700 group-hover:bg-gray-200 dark:group-hover:bg-gray-600'
                         }`}>
                         <IconComponent className={`w-5 h-5 ${active ? 'text-white' : 'text-gray-600 dark:text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400'
                           }`} />

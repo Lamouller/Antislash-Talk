@@ -14,11 +14,11 @@ declare global {
     deviceMemory?: number; // GB
     hardwareConcurrency?: number; // CPU cores
   }
-  
+
   interface GPU {
     requestAdapter(): Promise<GPUAdapter | null>;
   }
-  
+
   interface GPUAdapter {
     requestDevice(): Promise<GPUDevice | null>;
     limits?: {
@@ -26,7 +26,7 @@ declare global {
       maxStorageBufferBindingSize?: number;
     };
   }
-  
+
   interface GPUDevice {
     limits: {
       maxBufferSize: number;
@@ -39,28 +39,28 @@ declare global {
 // Post-process to remove repetitive patterns (hallucinations)
 const cleanHallucinations = (text: string): string => {
   if (!text) return '';
-  
+
   // Split by sentence-ending punctuation and filter out empty strings
   const sentences = text.split(/[.!?]+/).map(s => s.trim()).filter(s => s.length > 0);
   const cleanSentences: string[] = [];
   let lastSentence = '';
-  
+
   for (const sentence of sentences) {
     const normalized = sentence.toLowerCase().replace(/[^\w\s]/g, '').trim();
     const lastNormalized = lastSentence.toLowerCase().replace(/[^\w\s]/g, '').trim();
-    
+
     if (normalized !== lastNormalized) {
       cleanSentences.push(sentence);
       lastSentence = sentence;
     }
   }
-  
+
   // If we removed too much (>90% repetition), it's likely a hallucination
   if (cleanSentences.length < sentences.length * 0.1 && sentences.length > 5) {
     console.warn('🚨 High repetition detected - likely hallucination. Consider using a larger model or cloud transcription.');
     return `[Erreur: transcription répétitive détectée. Essayez un modèle plus gros ou la transcription cloud.]`;
   }
-  
+
   return cleanSentences.join('. ') + (cleanSentences.length > 0 ? '.' : '');
 };
 
@@ -74,11 +74,11 @@ const getMistralApiKey = (): string | null => {
   // Priority 1: Environment variable (for production)
   const envKey = import.meta.env.VITE_MISTRAL_API_KEY;
   if (envKey) return envKey;
-  
+
   // Priority 2: Local storage (for development/user convenience)
   const localKey = localStorage.getItem('mistral_api_key');
   if (localKey) return localKey;
-  
+
   return null;
 };
 
@@ -96,14 +96,14 @@ const clearMistralApiKey = (): void => {
 
 // Transcribe using Mistral API for Voxtral models
 const transcribeWithVoxtral = async (
-  audioBlob: Blob, 
+  audioBlob: Blob,
   modelId: string,
   onProgress?: (progress: number) => void
 ): Promise<LocalTranscriptionResult> => {
   console.log('🎯 Using Voxtral via Mistral API...');
-  
+
   if (onProgress) onProgress(20);
-  
+
   // Get API key from environment or user settings
   const apiKey = getMistralApiKey();
   if (!apiKey) {
@@ -124,15 +124,15 @@ const transcribeWithVoxtral = async (
 🔒 PREFER 100% LOCAL PRIVACY? 
 Switch to "Local" provider and choose Whisper or Moonshine models!`);
   }
-  
+
   if (onProgress) onProgress(40);
-  
+
   // Convert audio blob to base64 for API
   const arrayBuffer = await audioBlob.arrayBuffer();
   const base64Audio = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
-  
+
   if (onProgress) onProgress(60);
-  
+
   try {
     const response = await fetch('https://api.mistral.ai/v1/audio/transcriptions', {
       method: 'POST',
@@ -148,20 +148,20 @@ Switch to "Local" provider and choose Whisper or Moonshine models!`);
         temperature: 0.0, // Deterministic output
       }),
     });
-    
+
     if (onProgress) onProgress(80);
-    
+
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       throw new Error(`Mistral API error: ${response.status} - ${errorData.message || 'Unknown error'}`);
     }
-    
+
     const result = await response.json();
-    
+
     if (onProgress) onProgress(100);
-    
+
     console.log('✅ Voxtral transcription completed via Mistral API');
-    
+
     // Convert Mistral API response to our format
     const transcriptionResult: LocalTranscriptionResult = {
       text: cleanHallucinations(result.text || ''),
@@ -172,9 +172,9 @@ Switch to "Local" provider and choose Whisper or Moonshine models!`);
         text: cleanHallucinations(segment.text || ''),
       })) || []
     };
-    
+
     return transcriptionResult;
-    
+
   } catch (error: any) {
     console.error('❌ Voxtral API transcription failed:', error);
     if (error.message.includes('401') || error.message.includes('API key')) {
@@ -219,10 +219,10 @@ export interface UseLocalTranscriptionReturn {
   transcribeChunkLive: (chunk: Blob, chunkIndex: number, onSegmentReceived: (segment: { text: string; start: number; end: number; speaker?: string | null }) => void) => Promise<void>; // 🚀 LIVE CHUNK STREAMING
   cancelTranscription: () => void;
   runBenchmark: () => Promise<DeviceBenchmark>;
-  enhanceWithLocalLLM: (transcript: string, prompts: {title?: string, summary?: string, transcript?: string}, ollamaModel?: string) => Promise<{title: string, summary: string, enhancedTranscript?: any}>;
+  enhanceWithLocalLLM: (transcript: string, prompts: { title?: string, summary?: string, transcript?: string }, ollamaModel?: string) => Promise<{ title: string, summary: string, enhancedTranscript?: any }>;
   // AI generation (Ollama, OpenAI, Gemini)
-  generateTitle: (text: string) => Promise<string>;
-  generateSummary: (text: string) => Promise<string>;
+  generateTitle: (text: string, customPrompt?: string) => Promise<string>;
+  generateSummary: (text: string, customPrompt?: string) => Promise<string>;
   // Voxtral API key management
   getMistralApiKey: () => string | null;
   storeMistralApiKey: (apiKey: string) => void;
@@ -238,7 +238,7 @@ export function useLocalTranscription(): UseLocalTranscriptionReturn {
   const [error, setError] = useState<string | null>(null);
   const [benchmark, setBenchmark] = useState<DeviceBenchmark | null>(null);
   const transcriptionRef = useRef<any>(null);
-  
+
   // Hook Ollama pour génération locale de titre/résumé
   const ollama = useOllama();
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -246,7 +246,7 @@ export function useLocalTranscription(): UseLocalTranscriptionReturn {
   // Comprehensive device benchmark
   const runBenchmark = useCallback(async (): Promise<DeviceBenchmark> => {
     console.log('🔬 Running device performance benchmark...');
-    
+
     const benchmark: DeviceBenchmark = {
       webGPUSupported: false,
       estimatedMemoryGB: 4, // Default fallback
@@ -263,7 +263,7 @@ export function useLocalTranscription(): UseLocalTranscriptionReturn {
         const adapter = await navigator.gpu.requestAdapter();
         if (adapter) {
           benchmark.webGPUSupported = true;
-          
+
           try {
             const device = await adapter.requestDevice();
             if (device) {
@@ -298,10 +298,10 @@ export function useLocalTranscription(): UseLocalTranscriptionReturn {
 
     // Device classification and model recommendation
     const isAppleSilicon = navigator.userAgent.includes('Mac') && (
-      navigator.userAgent.includes('M1') || navigator.userAgent.includes('M2') || 
+      navigator.userAgent.includes('M1') || navigator.userAgent.includes('M2') ||
       navigator.userAgent.includes('M3') || navigator.userAgent.includes('M4')
     );
-    
+
     if (benchmark.webGPUSupported && benchmark.estimatedMemoryGB >= 16 && benchmark.cpuCores >= 8) {
       benchmark.deviceClass = 'high-end';
       benchmark.canRunLargeModels = false; // Conservative: even high-end has issues with large models in browser
@@ -342,7 +342,7 @@ export function useLocalTranscription(): UseLocalTranscriptionReturn {
     if (!navigator.gpu) {
       return false;
     }
-    
+
     try {
       const adapter = await navigator.gpu.requestAdapter();
       return !!adapter;
@@ -362,7 +362,7 @@ export function useLocalTranscription(): UseLocalTranscriptionReturn {
         abortControllerRef.current = new AbortController();
 
         console.log('🚀 Starting local transcription with model:', modelId);
-        
+
         // Check if this is a Voxtral model - if so, use Mistral API
         if (isVoxtralModel(modelId)) {
           console.log('🎯 Detected Voxtral model, using Mistral API...');
@@ -370,12 +370,12 @@ export function useLocalTranscription(): UseLocalTranscriptionReturn {
           resolve(result);
           return;
         }
-        
+
         // ============================================
         // INTELLIGENT ROUTING - Priorité optimale
         // ============================================
         console.log(`[transcription] 📋 Model selected: ${modelId}`);
-        
+
         // Modèles compatibles avec WhisperX
         const whisperXCompatibleModels = [
           'Xenova/whisper-tiny',
@@ -391,32 +391,32 @@ export function useLocalTranscription(): UseLocalTranscriptionReturn {
           'Xenova/whisper-large-v2',
           'bofenghuang/whisper-large-v2-french'
         ];
-        
+
         const isWhisperXCompatible = whisperXCompatibleModels.some(model =>
           modelId.includes(model) || modelId === model
         );
-        
+
         // Détection de la demande de diarization
         const needsDiarization = modelId.includes('diarization') || modelId.includes('+diarization');
-        
+
         console.log(`[transcription] 🔍 Routing check:`, {
           whisperX: isWhisperXCompatible,
           needsDiarization,
           willUseWhisperX: needsDiarization && isWhisperXCompatible
         });
-        
+
         // 🏆 PRIORITÉ 1: WhisperX (si diarization demandée ET compatible)
         if (needsDiarization && isWhisperXCompatible) {
           console.log('[transcription] 🏆 Diarization needed, checking WhisperX...');
           try {
             const isWhisperXAvailable = await checkWhisperXAvailability();
-            
+
             console.log(`[transcription] 🔍 WhisperX available? ${isWhisperXAvailable}`);
-            
+
             if (isWhisperXAvailable) {
               console.log(`%c[transcription] 🏆 USING WHISPERX - DIARIZATION MODE!`, 'color: #7c3aed; font-weight: bold; font-size: 14px; background: #ede9fe; padding: 4px 8px; border-radius: 4px');
               setProgress(10);
-              
+
               const startTime = Date.now();
               const result = await transcribeWithWhisperXClient(
                 audioBlob,
@@ -429,10 +429,10 @@ export function useLocalTranscription(): UseLocalTranscriptionReturn {
                   setProgress(progressUpdate.progress || 0);
                 }
               );
-              
+
               const totalTime = Date.now() - startTime;
               console.log(`%c[transcription] ⚡ COMPLETED IN ${(totalTime / 1000).toFixed(2)}s`, 'color: #16a34a; font-weight: bold');
-              
+
               // Convert to our format
               const transcriptionResult: LocalTranscriptionResult = {
                 text: cleanHallucinations(result.text || ''),
@@ -443,7 +443,7 @@ export function useLocalTranscription(): UseLocalTranscriptionReturn {
                   text: cleanHallucinations(seg.text || ''),
                 })) || []
               };
-              
+
               setProgress(100);
               setIsTranscribing(false);
               console.log(`%c[transcription] 🎉 SUCCESS! Text: ${transcriptionResult.text.length} chars`, 'color: #16a34a; font-weight: bold');
@@ -458,42 +458,42 @@ export function useLocalTranscription(): UseLocalTranscriptionReturn {
             // Continue to PyTorch fallback
           }
         }
-        
+
         // Check if this model requires PyTorch server (Medium, Large, Large v2, Large v3, Large FR)
-            const requiresServer = 
-              modelId === 'Xenova/whisper-medium' || 
-              modelId === 'Xenova/whisper-medium+diarization' || 
-              modelId === 'Xenova/whisper-large-v2' || 
-              modelId === 'openai/whisper-large-v3' || 
-              modelId === 'bofenghuang/whisper-large-v2-french';
-        
+        const requiresServer =
+          modelId === 'Xenova/whisper-medium' ||
+          modelId === 'Xenova/whisper-medium+diarization' ||
+          modelId === 'Xenova/whisper-large-v2' ||
+          modelId === 'openai/whisper-large-v3' ||
+          modelId === 'bofenghuang/whisper-large-v2-french';
+
         if (requiresServer) {
           console.log('🖥️ Detected SERVER model, using PyTorch service...');
           setProgress(20);
-          
+
           try {
             // Call PyTorch service
             // Le code JS s'exécute dans le NAVIGATEUR, pas dans Docker !
             const PYTORCH_SERVICE_URL = import.meta.env.VITE_PYTORCH_SERVICE_URL || 'http://localhost:8000';
-            
+
             // Check if PyTorch service is available
             const healthCheck = await fetch(`${PYTORCH_SERVICE_URL}/health`, {
               method: 'GET',
               signal: AbortSignal.timeout(5000),
             });
-            
+
             if (!healthCheck.ok) {
               throw new Error('PyTorch service not available');
             }
-            
+
             console.log('✅ PyTorch service is available');
             setProgress(40);
-            
+
             // Prepare FormData for upload
             const formData = new FormData();
             formData.append('file', audioBlob, 'audio.webm');
             formData.append('language', 'fr');
-            
+
             // Map model ID to PyTorch model name
             let pytorchModelName = 'medium';
             if (modelId.includes('large-v3')) {
@@ -503,54 +503,54 @@ export function useLocalTranscription(): UseLocalTranscriptionReturn {
             } else if (modelId.includes('medium')) {
               pytorchModelName = 'medium';
             }
-            
+
             // Enable diarization for models that support it
             const enableDiarization = modelId.includes('diarization') || modelId.includes('large-v3');
-            
+
             formData.append('model', pytorchModelName);
             formData.append('enable_diarization', enableDiarization ? 'true' : 'false');
-            
+
             console.log(`🎯 Transcribing with PyTorch model: ${pytorchModelName}${enableDiarization ? ' + DIARIZATION 🎭' : ''}`);
             setProgress(60);
-            
+
             const response = await fetch(`${PYTORCH_SERVICE_URL}/transcribe`, {
               method: 'POST',
               body: formData,
               signal: AbortSignal.timeout(600000), // 10 minutes timeout (modèle large-v3 + diarization)
             });
-            
+
             if (!response.ok) {
               const errorText = await response.text();
               throw new Error(`PyTorch transcription failed: ${errorText}`);
             }
-            
+
             const result = await response.json();
             setProgress(90);
-            
+
             console.log(`✅ PyTorch transcription completed in ${result.processing_time}s`);
-            
+
             // Convert PyTorch response to our format
             const transcriptionResult: LocalTranscriptionResult = {
               text: cleanHallucinations(result.transcript || ''),
               chunks: result.segments?.map((seg: any, idx: number) => ({
                 start: seg.start || 0,
                 end: seg.end || 0,
-                speaker: result.speakers?.find((s: any) => 
+                speaker: result.speakers?.find((s: any) =>
                   s.start <= seg.start && s.end >= seg.end
                 )?.speaker || `Locuteur_${String((idx % 3) + 1).padStart(2, '0')}`,
                 text: cleanHallucinations(seg.text || ''),
               })) || []
             };
-            
+
             setProgress(100);
             setIsTranscribing(false);
             console.log('🎉 Server-side transcription completed successfully!');
             resolve(transcriptionResult);
             return;
-            
+
           } catch (serverError: any) {
             console.error('❌ PyTorch service error:', serverError);
-            
+
             // Check if it's a connection error
             if (serverError.message.includes('Failed to fetch') || serverError.message.includes('not available')) {
               const errorMsg = `⚠️ Le service PyTorch n'est pas démarré.
@@ -561,7 +561,7 @@ export function useLocalTranscription(): UseLocalTranscriptionReturn {
 💡 Alternatives:
    • Utilisez un modèle léger (Whisper Tiny/Base, Moonshine)
    • Utilisez la transcription cloud (OpenAI/Google)`;
-              
+
               setError(errorMsg);
               setIsTranscribing(false);
               reject(new Error(errorMsg));
@@ -571,13 +571,13 @@ export function useLocalTranscription(): UseLocalTranscriptionReturn {
             }
           }
         }
-        
+
         // Check WebGPU support first
         const webGPUSupported = await checkWebGPUSupport();
         const device = webGPUSupported ? 'webgpu' : 'wasm';
-        
+
         console.log(`🔧 Hardware acceleration: ${webGPUSupported ? '✅ WebGPU (Apple Silicon GPU)' : '⚠️ WASM (CPU only)'}`);
-        
+
         if (webGPUSupported) {
           console.log('🍎 Utilizing Apple Silicon GPU through WebGPU for maximum performance!');
         } else {
@@ -613,21 +613,21 @@ export function useLocalTranscription(): UseLocalTranscriptionReturn {
         console.log('📦 Loading Transformers.js library...');
         const transformers = await import('@huggingface/transformers');
         console.log('✅ Transformers.js loaded successfully');
-        
+
         setProgress(15);
-        
+
         console.log('🤖 Initializing speech recognition pipeline...');
-        
+
         // Use cached model or create new one with WebGPU support
         if (!transcriptionRef.current || transcriptionRef.current.modelId !== modelId || transcriptionRef.current.device !== device) {
           console.log(`⬇️ Loading model: ${modelId} with ${device.toUpperCase()}`);
           setProgress(20);
-          
+
           try {
             // Create pipeline with WebGPU support
             // Use more conservative settings for better compatibility
             const isLargeModel = modelId.includes('medium') || modelId.includes('large') || modelId.includes('distil-large');
-            
+
             // For WebGPU, use more conservative dtype settings to avoid execution errors
             let dtype;
             if (webGPUSupported) {
@@ -642,14 +642,14 @@ export function useLocalTranscription(): UseLocalTranscriptionReturn {
               // WASM: always use quantized to save memory
               dtype = { encoder_model: 'fp32' as const, decoder_model_merged: 'q4' as const };
             }
-            
+
             console.log(`🔧 Using dtype configuration:`, dtype, `for model size: ${isLargeModel ? 'LARGE' : 'SMALL'}, device: ${device.toUpperCase()}`);
-            
+
             const transcriber = await transformers.pipeline('automatic-speech-recognition', modelId, {
               dtype: dtype,
               device: device, // This will use WebGPU if supported, fallback to WASM
             });
-            
+
             transcriptionRef.current = {
               modelId,
               device,
@@ -658,7 +658,7 @@ export function useLocalTranscription(): UseLocalTranscriptionReturn {
             console.log(`✅ Model loaded successfully with ${device.toUpperCase()}!`);
           } catch (modelError: any) {
             console.error('❌ Model loading failed:', modelError);
-            
+
             // Provide specific error messages
             if (modelError.message.includes('404') || modelError.message.includes('Not Found')) {
               throw new Error('Model not found on Hugging Face. Please try a different model or use cloud transcription.');
@@ -676,7 +676,7 @@ export function useLocalTranscription(): UseLocalTranscriptionReturn {
                   },
                   device: 'wasm',
                 });
-                
+
                 transcriptionRef.current = {
                   modelId,
                   device: 'wasm',
@@ -693,34 +693,34 @@ export function useLocalTranscription(): UseLocalTranscriptionReturn {
         } else {
           console.log(`♻️ Using cached model with ${device.toUpperCase()}`);
         }
-        
+
         setProgress(60);
-        
+
         console.log('🎵 Processing audio file...');
-        
+
         // Convert Blob to URL for read_audio
         const audioUrl = URL.createObjectURL(audioBlob);
-        
+
         try {
           // Check if we were cancelled
           if (abortControllerRef.current?.signal.aborted) {
             throw new Error('Transcription cancelled');
           }
-          
+
           // Use read_audio to properly process the audio data
           console.log('🔊 Reading and resampling audio...');
           const audioData = await transformers.read_audio(audioUrl, 16000);
-          
+
           setProgress(70);
-          
+
           // Check if we were cancelled
           if (abortControllerRef.current?.signal.aborted) {
             throw new Error('Transcription cancelled');
           }
-          
+
           const currentDevice = transcriptionRef.current.device;
           console.log(`🎙️ Starting transcription process with ${currentDevice.toUpperCase()}...`);
-          
+
           try {
             const result = await transcriptionRef.current.transcriber(audioData, {
               return_timestamps: true,
@@ -735,15 +735,15 @@ export function useLocalTranscription(): UseLocalTranscriptionReturn {
               length_penalty: 1.0,     // Neutral length preference
               num_beams: 1,           // Greedy decoding for consistency
             });
-            
+
             setProgress(90);
-            
+
             console.log('📝 Transcription completed:', result);
             console.log(`⚡ Processing completed using ${currentDevice.toUpperCase()}${webGPUSupported ? ' (Apple Silicon GPU)' : ' (CPU)'}!`);
-            
+
             // Clean up the blob URL
             URL.revokeObjectURL(audioUrl);
-            
+
             // Format result to match our expected structure
             const formattedResult: LocalTranscriptionResult = {
               text: cleanHallucinations(result.text || ''),
@@ -759,31 +759,31 @@ export function useLocalTranscription(): UseLocalTranscriptionReturn {
                 text: cleanHallucinations(result.text || '')
               }]
             };
-            
+
             setProgress(100);
             setIsTranscribing(false);
-            
+
             console.log(`🎉 Local transcription completed successfully using ${currentDevice.toUpperCase()}!`);
             resolve(formattedResult);
-            
+
           } catch (transcriptionError: any) {
             console.error('🚫 Transcription execution error:', transcriptionError);
-            
+
             // Handle WebGPU execution errors by falling back to WASM
             if (currentDevice === 'webgpu' && (
-              typeof transcriptionError === 'number' || 
+              typeof transcriptionError === 'number' ||
               transcriptionError.message?.includes('execution failed') ||
               transcriptionError.message?.includes('WebGPU') ||
               /^\d+$/.test(String(transcriptionError)) ||
               String(transcriptionError).match(/^\d{8,}$/) // Large error codes
             )) {
               console.log('🔄 WebGPU execution failed, retrying with WASM...');
-              
+
               try {
                 // Force reload with WASM
                 console.log('🤖 Reloading model with WASM...');
                 const transformers = await import('@huggingface/transformers');
-                
+
                 const transcriber = await transformers.pipeline('automatic-speech-recognition', modelId, {
                   dtype: {
                     encoder_model: 'fp32' as const,
@@ -791,15 +791,15 @@ export function useLocalTranscription(): UseLocalTranscriptionReturn {
                   },
                   device: 'wasm',
                 });
-                
+
                 transcriptionRef.current = {
                   modelId,
                   device: 'wasm',
                   transcriber
                 };
-                
+
                 console.log('✅ Model reloaded with WASM, retrying transcription...');
-                
+
                 // Retry transcription with WASM
                 const result = await transcriber(audioData, {
                   return_timestamps: true,
@@ -814,15 +814,15 @@ export function useLocalTranscription(): UseLocalTranscriptionReturn {
                   length_penalty: 1.0,
                   num_beams: 1,
                 });
-                
+
                 setProgress(90);
-                
+
                 console.log('📝 Transcription completed with WASM fallback:', result);
                 console.log('⚡ Processing completed using WASM (CPU)!');
-                
+
                 // Clean up the blob URL
                 URL.revokeObjectURL(audioUrl);
-                
+
                 // Format result
                 const formattedResult: LocalTranscriptionResult = {
                   text: cleanHallucinations((result as any).text || ''),
@@ -838,14 +838,14 @@ export function useLocalTranscription(): UseLocalTranscriptionReturn {
                     text: cleanHallucinations((result as any).text || '')
                   }]
                 };
-                
+
                 setProgress(100);
                 setIsTranscribing(false);
-                
+
                 console.log('🎉 Local transcription completed successfully using WASM fallback!');
                 resolve(formattedResult);
                 return; // Exit successfully
-                
+
               } catch (wasmFallbackError: any) {
                 console.error('❌ WASM fallback also failed:', wasmFallbackError);
                 throw new Error(`Both WebGPU and WASM failed. ${wasmFallbackError.message}. Please try cloud transcription for guaranteed results.`);
@@ -855,16 +855,16 @@ export function useLocalTranscription(): UseLocalTranscriptionReturn {
               throw transcriptionError;
             }
           }
-          
+
         } catch (audioError: any) {
           // Clean up the blob URL in case of error
           URL.revokeObjectURL(audioUrl);
           throw audioError;
         }
-        
+
       } catch (error: any) {
         console.error('💥 Local transcription error:', error);
-        
+
         // Check if it was cancelled
         if (error.message === 'Transcription cancelled') {
           setError('Transcription cancelled by user');
@@ -872,10 +872,10 @@ export function useLocalTranscription(): UseLocalTranscriptionReturn {
           reject(new Error('Transcription cancelled'));
           return;
         }
-        
+
         // Provide user-friendly error messages
         let userMessage: string;
-        
+
         // Handle numeric error codes (WebGPU/ONNX errors)
         if (typeof error === 'number' || (error.message && /^\d+$/.test(error.message))) {
           userMessage = `WebGPU execution failed (code: ${error.message || error}). Your GPU may not support this model size. Try a smaller model or use cloud transcription.`;
@@ -898,7 +898,7 @@ export function useLocalTranscription(): UseLocalTranscriptionReturn {
         } else {
           userMessage = error.message;
         }
-        
+
         setError(userMessage);
         setIsTranscribing(false);
         reject(new Error(userMessage));
@@ -918,22 +918,22 @@ export function useLocalTranscription(): UseLocalTranscriptionReturn {
 
   // ✅ Enhanced LLM function with Voxtral capabilities (100% private when possible)
   const enhanceWithLocalLLM = useCallback(async (
-    transcript: string, 
-    prompts: {title?: string, summary?: string, transcript?: string},
+    transcript: string,
+    prompts: { title?: string, summary?: string, transcript?: string },
     ollamaModel?: string // Nouveau paramètre optionnel
-  ): Promise<{title: string, summary: string, enhancedTranscript?: any}> => {
+  ): Promise<{ title: string, summary: string, enhancedTranscript?: any }> => {
     try {
       console.log('🧠 Starting intelligent transcript enhancement...');
-      
+
       // Priority 1: Try Ollama if model is specified
       if (ollamaModel && ollamaModel !== 'none') {
         console.log(`🦙 Trying Ollama with model: ${ollamaModel}`);
-        
+
         try {
           console.log(`⏱️ Generating with Ollama (${ollamaModel})... This may take up to 3 minutes on slower systems.`);
           const result = await ollama.generateTitleAndSummary(ollamaModel, transcript, prompts);
           console.log('✅ Ollama enhancement completed successfully');
-          
+
           return {
             title: result.title,
             summary: result.summary,
@@ -941,7 +941,7 @@ export function useLocalTranscription(): UseLocalTranscriptionReturn {
           };
         } catch (ollamaError) {
           console.warn('⚠️ Ollama enhancement failed, falling back to rule-based generation:', ollamaError);
-          
+
           // Show user-friendly message if timeout
           if (ollamaError instanceof Error && (ollamaError.message.includes('timeout') || ollamaError.message.includes('timed out'))) {
             console.error('💡 Ollama took more than 10 minutes (CPU is too slow). Solutions:');
@@ -953,13 +953,13 @@ export function useLocalTranscription(): UseLocalTranscriptionReturn {
           }
         }
       }
-      
+
       // Priority 2: Check if we have access to Voxtral for advanced semantic understanding
       const mistralApiKey = getMistralApiKey();
-      
+
       if (mistralApiKey) {
         console.log('🎯 Using Voxtral for advanced semantic analysis...');
-        
+
         try {
           // Use Voxtral's native understanding capabilities for better enhancement
           const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
@@ -996,20 +996,20 @@ RÉSUMÉ: [résumé des points clés et actions]`
               max_tokens: 400
             }),
           });
-          
+
           if (response.ok) {
             const result = await response.json();
             const content = result.choices[0]?.message?.content || '';
-            
+
             // Parse Voxtral's structured response
             const titleMatch = content.match(/TITRE:\s*(.+)/);
             const summaryMatch = content.match(/RÉSUMÉ:\s*(.+)/);
-            
+
             const title = titleMatch?.[1]?.trim() || transcript.split(/[.!?]+/)[0]?.trim() || 'Réunion enregistrée';
             const summary = summaryMatch?.[1]?.trim() || `Analyse Voxtral terminée. ${transcript.split(/[.!?]+/).length} phrases analysées.`;
-            
+
             console.log('✅ Voxtral semantic enhancement completed with advanced understanding');
-            
+
             return {
               title: title.length > 60 ? title.substring(0, 60) + '...' : title,
               summary: summary.length > 200 ? summary.substring(0, 200) + '...' : summary,
@@ -1020,43 +1020,43 @@ RÉSUMÉ: [résumé des points clés et actions]`
           console.warn('⚠️ Voxtral enhancement failed, falling back to local processing:', voxtralError);
         }
       }
-      
+
       console.log('📝 Using local rule-based enhancement (100% private)...');
       console.log('📝 Applying custom prompts:', prompts); // Use the prompts parameter
-      
+
       // Enhanced rule-based approach with better keyword detection
       const sentences = transcript.split(/[.!?]+/).filter(s => s.trim().length > 10);
-      
+
       // Smart title generation (look for meeting purpose or main topic)
       let title = '';
       const titleKeywords = ['réunion', 'point', 'sujet', 'ordre du jour', 'meeting', 'discussion', 'projet'];
-      const titleSentence = sentences.find(s => 
+      const titleSentence = sentences.find(s =>
         titleKeywords.some(kw => s.toLowerCase().includes(kw))
       ) || sentences[0];
-      
+
       // Clean up the title (remove common prefixes)
       let cleanTitle = titleSentence?.trim() || '';
       cleanTitle = cleanTitle
         .replace(/^(bonjour|salut|hello|bienvenue|merci|alors|donc|voilà|ok|d'accord)[,\s]*/gi, '')
         .replace(/^(aujourd'hui|ce matin|cet après-midi|ce soir)[,\s]*/gi, '')
         .trim();
-      
+
       title = cleanTitle.substring(0, 60) + (cleanTitle.length > 60 ? '...' : '') || 'Réunion';
-      
+
       // Enhanced summary with intelligent extraction
       const keyPhrases = [
-        'nous devons', 'il faut', 'important', 'décision', 'action', 'problème', 
+        'nous devons', 'il faut', 'important', 'décision', 'action', 'problème',
         'solution', 'objectif', 'résultat', 'conclusion', 'prochaine étape',
         'à faire', 'urgent', 'priorité', 'deadline', 'échéance', 'prévu', 'planifié'
       ];
-      
-      const importantSentences = sentences.filter(sentence => 
+
+      const importantSentences = sentences.filter(sentence =>
         keyPhrases.some(phrase => sentence.toLowerCase().includes(phrase))
       ).slice(0, 3);
-      
+
       // Build a structured summary
       let summary = '';
-      
+
       if (importantSentences.length > 0) {
         summary = '**Points clés discutés:**\n\n' + importantSentences
           .map((s, i) => `${i + 1}. ${s.trim()}`)
@@ -1066,35 +1066,35 @@ RÉSUMÉ: [résumé des points clés et actions]`
         const meaningfulSentences = sentences
           .filter(s => s.split(' ').length > 5) // At least 5 words
           .slice(0, 3);
-        
+
         summary = '**Résumé de la conversation:**\n\n' + meaningfulSentences
           .map(s => s.trim())
           .join('. ') + '.';
       }
-      
+
       // Add context about participants if available
       const participantMentions = transcript.match(/\b(je|tu|il|elle|nous|vous|ils|elles)\b/gi) || [];
       const uniquePronouns = new Set(participantMentions.map(p => p.toLowerCase()));
-      
+
       if (uniquePronouns.size > 2) {
         summary += '\n\n_Discussion impliquant plusieurs participants._';
       }
-      
+
       console.log('✅ Local enhancement completed with smart analysis');
-      
+
       return {
         title: title,
         summary: summary,
         enhancedTranscript: null // Will implement later with local LLM
       };
-      
+
     } catch (error) {
       console.error('❌ Local LLM enhancement failed:', error);
-      
+
       // Fallback to basic extraction
       const title = transcript.split('.')[0]?.trim().substring(0, 60) + '...' || 'Réunion';
       const summary = transcript.substring(0, 200) + '...';
-      
+
       return { title, summary, enhancedTranscript: null };
     }
   }, [ollama]);
@@ -1115,28 +1115,28 @@ RÉSUMÉ: [résumé des points clés et actions]`
     modelId: string,
     onSegmentReceived?: (segment: { text: string; start: number; end: number; speaker?: string | null }) => void
   ): Promise<LocalTranscriptionResult> => {
-    
+
     console.log(`%c[streaming] 🚀 STARTING STREAMING TRANSCRIPTION`, 'color: #7c3aed; font-weight: bold; font-size: 16px');
     console.log(`[streaming] 📋 Model: ${modelId}`);
     console.log(`[streaming] 📊 Audio size: ${(audioBlob.size / 1024).toFixed(2)} KB`);
-    
+
     setIsTranscribing(true);
     setProgress(5);
     setError(null);
-    
+
     try {
       // Détection du modèle
       const needsDiarization = modelId.includes('diarization') || modelId.includes('+diarization');
-      
+
       // 🏆 PRIORITÉ 1: WhisperX si diarization demandée
       if (needsDiarization) {
         console.log('[streaming] 🏆 Diarization needed, checking WhisperX...');
         const isWhisperXAvailable = await checkWhisperXAvailability();
-        
+
         if (isWhisperXAvailable) {
           console.log(`%c[streaming] 🏆 USING WHISPERX STREAMING!`, 'color: #7c3aed; font-weight: bold');
           setProgress(10);
-          
+
           const result = await transcribeWithWhisperXStreamingClient(
             audioBlob,
             {
@@ -1161,7 +1161,7 @@ RÉSUMÉ: [résumé des points clés et actions]`
               setProgress(progressUpdate.progress || 0);
             }
           );
-          
+
           // Formater le résultat
           const transcriptionResult: LocalTranscriptionResult = {
             text: cleanHallucinations(result.text || ''),
@@ -1172,37 +1172,37 @@ RÉSUMÉ: [résumé des points clés et actions]`
               text: cleanHallucinations(seg.text || ''),
             })) || []
           };
-          
+
           setProgress(100);
           setIsTranscribing(false);
           console.log(`%c[streaming] 🎉 STREAMING SUCCESS!`, 'color: #16a34a; font-weight: bold; font-size: 16px');
-          
+
           return transcriptionResult;
         } else {
           console.warn('⚠️ WhisperX not available for streaming, falling back to batch...');
         }
       }
-      
+
       // 🚀 PRIORITÉ 2: whisper.cpp streaming (si disponible dans le futur)
       // TODO: Implémenter whisper.cpp streaming si leur API le supporte
-      
+
       // 📦 FALLBACK: Mode batch classique (pas de streaming)
       console.log(`%c[streaming] ⚠️ Streaming not available, falling back to BATCH mode`, 'color: #f59e0b; font-weight: bold');
       const result = await transcribe(audioBlob, modelId);
-      
+
       setProgress(100);
       setIsTranscribing(false);
-      
+
       return result;
-      
+
     } catch (error: any) {
       console.error(`%c[streaming] ❌ STREAMING FAILED`, 'color: #dc2626; font-weight: bold');
       console.error('[streaming] Error:', error);
-      
+
       setError(error.message || 'Streaming transcription failed');
       setIsTranscribing(false);
       setProgress(0);
-      
+
       throw new Error(`Streaming transcription failed: ${error.message || 'Unknown error'}`);
     }
   }, [transcribe, checkWhisperXAvailability]);
@@ -1217,37 +1217,37 @@ RÉSUMÉ: [résumé des points clés et actions]`
     chunkIndex: number,
     onSegmentReceived: (segment: { text: string; start: number; end: number; speaker?: string | null }) => void
   ): Promise<void> => {
-    
+
     const chunkStartTime = Date.now();
     console.log(`%c[chunkLive] 🚀 TRANSCRIBING CHUNK #${chunkIndex} - STARTED AT ${new Date().toLocaleTimeString()}`, 'color: #7c3aed; font-weight: bold; font-size: 14px; background: #ede9fe; padding: 4px 8px');
     console.log(`[chunkLive] 📊 Chunk size: ${(chunk.size / 1024).toFixed(2)} KB`);
-    
+
     try {
       // Vérifier que WhisperX est disponible
       console.log(`[chunkLive] 🔍 Checking WhisperX availability for chunk #${chunkIndex}...`);
       const availabilityCheckStart = Date.now();
       const isWhisperXAvailable = await checkWhisperXAvailability();
       const availabilityCheckTime = Date.now() - availabilityCheckStart;
-      
+
       console.log(`[chunkLive] WhisperX availability check took ${availabilityCheckTime}ms`);
-      
+
       if (!isWhisperXAvailable) {
         console.warn(`%c[chunkLive] ❌ WhisperX NOT AVAILABLE for chunk #${chunkIndex}!`, 'color: #dc2626; font-weight: bold; background: #fee; padding: 4px 8px');
         console.warn(`[chunkLive] 💡 Make sure WhisperX is running: docker ps | grep whisperx`);
         console.warn(`[chunkLive] 💡 Test manually: curl http://localhost:8082/health`);
         return;
       }
-      
+
       console.log(`%c[chunkLive] ✅ WhisperX AVAILABLE! Starting transcription...`, 'color: #16a34a; font-weight: bold');
-      
+
       // Calculer l'offset de temps pour ce chunk (20s par chunk)
       const CHUNK_DURATION_SECONDS = 20;
       const timeOffset = chunkIndex * CHUNK_DURATION_SECONDS;
-      
+
       // Transcrire le chunk avec WhisperX en streaming
       console.log(`[chunkLive] 📡 Calling WhisperX streaming API for chunk #${chunkIndex}...`);
       const transcriptionStart = Date.now();
-      
+
       let segmentCount = 0;
       await transcribeWithWhisperXStreamingClient(
         chunk,
@@ -1266,31 +1266,31 @@ RÉSUMÉ: [résumé des points clés et actions]`
             end: segment.end + timeOffset,
             speaker: segment.speaker
           };
-          
+
           const segmentReceivedTime = Date.now();
           const elapsedSinceChunkStart = segmentReceivedTime - chunkStartTime;
-          
+
           console.log(`%c[chunkLive] 🎤 SEGMENT #${segmentCount} from chunk #${chunkIndex} (${elapsedSinceChunkStart}ms since chunk start)`, 'color: #16a34a; font-weight: bold; background: #f0fdf4; padding: 4px 8px');
           console.log(`[chunkLive]   └─ Text: "${adjustedSegment.text}"`);
           console.log(`[chunkLive]   └─ Speaker: ${adjustedSegment.speaker || 'Unknown'}`);
           console.log(`[chunkLive]   └─ Time: ${adjustedSegment.start.toFixed(2)}s - ${adjustedSegment.end.toFixed(2)}s`);
-          
+
           console.log(`%c[chunkLive] 🔄 CALLING onSegmentReceived callback...`, 'color: #3b82f6; font-weight: bold');
           onSegmentReceived(adjustedSegment);
           console.log(`%c[chunkLive] ✅ Callback executed successfully`, 'color: #16a34a');
         },
         // Callback de progression (ignoré pour les chunks live)
-        () => {}
+        () => { }
       );
-      
+
       const transcriptionTime = Date.now() - transcriptionStart;
       const totalTime = Date.now() - chunkStartTime;
-      
+
       console.log(`%c[chunkLive] ✅ Chunk #${chunkIndex} transcribed successfully!`, 'color: #16a34a; font-weight: bold; font-size: 14px; background: #f0fdf4; padding: 4px 8px');
       console.log(`[chunkLive]   └─ Segments received: ${segmentCount}`);
       console.log(`[chunkLive]   └─ Transcription time: ${transcriptionTime}ms`);
       console.log(`[chunkLive]   └─ Total time: ${totalTime}ms`);
-      
+
     } catch (error: any) {
       // Ne pas faire échouer toute la transcription si un chunk échoue
       console.error(`%c[chunkLive] ❌ Chunk #${chunkIndex} transcription failed`, 'color: #dc2626; font-weight: bold');

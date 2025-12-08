@@ -4,7 +4,7 @@ import { supabase } from '../../../lib/supabase';
 import { Button } from '../../../components/ui/Button';
 import Waveform from '../../../components/meetings/Waveform';
 import toast from 'react-hot-toast';
-import { Calendar, Clock, Users, FileText, Play, Download, Check, X, Sparkles, MessageSquare, BarChart3, ArrowLeft, Copy, User, Edit2, FileDown, FileType, Table, Code } from 'lucide-react';
+import { Calendar, Clock, Users, FileText, Play, Download, Check, X, Sparkles, MessageSquare, BarChart3, ArrowLeft, Copy, User, Edit2, FileDown, FileType, Table, Code, Wand2 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import { useTranslation } from 'react-i18next';
 import { useLocalTranscription } from '../../../hooks/useLocalTranscription';
@@ -68,10 +68,23 @@ const hasUtterancesFormat = (transcript: Transcript): transcript is { utterances
   return !Array.isArray(transcript) && 'utterances' in transcript;
 };
 
-export default function MeetingDetailsPage() {
+// Add prompt template type
+interface PromptTemplate {
+  id: string;
+  name: string;
+  content: string;
+  category: string;
+}
+
+export default function MeetingDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { t, i18n } = useTranslation();
+
+  // Prompt selection state
+  const [promptTemplates, setPromptTemplates] = useState<PromptTemplate[]>([]);
+  const [selectedSummaryPromptId, setSelectedSummaryPromptId] = useState<string>('default');
+  const [selectedTitlePromptId, setSelectedTitlePromptId] = useState<string>('default');
   const { generateTitle, generateSummary } = useLocalTranscription();
 
   const [meeting, setMeeting] = useState<MeetingData | null>(null);
@@ -130,9 +143,25 @@ export default function MeetingDetailsPage() {
     }
   }, [id, navigate]);
 
+  const fetchPromptTemplates = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('prompt_templates')
+        .select('*')
+        .order('name', { ascending: true });
+
+      if (error) throw error;
+      setPromptTemplates(data || []);
+    } catch (error) {
+      console.error('Error fetching prompt templates:', error);
+      toast.error(t('meetingDetail.toastPromptLoadError'));
+    }
+  }, [t]);
+
   useEffect(() => {
     fetchMeeting();
-  }, [fetchMeeting]);
+    fetchPromptTemplates();
+  }, [fetchMeeting, fetchPromptTemplates]);
 
   const handleGenerateSummary = async () => {
     // Check if transcript exists in either format
@@ -171,14 +200,23 @@ export default function MeetingDetailsPage() {
 
       console.log(`[Meeting Detail] 📄 Transcript length: ${transcriptText.length} characters`);
 
+      // Get selected prompts content
+      const titlePromptContent = selectedTitlePromptId !== 'default'
+        ? promptTemplates.find(p => p.id === selectedTitlePromptId)?.content
+        : undefined;
+
+      const summaryPromptContent = selectedSummaryPromptId !== 'default'
+        ? promptTemplates.find(p => p.id === selectedSummaryPromptId)?.content
+        : undefined;
+
       // Generate title with configured AI provider (Ollama, OpenAI, Gemini, etc.)
       console.log('[Meeting Detail] 📝 Generating title...');
-      const generatedTitle = await generateTitle(transcriptText);
+      const generatedTitle = await generateTitle(transcriptText, titlePromptContent);
       console.log(`[Meeting Detail] ✅ Title generated: "${generatedTitle}"`);
 
       // Generate summary with configured AI provider
       console.log('[Meeting Detail] 📊 Generating summary...');
-      const generatedSummary = await generateSummary(transcriptText);
+      const generatedSummary = await generateSummary(transcriptText, summaryPromptContent);
       console.log(`[Meeting Detail] ✅ Summary generated (${generatedSummary.length} chars)`);
 
       // Update meeting in database
@@ -856,176 +894,131 @@ export default function MeetingDetailsPage() {
             <div className="xl:col-span-2 space-y-8">
 
               {/* Summary Section */}
+              {/* Summary Section */}
               <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-3xl border border-gray-200/50 dark:border-gray-700/50 shadow-xl p-8 hover:shadow-2xl transition-all duration-300">
-                <div className="flex items-center justify-between mb-8">
-                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 flex items-center justify-center mr-3 shadow-lg">
-                      <MessageSquare className="w-4 h-4 text-white" />
-                    </div>
-                    {t('meetingDetail.meetingSummary')}
-                  </h2>
-                  {!summary && meeting?.transcript && (
-                    (hasUtterancesFormat(meeting.transcript) && meeting.transcript.utterances.length > 0) ||
-                    (Array.isArray(meeting.transcript) && meeting.transcript.length > 0)
-                  ) && (
+                <div className="flex flex-col gap-4 mb-4">
+                  <h3 className="text-xl font-bold flex items-center gap-2">
+                    <Sparkles className="w-5 h-5 text-purple-500" />
+                    {t('meetingDetail.summaryTitle')}
+                  </h3>
+
+                  {!summary && !generatingSummary && (
+                    <div className="flex flex-col gap-4">
+                      <div className="flex flex-col sm:flex-row gap-3 items-end">
+                        <div className="w-full sm:w-1/2">
+                          <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">
+                            Style de Titre
+                          </label>
+                          <select
+                            className="w-full text-sm bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 rounded-lg p-2"
+                            value={selectedTitlePromptId}
+                            onChange={(e) => setSelectedTitlePromptId(e.target.value)}
+                          >
+                            <option value="default">Défaut (Standard)</option>
+                            {promptTemplates
+                              .filter(p => p.category === 'title')
+                              .map(p => (
+                                <option key={p.id} value={p.id}>{p.name}</option>
+                              ))
+                            }
+                          </select>
+                        </div>
+                        <div className="w-full sm:w-1/2">
+                          <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">
+                            Style de Résumé
+                          </label>
+                          <select
+                            className="w-full text-sm bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 rounded-lg p-2"
+                            value={selectedSummaryPromptId}
+                            onChange={(e) => setSelectedSummaryPromptId(e.target.value)}
+                          >
+                            <option value="default">Défaut (Standard)</option>
+                            {promptTemplates
+                              .filter(p => p.category === 'summary')
+                              .map(p => (
+                                <option key={p.id} value={p.id}>{p.name}</option>
+                              ))
+                            }
+                          </select>
+                        </div>
+                      </div>
                       <Button
                         onClick={handleGenerateSummary}
-                        disabled={generatingSummary}
-                        className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5"
+                        className="w-full sm:w-auto bg-purple-600 hover:bg-purple-700 text-white shadow-lg shadow-purple-500/20 self-end"
                       >
-                        {generatingSummary ? (
-                          <>
-                            <BarChart3 className="w-4 h-4 mr-2 animate-spin" />
-                            {t('meetingDetail.generating')}
-                          </>
-                        ) : (
-                          <>
-                            <Sparkles className="w-4 h-4 mr-2" />
-                            {t('meetingDetail.generateTitleSummary')}
-                          </>
-                        )}
+                        <Wand2 className="w-4 h-4 mr-2" />
+                        {t('meetingDetail.buttonGenerateSummary')}
                       </Button>
-                    )}
-                </div>
-
-                {summary ? (
-                  <div className="bg-gradient-to-r from-blue-50/50 to-indigo-50/50 dark:from-blue-900/10 dark:to-indigo-900/10 rounded-2xl p-6 border border-blue-200/30 dark:border-blue-700/30">
-                    <p className="text-gray-800 dark:text-gray-200 leading-relaxed text-lg">
-                      {summary}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-                    <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 flex items-center justify-center">
-                      <MessageSquare className="w-8 h-8 opacity-50" />
                     </div>
-                    <p className="text-lg font-medium">{t('meetingDetail.noSummary')}</p>
-                    <p className="text-sm mt-2">{t('meetingDetail.generateInsight')}</p>
-                  </div>
-                )}
+                  )}
+
+                  {generatingSummary && (
+                    <div className="flex items-center text-purple-600 animate-pulse">
+                      <BarChart3 className="w-4 h-4 mr-2 animate-spin" />
+                      {t('meetingDetail.generating')}
+                    </div>
+                  )}
+                </div>
               </div>
 
-              {/* Transcript Section */}
-              {(Array.isArray(meeting.transcript) && meeting.transcript.length > 0) ? (
-                <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-3xl border border-gray-200/50 dark:border-gray-700/50 shadow-xl p-8 hover:shadow-2xl transition-all duration-300">
-                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-8 flex items-center">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 flex items-center justify-center mr-3 shadow-lg">
-                      <FileText className="w-4 h-4 text-white" />
-                    </div>
-                    {t('meetingDetail.transcriptTitle', { count: meeting.transcript.length })}
-                  </h2>
-
-                  <div className="space-y-4 max-h-[600px] overflow-y-auto pr-4">
-                    {meeting.transcript.map((segment: any, index: number) => {
-                      // Obtenir la couleur du locuteur de manière consistante
-                      const speakerColors = [
-                        'from-blue-500 to-indigo-600',
-                        'from-green-500 to-emerald-600',
-                        'from-purple-500 to-pink-600',
-                        'from-orange-500 to-red-600',
-                        'from-cyan-500 to-blue-600',
-                        'from-yellow-500 to-orange-600'
-                      ];
-
-                      const speakerNumber = segment.speaker?.replace(/\D/g, '') || '1';
-                      const colorIndex = (parseInt(speakerNumber) - 1) % speakerColors.length;
-                      const speakerColor = speakerColors[colorIndex];
-
-                      return (
-                        <div key={index} className="group flex items-start gap-4 p-6 bg-gradient-to-r from-gray-50/50 to-white/50 dark:from-gray-700/30 dark:to-gray-600/30 rounded-2xl border border-gray-200/30 dark:border-gray-600/30 hover:shadow-lg transition-all duration-300">
-                          <div className="flex-shrink-0">
-                            <div className={`w-12 h-12 rounded-full bg-gradient-to-r ${speakerColor} flex items-center justify-center text-white shadow-lg`}>
-                              <User className="w-6 h-6" />
-                            </div>
-                            {segment.start !== undefined && (
-                              <div className="text-[10px] text-center text-gray-500 dark:text-gray-400 mt-1">
-                                {Math.floor(segment.start)}s
-                              </div>
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between mb-2">
-                              {editingSpeaker === segment.speaker ? (
-                                <div className="flex items-center gap-2">
-                                  <input
-                                    type="text"
-                                    value={tempSpeakerName}
-                                    onChange={(e) => setTempSpeakerName(e.target.value)}
-                                    className="text-sm font-medium bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded px-2 py-1 min-w-[120px]"
-                                    autoFocus
-                                    onKeyDown={(e) => {
-                                      if (e.key === 'Enter') saveSpeakerName();
-                                      if (e.key === 'Escape') cancelEditingSpeaker();
-                                    }}
-                                  />
-                                  <button
-                                    onClick={saveSpeakerName}
-                                    className="p-1 text-green-600 hover:text-green-700"
-                                    title="Sauvegarder"
-                                  >
-                                    <Check className="w-4 h-4" />
-                                  </button>
-                                  <button
-                                    onClick={cancelEditingSpeaker}
-                                    className="p-1 text-red-600 hover:text-red-700"
-                                    title="Annuler"
-                                  >
-                                    <X className="w-4 h-4" />
-                                  </button>
-                                </div>
-                              ) : (
-                                <button
-                                  onClick={() => startEditingSpeaker(segment.speaker)}
-                                  className="flex items-center gap-1 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 group/edit"
-                                  title="Cliquer pour éditer le nom"
-                                >
-                                  <span>{getSpeakerDisplayName(segment.speaker || `Locuteur ${speakerNumber}`)}</span>
-                                  <Edit2 className="w-3 h-3 opacity-0 group-hover/edit:opacity-100 transition-opacity" />
-                                </button>
-                              )}
-                              {segment.start !== undefined && segment.end !== undefined && (
-                                <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-600 px-2 py-1 rounded-full">
-                                  {Math.floor(segment.start)}s - {Math.floor(segment.end)}s
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-gray-900 dark:text-white leading-relaxed text-base">
-                              {segment.text}
-                            </p>
-                          </div>
-                          <button
-                            onClick={() => copyToClipboard(segment.text)}
-                            className="opacity-0 group-hover:opacity-100 p-2 rounded-lg bg-gray-100 dark:bg-gray-600 hover:bg-gray-200 dark:hover:bg-gray-500 transition-all duration-200"
-                            title="Copy to clipboard"
-                          >
-                            <Copy className="w-4 h-4 text-gray-600 dark:text-gray-300" />
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
+              {summary ? (
+                <div className="bg-gradient-to-r from-blue-50/50 to-indigo-50/50 dark:from-blue-900/10 dark:to-indigo-900/10 rounded-2xl p-6 border border-blue-200/30 dark:border-blue-700/30">
+                  <p className="text-gray-800 dark:text-gray-200 leading-relaxed text-lg">
+                    {summary}
+                  </p>
                 </div>
-              ) : meeting.transcript && hasUtterancesFormat(meeting.transcript) && meeting.transcript.utterances.length > 0 ? (
-                // Fallback pour l'ancien format
-                <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-3xl border border-gray-200/50 dark:border-gray-700/50 shadow-xl p-8 hover:shadow-2xl transition-all duration-300">
-                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-8 flex items-center">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 flex items-center justify-center mr-3 shadow-lg">
-                      <FileText className="w-4 h-4 text-white" />
-                    </div>
-                    Transcript
-                  </h2>
+              ) : (
+                <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 flex items-center justify-center">
+                    <MessageSquare className="w-8 h-8 opacity-50" />
+                  </div>
+                  <p className="text-lg font-medium">{t('meetingDetail.noSummary')}</p>
+                  <p className="text-sm mt-2">{t('meetingDetail.generateInsight')}</p>
+                </div>
+              )}
+            </div>
 
-                  <div className="space-y-4 max-h-[600px] overflow-y-auto pr-4">
-                    {meeting.transcript.utterances.map((utterance: any, index: number) => (
+            {/* Transcript Section */}
+            {(Array.isArray(meeting.transcript) && meeting.transcript.length > 0) ? (
+              <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-3xl border border-gray-200/50 dark:border-gray-700/50 shadow-xl p-8 hover:shadow-2xl transition-all duration-300">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-8 flex items-center">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 flex items-center justify-center mr-3 shadow-lg">
+                    <FileText className="w-4 h-4 text-white" />
+                  </div>
+                  {t('meetingDetail.transcriptTitle', { count: meeting.transcript.length })}
+                </h2>
+
+                <div className="space-y-4 max-h-[600px] overflow-y-auto pr-4">
+                  {meeting.transcript.map((segment: any, index: number) => {
+                    // Obtenir la couleur du locuteur de manière consistante
+                    const speakerColors = [
+                      'from-blue-500 to-indigo-600',
+                      'from-green-500 to-emerald-600',
+                      'from-purple-500 to-pink-600',
+                      'from-orange-500 to-red-600',
+                      'from-cyan-500 to-blue-600',
+                      'from-yellow-500 to-orange-600'
+                    ];
+
+                    const speakerNumber = segment.speaker?.replace(/\D/g, '') || '1';
+                    const colorIndex = (parseInt(speakerNumber) - 1) % speakerColors.length;
+                    const speakerColor = speakerColors[colorIndex];
+
+                    return (
                       <div key={index} className="group flex items-start gap-4 p-6 bg-gradient-to-r from-gray-50/50 to-white/50 dark:from-gray-700/30 dark:to-gray-600/30 rounded-2xl border border-gray-200/30 dark:border-gray-600/30 hover:shadow-lg transition-all duration-300">
                         <div className="flex-shrink-0">
-                          <div className="w-12 h-12 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 flex items-center justify-center text-white shadow-lg">
+                          <div className={`w-12 h-12 rounded-full bg-gradient-to-r ${speakerColor} flex items-center justify-center text-white shadow-lg`}>
                             <User className="w-6 h-6" />
                           </div>
+                          {segment.start !== undefined && (
+                            <div className="text-[10px] text-center text-gray-500 dark:text-gray-400 mt-1">
+                              {Math.floor(segment.start)}s
+                            </div>
+                          )}
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between mb-2">
-                            {editingSpeaker === `Locuteur_${utterance.speaker + 1}` ? (
+                            {editingSpeaker === segment.speaker ? (
                               <div className="flex items-center gap-2">
                                 <input
                                   type="text"
@@ -1055,333 +1048,356 @@ export default function MeetingDetailsPage() {
                               </div>
                             ) : (
                               <button
-                                onClick={() => startEditingSpeaker(`Locuteur_${utterance.speaker + 1}`)}
+                                onClick={() => startEditingSpeaker(segment.speaker)}
                                 className="flex items-center gap-1 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 group/edit"
                                 title="Cliquer pour éditer le nom"
                               >
-                                <span>{getSpeakerDisplayName(`Locuteur_${utterance.speaker + 1}`)}</span>
+                                <span>{getSpeakerDisplayName(segment.speaker || `Locuteur ${speakerNumber}`)}</span>
                                 <Edit2 className="w-3 h-3 opacity-0 group-hover/edit:opacity-100 transition-opacity" />
                               </button>
                             )}
+                            {segment.start !== undefined && segment.end !== undefined && (
+                              <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-600 px-2 py-1 rounded-full">
+                                {Math.floor(segment.start)}s - {Math.floor(segment.end)}s
+                              </span>
+                            )}
                           </div>
                           <p className="text-gray-900 dark:text-white leading-relaxed text-base">
-                            {utterance.transcript}
+                            {segment.text}
                           </p>
                         </div>
                         <button
-                          onClick={() => copyToClipboard(utterance.transcript)}
+                          onClick={() => copyToClipboard(segment.text)}
                           className="opacity-0 group-hover:opacity-100 p-2 rounded-lg bg-gray-100 dark:bg-gray-600 hover:bg-gray-200 dark:hover:bg-gray-500 transition-all duration-200"
                           title="Copy to clipboard"
                         >
                           <Copy className="w-4 h-4 text-gray-600 dark:text-gray-300" />
                         </button>
                       </div>
-                    ))}
-                  </div>
+                    );
+                  })}
                 </div>
-              ) : (
-                // Affichage par défaut quand il n'y a pas de transcript
-                <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-3xl border border-gray-200/50 dark:border-gray-700/50 shadow-xl p-8 hover:shadow-2xl transition-all duration-300">
-                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-8 flex items-center">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 flex items-center justify-center mr-3 shadow-lg">
-                      <FileText className="w-4 h-4 text-white" />
-                    </div>
-                    Transcript
-                  </h2>
+              </div>
+            ) : meeting.transcript && hasUtterancesFormat(meeting.transcript) && meeting.transcript.utterances.length > 0 ? (
+              // Fallback pour l'ancien format
+              <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-3xl border border-gray-200/50 dark:border-gray-700/50 shadow-xl p-8 hover:shadow-2xl transition-all duration-300">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-8 flex items-center">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 flex items-center justify-center mr-3 shadow-lg">
+                    <FileText className="w-4 h-4 text-white" />
+                  </div>
+                  Transcript
+                </h2>
 
-                  <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-                    <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 flex items-center justify-center">
-                      <FileText className="w-8 h-8 opacity-50" />
-                    </div>
-                    <p className="text-lg font-medium">{t('meetingDetail.transcriptProcessing')}</p>
-                    <p className="text-sm mt-2">
-                      {meeting.status === 'pending' ? t('meetingDetail.statusPendingDesc') :
-                        meeting.status === 'processing' ? t('meetingDetail.statusProcessingDesc') :
-                          t('meetingDetail.statusNoTranscript')}
-                    </p>
-                    {meeting.status === 'processing' && (
-                      <div className="mt-4 flex justify-center">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                <div className="space-y-4 max-h-[600px] overflow-y-auto pr-4">
+                  {meeting.transcript.utterances.map((utterance: any, index: number) => (
+                    <div key={index} className="group flex items-start gap-4 p-6 bg-gradient-to-r from-gray-50/50 to-white/50 dark:from-gray-700/30 dark:to-gray-600/30 rounded-2xl border border-gray-200/30 dark:border-gray-600/30 hover:shadow-lg transition-all duration-300">
+                      <div className="flex-shrink-0">
+                        <div className="w-12 h-12 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 flex items-center justify-center text-white shadow-lg">
+                          <User className="w-6 h-6" />
+                        </div>
                       </div>
-                    )}
-
-                    {/* 🚀 BOUTON POUR LANCER LA TRANSCRIPTION MANUELLEMENT */}
-                    {(meeting.status === 'pending' || !meeting.transcript || (Array.isArray(meeting.transcript) && meeting.transcript.length === 0)) && meeting.recording_url && (
-                      <button
-                        onClick={async () => {
-                          try {
-                            toast('🚀 Starting transcription...', { duration: 2000 });
-                            const { data: { session } } = await supabase.auth.getSession();
-                            const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-                            const response = await fetch(`${supabaseUrl}/functions/v1/start-transcription`, {
-                              method: 'POST',
-                              headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${session?.access_token}`,
-                              },
-                              body: JSON.stringify({
-                                meeting_id: id
-                              })
-                            });
-
-                            if (!response.ok) {
-                              throw new Error(`HTTP error! status: ${response.status}`);
-                            }
-
-                            if (!response.ok) {
-                              throw new Error(`HTTP error! status: ${response.status}`);
-                            }
-
-                            toast.success(t('meetingDetail.toastTranscribeStarted'));
-                            setTimeout(() => window.location.reload(), 2000);
-                          } catch (error) {
-                            console.error('❌ Failed to start transcription:', error);
-                            toast.error(t('meetingDetail.toastTranscribeError'));
-                          }
-                        }}
-                        className="mt-4 px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300"
-                      >
-                        🚀 {t('meetingDetail.startTranscription')}
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Sidebar */}
-            <div className="space-y-6">
-
-              {/* Meeting Info */}
-              <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-3xl border border-gray-200/50 dark:border-gray-700/50 shadow-xl p-6 hover:shadow-2xl transition-all duration-300">
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center">
-                  <div className="w-6 h-6 rounded-full bg-gradient-to-r from-purple-500 to-pink-600 flex items-center justify-center mr-3 shadow-lg">
-                    <BarChart3 className="w-3 h-3 text-white" />
-                  </div>
-                  {t('meetingDetail.meetingInfo')}
-                </h3>
-
-                <div className="space-y-6">
-                  {meeting.transcription_provider && (
-                    <div className="p-4 bg-gradient-to-r from-purple-50/50 to-pink-50/50 dark:from-purple-900/10 dark:to-pink-900/10 rounded-2xl border border-purple-200/30 dark:border-purple-700/30">
-                      <span className="text-sm text-gray-600 dark:text-gray-400 uppercase tracking-wide">{t('meetingDetail.provider')}</span>
-                      <p className="font-semibold text-gray-900 dark:text-white text-lg capitalize">
-                        {meeting.transcription_provider}
-                      </p>
-                    </div>
-                  )}
-
-                  {meeting.transcription_model && (
-                    <div className="p-4 bg-gradient-to-r from-blue-50/50 to-indigo-50/50 dark:from-blue-900/10 dark:to-indigo-900/10 rounded-2xl border border-blue-200/30 dark:border-blue-700/30">
-                      <span className="text-sm text-gray-600 dark:text-gray-400 uppercase tracking-wide">{t('meetingDetail.model')}</span>
-                      <p className="font-semibold text-gray-900 dark:text-white text-lg">
-                        {meeting.transcription_model}
-                      </p>
-                    </div>
-                  )}
-
-                  <div className="p-4 bg-gradient-to-r from-gray-50/50 to-slate-50/50 dark:from-gray-700/30 dark:to-slate-700/30 rounded-2xl border border-gray-200/30 dark:border-gray-600/30">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <span className="text-sm text-gray-600 dark:text-gray-400 uppercase tracking-wide">{t('meetingDetail.meetingId')}</span>
-                        <p className="font-mono text-sm text-gray-900 dark:text-white break-all">
-                          {meeting.id}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-2">
+                          {editingSpeaker === `Locuteur_${utterance.speaker + 1}` ? (
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                value={tempSpeakerName}
+                                onChange={(e) => setTempSpeakerName(e.target.value)}
+                                className="text-sm font-medium bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded px-2 py-1 min-w-[120px]"
+                                autoFocus
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') saveSpeakerName();
+                                  if (e.key === 'Escape') cancelEditingSpeaker();
+                                }}
+                              />
+                              <button
+                                onClick={saveSpeakerName}
+                                className="p-1 text-green-600 hover:text-green-700"
+                                title="Sauvegarder"
+                              >
+                                <Check className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={cancelEditingSpeaker}
+                                className="p-1 text-red-600 hover:text-red-700"
+                                title="Annuler"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => startEditingSpeaker(`Locuteur_${utterance.speaker + 1}`)}
+                              className="flex items-center gap-1 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 group/edit"
+                              title="Cliquer pour éditer le nom"
+                            >
+                              <span>{getSpeakerDisplayName(`Locuteur_${utterance.speaker + 1}`)}</span>
+                              <Edit2 className="w-3 h-3 opacity-0 group-hover/edit:opacity-100 transition-opacity" />
+                            </button>
+                          )}
+                        </div>
+                        <p className="text-gray-900 dark:text-white leading-relaxed text-base">
+                          {utterance.transcript}
                         </p>
                       </div>
                       <button
-                        onClick={() => copyToClipboard(meeting.id)}
-                        className="p-2 rounded-lg bg-gray-100 dark:bg-gray-600 hover:bg-gray-200 dark:hover:bg-gray-500 transition-all duration-200"
-                        title="Copy ID"
+                        onClick={() => copyToClipboard(utterance.transcript)}
+                        className="opacity-0 group-hover:opacity-100 p-2 rounded-lg bg-gray-100 dark:bg-gray-600 hover:bg-gray-200 dark:hover:bg-gray-500 transition-all duration-200"
+                        title="Copy to clipboard"
                       >
                         <Copy className="w-4 h-4 text-gray-600 dark:text-gray-300" />
                       </button>
                     </div>
-                  </div>
+                  ))}
                 </div>
               </div>
+            ) : (
+              // Affichage par défaut quand il n'y a pas de transcript
+              <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-3xl border border-gray-200/50 dark:border-gray-700/50 shadow-xl p-8 hover:shadow-2xl transition-all duration-300">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-8 flex items-center">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 flex items-center justify-center mr-3 shadow-lg">
+                    <FileText className="w-4 h-4 text-white" />
+                  </div>
+                  Transcript
+                </h2>
 
-              {/* Actions */}
-              <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-3xl border border-gray-200/50 dark:border-gray-700/50 shadow-xl p-6 hover:shadow-2xl transition-all duration-300">
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6">
-                  {t('meetingDetail.actions')}
-                </h3>
-
-                <div className="space-y-4">
-                  <Button
-                    onClick={() => setShowExportModal(true)}
-                    className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5"
-                    disabled={!meeting.transcript || (!Array.isArray(meeting.transcript) && !hasUtterancesFormat(meeting.transcript))}
-                  >
-                    <FileDown className="w-4 h-4 mr-2" />
-                    {t('meetingDetail.exportTranscript')}
-                  </Button>
-
-                  {/* Audio download section with expiration info */}
-                  {meeting.recording_url && (
-                    <div className="space-y-2">
-                      {audioInfo && (
-                        <div className={`p-3 rounded-lg text-sm ${audioInfo.expired
-                          ? 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400'
-                          : audioInfo.urgent
-                            ? 'bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 text-orange-700 dark:text-orange-400'
-                            : 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-400'
-                          }`}>
-                          <div className="flex items-center gap-2">
-                            {audioInfo.expired ? (
-                              <>
-                                <X className="w-4 h-4" />
-                                <span className="font-medium">{t('meetingDetail.audioExpired')}</span>
-                              </>
-                            ) : (
-                              <>
-                                <Clock className="w-4 h-4" />
-                                <span>{audioInfo.message}</span>
-                              </>
-                            )}
-                          </div>
-                          {!audioInfo.expired && (
-                            <p className="text-xs mt-1 opacity-80">
-                              {t('meetingDetail.audioRetentionWarning')}
-                            </p>
-                          )}
-                        </div>
-                      )}
-
-                      <Button
-                        onClick={() => window.open(meeting.recording_url!, '_blank')}
-                        variant="outline"
-                        disabled={isAudioExpired()}
-                        className={`w-full shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5 ${isAudioExpired()
-                          ? 'bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-400 dark:text-gray-500 cursor-not-allowed'
-                          : 'bg-gradient-to-r from-green-500/10 to-emerald-600/10 hover:from-green-500/20 hover:to-emerald-600/20 border-green-500/30 text-green-700 dark:text-green-400'
-                          }`}
-                      >
-                        <Download className="w-4 h-4 mr-2" />
-                        {isAudioExpired() ? t('meetingDetail.audioExpired') : t('meetingDetail.downloadAudio')}
-                      </Button>
+                <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 flex items-center justify-center">
+                    <FileText className="w-8 h-8 opacity-50" />
+                  </div>
+                  <p className="text-lg font-medium">{t('meetingDetail.transcriptProcessing')}</p>
+                  <p className="text-sm mt-2">
+                    {meeting.status === 'pending' ? t('meetingDetail.statusPendingDesc') :
+                      meeting.status === 'processing' ? t('meetingDetail.statusProcessingDesc') :
+                        t('meetingDetail.statusNoTranscript')}
+                  </p>
+                  {meeting.status === 'processing' && (
+                    <div className="mt-4 flex justify-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
                     </div>
                   )}
 
-                  <Button
-                    onClick={() => navigate('/tabs/meetings')}
-                    variant="outline"
-                    className="w-full bg-white/80 dark:bg-gray-700/80 backdrop-blur-sm border-gray-200/50 dark:border-gray-600/50 hover:bg-gray-50/80 dark:hover:bg-gray-600/80 transition-all duration-300 hover:-translate-y-0.5 shadow-lg"
-                  >
-                    <ArrowLeft className="w-4 h-4 mr-2" />
-                    {t('meetingDetail.backToMeetings')}
+                  {/* 🚀 BOUTON POUR LANCER LA TRANSCRIPTION MANUELLEMENT */}
+                  {(meeting.status === 'pending' || !meeting.transcript || (Array.isArray(meeting.transcript) && meeting.transcript.length === 0)) && meeting.recording_url && (
+                    <button
+                      onClick={async () => {
+                        try {
+                          toast('🚀 Starting transcription...', { duration: 2000 });
+                          const { data: { session } } = await supabase.auth.getSession();
+                          const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+                          const response = await fetch(`${supabaseUrl}/functions/v1/start-transcription`, {
+                            method: 'POST',
+                            headers: {
+                              'Content-Type': 'application/json',
+                              'Authorization': `Bearer ${session?.access_token}`,
+                            },
+                            body: JSON.stringify({
+                              meeting_id: id
+                            })
+                          });
+
+                          if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                          }
+
+                          if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                          }
+
+                          toast.success(t('meetingDetail.toastTranscribeStarted'));
+                          setTimeout(() => window.location.reload(), 2000);
+                        } catch (error) {
+                          console.error('❌ Failed to start transcription:', error);
+                          toast.error(t('meetingDetail.toastTranscribeError'));
+                        }
+                      }}
+                      className="mt-4 px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300"
+                    >
+                      🚀 {t('meetingDetail.startTranscription')}
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Sidebar */}
+          <div className="space-y-6">
+
+            {/* Meeting Info */}
+            <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-3xl border border-gray-200/50 dark:border-gray-700/50 shadow-xl p-6 hover:shadow-2xl transition-all duration-300">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center">
+                <div className="w-6 h-6 rounded-full bg-gradient-to-r from-purple-500 to-pink-600 flex items-center justify-center mr-3 shadow-lg">
+                  <BarChart3 className="w-3 h-3 text-white" />
+                </div>
+                {t('meetingDetail.meetingInfo')}
+              </h3>
+
+              <div className="space-y-6">
+                {meeting.transcription_provider && (
+                  <div className="p-4 bg-gradient-to-r from-purple-50/50 to-pink-50/50 dark:from-purple-900/10 dark:to-pink-900/10 rounded-2xl border border-purple-200/30 dark:border-purple-700/30">
+                    <span className="text-sm text-gray-600 dark:text-gray-400 uppercase tracking-wide">{t('meetingDetail.provider')}</span>
+                    <p className="font-semibold text-gray-900 dark:text-white text-lg capitalize">
+                      {meeting.transcription_provider}
+                    </p>
+                  </div>
+                )}
+
+                {meeting.transcription_model && (
+                  <div className="p-4 bg-gradient-to-r from-blue-50/50 to-indigo-50/50 dark:from-blue-900/10 dark:to-indigo-900/10 rounded-2xl border border-blue-200/30 dark:border-blue-700/30">
+                    <span className="text-sm text-gray-600 dark:text-gray-400 uppercase tracking-wide">{t('meetingDetail.model')}</span>
+                    <p className="font-semibold text-gray-900 dark:text-white text-lg">
+                      {meeting.transcription_model}
+                    </p>
+                  </div>
+                )}
+
+                <div className="p-4 bg-gradient-to-r from-gray-50/50 to-slate-50/50 dark:from-gray-700/30 dark:to-slate-700/30 rounded-2xl border border-gray-200/30 dark:border-gray-600/30">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-sm text-gray-600 dark:text-gray-400 uppercase tracking-wide">{t('meetingDetail.meetingId')}</span>
+                      <p className="font-mono text-sm text-gray-900 dark:text-white break-all">
+                        {meeting.id}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => copyToClipboard(meeting.id)}
+                      className="p-2 rounded-lg bg-gray-100 dark:bg-gray-600 hover:bg-gray-200 dark:hover:bg-gray-500 transition-all duration-200"
+                      title="Copy ID"
+                    >
+                      <Copy className="w-4 h-4 text-gray-600 dark:text-gray-300" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-3xl border border-gray-200/50 dark:border-gray-700/50 shadow-xl p-6 hover:shadow-2xl transition-all duration-300">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6">
+                {t('meetingDetail.actions')}
+              </h3>
+
+              <div className="space-y-4">
+                <Button
+                  onClick={() => setShowExportModal(true)}
+                  className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5"
+                  disabled={!meeting.transcript || (!Array.isArray(meeting.transcript) && !hasUtterancesFormat(meeting.transcript))}
+                >
+                  <FileDown className="w-4 h-4 mr-2" />
+                  {t('meetingDetail.exportTranscript')}
+                </Button>
+
+                {/* Audio download section with expiration info */}
+                {meeting.recording_url && (
+                  <div className="space-y-2">
+                    {audioInfo && (
+                      <div className={`p-3 rounded-lg text-sm ${audioInfo.expired
+                        ? 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400'
+                        : audioInfo.urgent
+                          ? 'bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 text-orange-700 dark:text-orange-400'
+                          : 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-400'
+                        }`}>
+                        <div className="flex items-center gap-2">
+                          {audioInfo.expired ? (
+                            <>
+                              <X className="w-4 h-4" />
+                              <span className="font-medium">{t('meetingDetail.audioExpired')}</span>
+                            </>
+                          ) : (
+                            <>
+                              <Clock className="w-4 h-4" />
+                              <span>{audioInfo.message}</span>
+                            </>
+                          )}
+                        </div>
+                        {!audioInfo.expired && (
+                          <p className="text-xs mt-1 opacity-80">
+                            {t('meetingDetail.audioRetentionWarning')}
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    <Button
+                      onClick={() => window.open(meeting.recording_url!, '_blank')}
+                      variant="outline"
+                      disabled={isAudioExpired()}
+                      className={`w-full shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5 ${isAudioExpired()
+                        ? 'bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                        : 'bg-gradient-to-r from-green-500/10 to-emerald-600/10 hover:from-green-500/20 hover:to-emerald-600/20 border-green-500/30 text-green-700 dark:text-green-400'
+                        }`}
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      {isAudioExpired() ? t('meetingDetail.audioExpired') : t('meetingDetail.downloadAudio')}
+                    </Button>
+                  </div>
+                )}
+
+                <Button
+                  onClick={() => navigate('/tabs/meetings')}
+                  variant="outline"
+                  className="w-full bg-white/80 dark:bg-gray-700/80 backdrop-blur-sm border-gray-200/50 dark:border-gray-600/50 hover:bg-gray-50/80 dark:hover:bg-gray-600/80 transition-all duration-300 hover:-translate-y-0.5 shadow-lg"
+                >
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  {t('meetingDetail.backToMeetings')}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+        {/* Export Modal */}
+        {showExportModal && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-3xl border border-gray-200/50 dark:border-gray-700/50 shadow-2xl max-w-md w-full overflow-hidden">
+              <div className="bg-gradient-to-r from-blue-500 to-indigo-600 p-6">
+                <h3 className="text-xl font-bold text-white mb-2">{t('meetingDetail.exportModalTitle')}</h3>
+                <p className="text-blue-100 text-sm">{t('meetingDetail.exportModalDesc')}</p>
+              </div>
+
+              <div className="p-6">
+                <div className="space-y-3 mb-6">
+                  {[
+                    { value: 'pdf', label: t('meetingDetail.formatPdf'), description: t('meetingDetail.formatPdfDesc'), icon: FileType, gradient: 'from-red-500 to-pink-600' },
+                    { value: 'json', label: t('meetingDetail.formatJson'), description: t('meetingDetail.formatJsonDesc'), icon: Code, gradient: 'from-yellow-500 to-orange-600' },
+                    { value: 'csv', label: t('meetingDetail.formatCsv'), description: t('meetingDetail.formatCsvDesc'), icon: Table, gradient: 'from-green-500 to-emerald-600' },
+                    { value: 'txt', label: t('meetingDetail.formatTxt'), description: t('meetingDetail.formatTxtDesc'), icon: FileText, gradient: 'from-gray-500 to-slate-600' }
+                  ].map((format) => {
+                    const IconComponent = format.icon;
+                    return (
+                      <label key={format.value} className={`flex items-start gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all duration-300 hover:shadow-lg ${exportFormat === format.value ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-gray-700/50'}`}>
+                        <input type="radio" name="exportFormat" value={format.value} checked={exportFormat === format.value} onChange={(e) => setExportFormat(e.target.value as any)} className="sr-only" />
+                        <div className={`w-12 h-12 rounded-full bg-gradient-to-r ${format.gradient} flex items-center justify-center text-white shadow-lg flex-shrink-0`}>
+                          <IconComponent className="w-6 h-6" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-semibold text-gray-900 dark:text-white">{format.label}</h4>
+                          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{format.description}</p>
+                        </div>
+                        {exportFormat === format.value && (
+                          <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center flex-shrink-0">
+                            <Check className="w-3 h-3 text-white" />
+                          </div>
+                        )}
+                      </label>
+                    );
+                  })}
+                </div>
+                <div className="flex gap-3">
+                  <Button onClick={() => setShowExportModal(false)} variant="outline" className="flex-1">{t('meetingDetail.cancel')}</Button>
+                  <Button onClick={handleExport} className="flex-1 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white" disabled={isExporting}>
+                    {isExporting ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div> : <FileDown className="w-4 h-4 mr-2" />}
+                    {isExporting ? t('meetingDetail.exporting') : t('meetingDetail.export')}
                   </Button>
                 </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
 
-      {/* Export Modal */}
-      {showExportModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-3xl border border-gray-200/50 dark:border-gray-700/50 shadow-2xl max-w-md w-full overflow-hidden">
-            <div className="bg-gradient-to-r from-blue-500 to-indigo-600 p-6">
-              <h3 className="text-xl font-bold text-white mb-2">{t('meetingDetail.exportModalTitle')}</h3>
-              <p className="text-blue-100 text-sm">{t('meetingDetail.exportModalDesc')}</p>
-            </div>
 
-            <div className="p-6">
-              <div className="space-y-3 mb-6">
-                {[
-                  {
-                    value: 'pdf' as const,
-                    label: t('meetingDetail.formatPdf'),
-                    description: t('meetingDetail.formatPdfDesc'),
-                    icon: FileType,
-                    gradient: 'from-red-500 to-pink-600'
-                  },
-                  {
-                    value: 'json' as const,
-                    label: t('meetingDetail.formatJson'),
-                    description: t('meetingDetail.formatJsonDesc'),
-                    icon: Code,
-                    gradient: 'from-yellow-500 to-orange-600'
-                  },
-                  {
-                    value: 'csv' as const,
-                    label: t('meetingDetail.formatCsv'),
-                    description: t('meetingDetail.formatCsvDesc'),
-                    icon: Table,
-                    gradient: 'from-green-500 to-emerald-600'
-                  },
-                  {
-                    value: 'txt' as const,
-                    label: t('meetingDetail.formatTxt'),
-                    description: t('meetingDetail.formatTxtDesc'),
-                    icon: FileText,
-                    gradient: 'from-gray-500 to-slate-600'
-                  }
-                ].map((format) => {
-                  const IconComponent = format.icon;
-                  return (
-                    <label
-                      key={format.value}
-                      className={`flex items-start gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all duration-300 hover:shadow-lg ${exportFormat === format.value
-                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                        : 'border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-gray-700/50 hover:border-gray-300 dark:hover:border-gray-500'
-                        }`}
-                    >
-                      <input
-                        type="radio"
-                        name="exportFormat"
-                        value={format.value}
-                        checked={exportFormat === format.value}
-                        onChange={(e) => setExportFormat(e.target.value as typeof exportFormat)}
-                        className="sr-only"
-                      />
-                      <div className={`w-12 h-12 rounded-full bg-gradient-to-r ${format.gradient} flex items-center justify-center text-white shadow-lg flex-shrink-0`}>
-                        <IconComponent className="w-6 h-6" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-semibold text-gray-900 dark:text-white">{format.label}</h4>
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{format.description}</p>
-                      </div>
-                      {exportFormat === format.value && (
-                        <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center flex-shrink-0">
-                          <Check className="w-3 h-3 text-white" />
-                        </div>
-                      )}
-                    </label>
-                  );
-                })}
-              </div>
-
-              <div className="flex gap-3">
-                <Button
-                  onClick={() => setShowExportModal(false)}
-                  variant="outline"
-                  className="flex-1"
-                >
-                  {t('meetingDetail.cancel')}
-                </Button>
-                <Button
-                  onClick={handleExport}
-                  className="flex-1 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white"
-                  disabled={isExporting}
-                >
-                  {isExporting ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      {t('meetingDetail.exporting')}
-                    </>
-                  ) : (
-                    <>
-                      <FileDown className="w-4 h-4 mr-2" />
-                      {t('meetingDetail.export')}
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
     </div>
   );
