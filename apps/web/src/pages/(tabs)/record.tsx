@@ -702,15 +702,22 @@ export default function RecordingScreen() {
         summary: summary,
         status: transcriptionResult ? 'completed' : 'pending',
         transcription_provider: transcriptionResult ? 'local' : userPreferences.transcription_provider,
-        transcription_model: userPreferences.transcription_model, // Always use user's preferred model
+        transcription_model: userPreferences.transcription_model,
         participant_count: 1,
-        // Save selected prompts for async transcription
+        // Save selected prompts for async transcription (verified: columns exist in DB)
         prompt_title: userPrompts.title || null,
         prompt_summary: userPrompts.summary || null,
         prompt_transcript: userPrompts.transcript || null
       };
 
       console.log('💾 Inserting meeting with payload:', meetingPayload);
+      console.log('📝 User prompts being saved:', {
+        title: userPrompts.title?.substring(0, 50) + '...',
+        summary: userPrompts.summary?.substring(0, 50) + '...',
+        transcript: userPrompts.transcript?.substring(0, 50) + '...'
+      });
+
+
 
 
 
