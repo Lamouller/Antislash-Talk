@@ -11,6 +11,7 @@ import { useLicense } from '../../lib/licensing';
 import { FeatureGate, FeatureComparison } from '../../components/ui/FeatureGate';
 import { Settings, Server as ServerIcon, Globe as GlobeIcon } from 'lucide-react';
 import { checkWhisperXAvailability } from '../../lib/whisperx-client';
+import { useTranslation } from 'react-i18next';
 
 type LlmProvider = 'openai' | 'anthropic' | 'google' | 'mistral';
 type SttTtsProvider = 'openai' | 'google' | 'mistral' | 'local';
@@ -248,21 +249,21 @@ const ttsModels: Record<SttTtsProvider, Model[]> = {
     { id: 'tts-1', name: 'TTS-1', description: 'Optimized for real-time.' },
     { id: 'tts-1-hd', name: 'TTS-1-HD', description: 'Optimized for quality.' },
   ],
-  google: [ 
+  google: [
     { id: 'gemini-2.0-flash-exp', name: 'Gemini 2.0 Flash TTS', description: 'Native multimodal audio generation.' },
     { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash TTS', description: 'Reliable text-to-speech generation.' },
   ],
   mistral: [
-    { 
-      id: 'mistral-tts', 
-      name: 'Mistral TTS (Coming Soon)', 
+    {
+      id: 'mistral-tts',
+      name: 'Mistral TTS (Coming Soon)',
       description: 'Advanced text-to-speech from Mistral AI. Currently not available.'
     }
   ],
   local: [
-    { 
-      id: 'browser-tts', 
-      name: 'Browser TTS', 
+    {
+      id: 'browser-tts',
+      name: 'Browser TTS',
       description: 'Uses your device\'s built-in text-to-speech. No internet required.',
       size: 'Built-in',
       languages: 'Multiple languages (device dependent)'
@@ -340,6 +341,7 @@ const ollamaModels: Model[] = [
 
 export default function SettingsScreen() {
   const navigate = useNavigate();
+  const { t, i18n } = useTranslation();
   const { runBenchmark, benchmark } = useLocalTranscription();
   const { pullModel } = useOllama();
   const [loading, setLoading] = useState(true);
@@ -347,21 +349,21 @@ export default function SettingsScreen() {
   const [apiKeys, setApiKeys] = useState<Partial<ApiKey>[]>([]);
   const [hasChanges, setHasChanges] = useState(false);
   const [downloadingModel, setDownloadingModel] = useState(false);
-  
+
   // Ollama status
   const [ollamaStatus, setOllamaStatus] = useState<{
     available: boolean;
     models: string[];
     checking: boolean;
   }>({ available: false, models: [], checking: false });
-  
+
   // PyTorch status
   const [pytorchStatus, setPytorchStatus] = useState<{
     available: boolean;
     diarization: boolean;
     checking: boolean;
   }>({ available: false, diarization: false, checking: false });
-  
+
   // WhisperX status
   const [whisperXStatus, setWhisperXStatus] = useState<{
     available: boolean;
@@ -389,7 +391,7 @@ export default function SettingsScreen() {
   // Transcription State
   const [preferredTranscriptionProvider, setPreferredTranscriptionProvider] = useState<SttTtsProvider>('openai');
   const [preferredTranscriptionModel, setPreferredTranscriptionModel] = useState<string | null>(null);
-  
+
   // TTS State
   const [selectedTtsProvider, setSelectedTtsProvider] = useState<SttTtsProvider>('openai');
   const [selectedTtsModel, setSelectedTtsModel] = useState<string | null>(null);
@@ -404,14 +406,20 @@ export default function SettingsScreen() {
 
   // Recording Behavior State
   const [autoTranscribeAfterRecording, setAutoTranscribeAfterRecording] = useState(true);
-  
+
   // Streaming Transcription State
   const [enableStreamingTranscription, setEnableStreamingTranscription] = useState(false);
   const [autoGenerateSummaryAfterStreaming, setAutoGenerateSummaryAfterStreaming] = useState(false);
-  
+
+
   // Language Preference State
   const [preferredLanguage, setPreferredLanguage] = useState<'fr' | 'en'>('fr');
-  
+
+  const changeLanguage = (lng: string) => {
+    i18n.changeLanguage(lng);
+    setPreferredLanguage(lng as 'fr' | 'en');
+  };
+
   // Marketing Pages Visibility State
   const [hideMarketingPages, setHideMarketingPages] = useState(false);
   const isMarketingPagesGloballyForced = import.meta.env.VITE_HIDE_MARKETING_PAGES === 'true';
@@ -419,24 +427,24 @@ export default function SettingsScreen() {
   const [apiKeyInputs, setApiKeyInputs] = useState({ openai: '', anthropic: '', google: '', mistral: '' });
 
   const { license, isEnterprise, upgradeUrl } = useLicense();
-  
+
   // Check Ollama availability and installed models
   const checkOllamaStatus = async () => {
     if (preferredTranscriptionProvider !== 'local') return;
-    
+
     setOllamaStatus(prev => ({ ...prev, checking: true }));
-    
+
     try {
       const OLLAMA_URL = import.meta.env.VITE_OLLAMA_URL || 'http://localhost:11434';
       const response = await fetch(`${OLLAMA_URL}/api/tags`, {
         method: 'GET',
         signal: AbortSignal.timeout(3000),
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         const installedModels = data.models?.map((m: any) => m.name.split(':')[0]) || [];
-        
+
         setOllamaStatus({
           available: true,
           models: installedModels,
@@ -449,23 +457,23 @@ export default function SettingsScreen() {
       setOllamaStatus({ available: false, models: [], checking: false });
     }
   };
-  
+
   // Check PyTorch service availability
   const checkPyTorchStatus = async () => {
     if (preferredTranscriptionProvider !== 'local') return;
-    
+
     setPytorchStatus(prev => ({ ...prev, checking: true }));
-    
+
     try {
       const PYTORCH_URL = import.meta.env.VITE_PYTORCH_SERVICE_URL || 'http://localhost:8000';
       const response = await fetch(`${PYTORCH_URL}/status`, {
         method: 'GET',
         signal: AbortSignal.timeout(3000),
       });
-      
+
       if (response.ok) {
         const data = await response.json();
-        
+
         setPytorchStatus({
           available: true,
           diarization: data.models?.diarization === true,
@@ -478,29 +486,29 @@ export default function SettingsScreen() {
       setPytorchStatus({ available: false, diarization: false, checking: false });
     }
   };
-  
+
   const checkWhisperXStatus = async () => {
     if (preferredTranscriptionProvider !== 'local') return;
-    
+
     setWhisperXStatus(prev => ({ ...prev, checking: true }));
-    
+
     try {
       const WHISPERX_URL = import.meta.env.VITE_WHISPERX_URL || 'http://localhost:8082';
       const response = await fetch(`${WHISPERX_URL}/health`, {
         method: 'GET',
         signal: AbortSignal.timeout(3000),
       });
-      
+
       if (response.ok) {
         const data = await response.json();
-        
+
         setWhisperXStatus({
           available: true,
           diarization: data.diarization_available === true,
           checking: false,
           device: data.device || 'cpu',
         });
-        
+
         // Fetch Pyannote models list if WhisperX is available
         await fetchPyannoteModels();
       } else {
@@ -510,18 +518,18 @@ export default function SettingsScreen() {
       setWhisperXStatus({ available: false, diarization: false, checking: false, device: 'cpu' });
     }
   };
-  
+
   // Download Ollama model
   const handleDownloadModel = async () => {
     if (!selectedOllamaModel || selectedOllamaModel === 'none') return;
-    
+
     setDownloadingModel(true);
     const toastId = toast.loading(`📥 Downloading ${selectedOllamaModel}... This may take a few minutes.`);
-    
+
     try {
       await pullModel(selectedOllamaModel);
       toast.success(`✅ ${selectedOllamaModel} downloaded successfully!`, { id: toastId });
-      
+
       // Refresh status to show the new model
       await checkOllamaStatus();
     } catch (error) {
@@ -559,20 +567,20 @@ export default function SettingsScreen() {
   const handleDownloadPyannote = async () => {
     setDownloadingPyannote(true);
     const toastId = toast.loading(`📥 Downloading all Pyannote models... This may take 5-10 minutes.`);
-    
+
     try {
       const response = await fetch('http://localhost:8082/download-models', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ model: 'pyannote' })
       });
-      
+
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
       }
-      
+
       toast.success(`✅ All Pyannote models downloaded successfully!`, { id: toastId });
-      
+
       // Refresh models list and WhisperX status
       await fetchPyannoteModels();
       await checkWhisperXStatus();
@@ -586,11 +594,11 @@ export default function SettingsScreen() {
       setDownloadingPyannote(false);
     }
   };
-  
+
   useEffect(() => {
     fetchProfileAndKeys();
   }, []);
-  
+
   // Check Ollama, PyTorch, and WhisperX status when transcription provider changes to local
   useEffect(() => {
     if (preferredTranscriptionProvider === 'local') {
@@ -599,7 +607,7 @@ export default function SettingsScreen() {
       checkWhisperXStatus();
     }
   }, [preferredTranscriptionProvider]);
-  
+
   // Re-check PyTorch and WhisperX when transcription model changes (to detect SERVER models and diarization)
   useEffect(() => {
     if (preferredTranscriptionProvider === 'local' && preferredTranscriptionModel) {
@@ -614,9 +622,9 @@ export default function SettingsScreen() {
   }, [preferredTranscriptionModel]);
 
   useEffect(() => {
-    if(!loading) setHasChanges(true);
+    if (!loading) setHasChanges(true);
   }, [selectedLlmProvider, selectedLlmModel, preferredTranscriptionProvider, preferredTranscriptionModel, selectedTtsProvider, selectedTtsModel, promptTitle, promptSummary, promptTranscript, autoTranscribeAfterRecording, enableStreamingTranscription, autoGenerateSummaryAfterStreaming, preferredLanguage, hideMarketingPages]);
-  
+
 
   async function fetchProfileAndKeys() {
     try {
@@ -639,7 +647,7 @@ export default function SettingsScreen() {
       const llmProvider = profileData.preferred_llm as LlmProvider || 'openai';
       setSelectedLlmProvider(llmProvider);
       setSelectedLlmModel(profileData.preferred_llm_model || llmModels[llmProvider][0].id);
-      
+
       // Load Ollama model preference (stored in same column but used for local transcriptions)
       setSelectedOllamaModel(profileData.preferred_llm_model || 'none');
 
@@ -662,17 +670,22 @@ export default function SettingsScreen() {
 
       // Set recording behavior preference
       setAutoTranscribeAfterRecording(profileData.auto_transcribe_after_recording ?? true);
-      
+
       // Set streaming transcription preference
       setEnableStreamingTranscription(profileData.enable_streaming_transcription ?? false);
       setAutoGenerateSummaryAfterStreaming(profileData.auto_generate_summary_after_streaming ?? false);
-      
+
       // Set language preference
-      setPreferredLanguage(profileData.preferred_language || 'fr');
-      
+      // Set language preference
+      const profileLang = profileData.preferred_language || 'fr';
+      setPreferredLanguage(profileLang);
+      if (profileLang !== i18n.language) {
+        i18n.changeLanguage(profileLang);
+      }
+
       // Set marketing pages visibility preference
       setHideMarketingPages(profileData.hide_marketing_pages ?? false);
-      
+
       const { data: keysData, error: keysError } = await supabase
         .from('api_keys')
         .select('provider, id')
@@ -710,7 +723,7 @@ export default function SettingsScreen() {
   async function handleSaveModelSettings() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    
+
     const updates = {
       id: user.id,
       email: user.email,
@@ -734,7 +747,7 @@ export default function SettingsScreen() {
 
     const { error } = await supabase.from('profiles').upsert(updates);
     if (error) return toast.error(error.message);
-    
+
     toast.success('Settings saved!');
     setHasChanges(false);
   }
@@ -766,17 +779,17 @@ export default function SettingsScreen() {
   // Get ALL models with annotations based on device capabilities
   const getRecommendedModels = () => {
     if (!benchmark) return transcriptionModels.local;
-    
+
     const allModels = transcriptionModels.local;
-    
+
     // Annoter TOUS les modèles selon les capacités de l'appareil
     return allModels.map(model => {
       const isRecommended = model.id === benchmark.recommendedModel;
       const isHeavy = model.id.includes('large') || model.id.includes('medium');
       const requiresServer = (model as any).requiresServer === true;
-      
+
       let annotation = '';
-      
+
       if (isRecommended) {
         annotation = ' 🎯 RECOMMANDÉ';
       } else if (requiresServer) {
@@ -786,7 +799,7 @@ export default function SettingsScreen() {
       } else if (benchmark.deviceClass === 'mid-range' && model.id.includes('large')) {
         annotation = ' ⚠️ TRÈS LOURD';
       }
-      
+
       return {
         ...model,
         name: model.name + annotation
@@ -801,7 +814,7 @@ export default function SettingsScreen() {
       <div className="relative overflow-hidden pt-8 pb-16">
         <div className="absolute inset-0 bg-gradient-to-r from-blue-600/10 via-purple-600/10 to-indigo-600/10"></div>
         <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          
+
           {/* Header */}
           <div className="text-center mb-12">
             <div className="inline-flex items-center px-4 py-2 rounded-full bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-gray-200/50 dark:border-gray-700/50 shadow-lg mb-6">
@@ -809,7 +822,7 @@ export default function SettingsScreen() {
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Application Settings</span>
             </div>
             <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-purple-800 dark:from-white dark:via-blue-200 dark:to-purple-200 bg-clip-text text-transparent mb-4">
-              Settings
+              {t('settings.title')}
             </h1>
             <div className="flex items-center justify-center gap-3">
               {isEnterprise() ? (
@@ -826,872 +839,902 @@ export default function SettingsScreen() {
 
           <div className="space-y-8">
 
-          {!isEnterprise() && (
-            <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200 dark:border-blue-700/50 rounded-lg">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-medium text-blue-800 dark:text-blue-200">
-                    🚀 Want more features?
-                  </h3>
-                  <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
-                    Upgrade to Enterprise for cloud AI, team collaboration, and priority support
-                  </p>
-                </div>
+            {/* Language Selector (New Placement) */}
+            <Card className="p-6">
+              <h2 className="text-xl font-bold mb-4 flex items-center gap-2 dark:text-white">
+                <GlobeIcon className="w-5 h-5" />
+                {t('settings.language')}
+              </h2>
+              <div className="grid grid-cols-2 gap-4">
                 <button
-                  onClick={() => window.open(upgradeUrl, '_blank')}
-                  className="px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white text-sm font-medium rounded-lg transition-colors"
+                  onClick={() => changeLanguage('fr')}
+                  className={`p-4 rounded-lg border-2 text-left transition-all ${i18n.language === 'fr'
+                    ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20 dark:border-indigo-400 dark:text-white'
+                    : 'border-slate-200 hover:border-indigo-300 dark:border-slate-700 dark:text-slate-300'
+                    }`}
                 >
-                  Upgrade
+                  <div className="font-medium">Français</div>
+                  <div className="text-sm opacity-70">Langue par défaut</div>
+                </button>
+                <button
+                  onClick={() => changeLanguage('en')}
+                  className={`p-4 rounded-lg border-2 text-left transition-all ${i18n.language === 'en'
+                    ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20 dark:border-indigo-400 dark:text-white'
+                    : 'border-slate-200 hover:border-indigo-300 dark:border-slate-700 dark:text-slate-300'
+                    }`}
+                >
+                  <div className="font-medium">English</div>
+                  <div className="text-sm opacity-70">International</div>
                 </button>
               </div>
-            </div>
-          )}
+            </Card>
 
-          {/* License Information */}
-          <div className="mb-8 p-6 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-xl border border-gray-200/50 dark:border-gray-700/50 shadow-xl">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-              📄 License Information
-            </h2>
-            <div className="grid md:grid-cols-2 gap-4">
-              <div>
-                <div className="text-sm text-gray-600 dark:text-gray-400">License Type</div>
-                <div className="font-medium text-gray-900 dark:text-white">
-                  {license.type === 'enterprise' ? '💼 Enterprise' : '🆓 Community (MIT)'}
-                </div>
-              </div>
-              <div>
-                <div className="text-sm text-gray-600 dark:text-gray-400">Support Level</div>
-                <div className="font-medium text-gray-900 dark:text-white">
-                  {license.metadata?.supportLevel === 'premium' ? '🚀 Priority Support' : '👥 Community Support'}
-                </div>
-              </div>
-              {license.metadata?.organizationId && (
-                <div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">Organization</div>
-                  <div className="font-medium text-gray-900 dark:text-white">{license.metadata.organizationId}</div>
-                </div>
-              )}
-              {license.metadata?.licenseKey && (
-                <div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">License Key</div>
-                  <div className="font-mono text-sm text-gray-700 dark:text-gray-300">
-                    {license.metadata.licenseKey.slice(0, 8)}...{license.metadata.licenseKey.slice(-4)}
-                  </div>
-                </div>
-              )}
-            </div>
             {!isEnterprise() && (
-              <div className="mt-4 pt-4 border-t border-gray-200/50 dark:border-gray-700/50">
-                <div className="text-sm text-gray-600 dark:text-gray-400">
-                  📋 Want to see what Enterprise includes? 
-                  <a href={upgradeUrl} target="_blank" rel="noopener noreferrer" className="ml-1 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium">
-                    View comparison →
-                  </a>
+              <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200 dark:border-blue-700/50 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                      🚀 Want more features?
+                    </h3>
+                    <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+                      Upgrade to Enterprise for cloud AI, team collaboration, and priority support
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => window.open(upgradeUrl, '_blank')}
+                    className="px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white text-sm font-medium rounded-lg transition-colors"
+                  >
+                    Upgrade
+                  </button>
                 </div>
               </div>
             )}
-          </div>
 
-                     {/* Existing Transcription Settings */}
-           <Card>
-             <div className="p-6">
-               <h2 className="text-xl font-bold">🎙️ Model Settings</h2>
-               <p className="mt-1 text-sm text-gray-500">Choose the AI models for different tasks.</p>
-               
-               {/* Show enterprise status */}
-               <div className="mt-4 mb-6 p-3 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
-                 <div className="flex items-center justify-between">
-                   <div className="text-sm">
-                     <span className="font-medium text-gray-900 dark:text-white">License: </span>
-                     {isEnterprise() ? (
-                       <span className="text-blue-600 dark:text-blue-400 font-medium">💼 Enterprise</span>
-                     ) : (
-                       <span className="text-gray-600 dark:text-gray-300">🆓 Community (MIT)</span>
-                     )}
-                   </div>
-                   {!isEnterprise() && (
-                     <button
-                       onClick={() => window.open(upgradeUrl, '_blank')}
-                       className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded-lg transition-colors"
-                     >
-                       Upgrade
-                     </button>
-                   )}
-                 </div>
-               </div>
-             </div>
-             
-             <div className="p-6 pt-0 space-y-6">
-               {/* Transcription */}
-               <div>
-                 <SettingSelectRow
-                   title="Transcription Settings"
-                   selectedProvider={preferredTranscriptionProvider}
-                   setSelectedProvider={(p) => setPreferredTranscriptionProvider(p as SttTtsProvider)}
-                   providers={['openai', 'google', 'mistral', 'local']}
-                   selectedModel={preferredTranscriptionModel}
-                   setSelectedModel={setPreferredTranscriptionModel}
-                   models={{
-                     ...transcriptionModels,
-                     local: preferredTranscriptionProvider === 'local' ? getRecommendedModels() : transcriptionModels.local
-                   }}
-                 />
-                 
-                {/* PyTorch Service Status (only for SERVER models) */}
-                {preferredTranscriptionProvider === 'local' && preferredTranscriptionModel && (() => {
-                  const selectedModel = transcriptionModels.local.find(m => m.id === preferredTranscriptionModel);
-                  return selectedModel && (selectedModel as any).requiresServer;
-                })() && (
-                  <div className="mt-4 p-4 bg-orange-50/50 dark:bg-orange-900/10 rounded-xl border border-orange-200/50 dark:border-orange-700/50">
-                    <div className="flex items-start gap-3 mb-3">
-                      <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-orange-500 to-red-600 flex items-center justify-center flex-shrink-0">
-                        <span className="text-white text-lg">🖥️</span>
-                      </div>
-                      <div className="flex-1">
-                        <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
-                          PyTorch Transcription Service
-                        </h3>
-                        <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
-                          Server-side Whisper models (Medium, Large) with optional diarization
-                        </p>
-                      </div>
-                    </div>
-                    
-                    {pytorchStatus.checking ? (
-                      <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700/50 rounded-lg">
-                        <p className="text-xs text-gray-600 dark:text-gray-400">
-                          🔄 Checking PyTorch service status...
-                        </p>
-                      </div>
-                    ) : pytorchStatus.available ? (
-                      <div className="mt-3 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700/50 rounded-lg">
-                        <p className="text-xs text-green-800 dark:text-green-200">
-                          ✅ <strong>PyTorch service is running!</strong>
-                        </p>
-                        <p className="text-xs text-green-700 dark:text-green-300 mt-1">
-                          {pytorchStatus.diarization ? (
-                            <>🎭 <strong>Diarization enabled</strong> - Speaker separation available</>
-                          ) : (
-                            <>
-                              ⚠️ <strong>Diarization disabled</strong> - Set HUGGINGFACE_TOKEN in docker-compose.monorepo.yml
-                              <button
-                                onClick={async () => {
-                                  try {
-                                    const toastId = toast.loading('📥 Downloading Pyannote models... This may take a few minutes.');
-                                    const response = await fetch('http://localhost:8000/download-pyannote', {
-                                      method: 'POST'
-                                    });
-                                    if (response.ok) {
-                                      toast.success('✅ Pyannote models downloaded! Diarization enabled.', { id: toastId });
-                                      await checkPyTorchStatus();
-                                    } else {
-                                      const error = await response.json();
-                                      toast.error(`❌ ${error.detail}`, { id: toastId });
-                                    }
-                                  } catch (error) {
-                                    toast.error('❌ Failed to download Pyannote models');
-                                  }
-                                }}
-                                className="ml-2 text-xs px-2 py-1 bg-purple-600 text-white rounded hover:bg-purple-700"
-                              >
-                                📥 Download Pyannote
-                              </button>
-                            </>
-                          )}
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700/50 rounded-lg">
-                        <p className="text-xs text-blue-800 dark:text-blue-200 mb-2">
-                          📦 <strong>Start PyTorch service:</strong>
-                        </p>
-                        <code className="text-xs bg-gray-900 text-green-400 p-2 rounded block font-mono">
-                          docker-compose -f docker-compose.monorepo.yml --profile pytorch up -d
-                        </code>
-                        <p className="text-xs text-blue-700 dark:text-blue-300 mt-2">
-                          💡 For diarization (speaker identification), set HUGGINGFACE_TOKEN in docker-compose.monorepo.yml
-                        </p>
-                        <button
-                          onClick={checkPyTorchStatus}
-                          className="mt-2 text-xs text-blue-600 dark:text-blue-400 hover:underline"
-                        >
-                          🔄 Check again
-                        </button>
-                      </div>
-                    )}
+            {/* License Information */}
+            <div className="mb-8 p-6 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-xl border border-gray-200/50 dark:border-gray-700/50 shadow-xl">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                📄 License Information
+              </h2>
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">License Type</div>
+                  <div className="font-medium text-gray-900 dark:text-white">
+                    {license.type === 'enterprise' ? '💼 Enterprise' : '🆓 Community (MIT)'}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">Support Level</div>
+                  <div className="font-medium text-gray-900 dark:text-white">
+                    {license.metadata?.supportLevel === 'premium' ? '🚀 Priority Support' : '👥 Community Support'}
+                  </div>
+                </div>
+                {license.metadata?.organizationId && (
+                  <div>
+                    <div className="text-sm text-gray-600 dark:text-gray-400">Organization</div>
+                    <div className="font-medium text-gray-900 dark:text-white">{license.metadata.organizationId}</div>
                   </div>
                 )}
-                
-                {/* WhisperX Service Status (only for DIARIZATION models) */}
-                {preferredTranscriptionProvider === 'local' && preferredTranscriptionModel && (() => {
-                  const selectedModel = transcriptionModels.local.find(m => m.id === preferredTranscriptionModel);
-                  return selectedModel && (selectedModel as any).supportsDiarization;
-                })() && (
-                  <div className="mt-4 p-4 bg-violet-50/50 dark:bg-violet-900/10 rounded-xl border border-violet-200/50 dark:border-violet-700/50">
-                    <div className="flex items-start gap-3 mb-3">
-                      <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-violet-600 to-purple-600 flex items-center justify-center flex-shrink-0">
-                        <span className="text-white text-lg">🏆</span>
-                      </div>
-                      <div className="flex-1">
-                        <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
-                          WhisperX Ultra-Fast Diarization
-                        </h3>
-                        <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
-                          6x faster than PyTorch + Pyannote (30-40s vs 4min per hour)
-                        </p>
-                      </div>
+                {license.metadata?.licenseKey && (
+                  <div>
+                    <div className="text-sm text-gray-600 dark:text-gray-400">License Key</div>
+                    <div className="font-mono text-sm text-gray-700 dark:text-gray-300">
+                      {license.metadata.licenseKey.slice(0, 8)}...{license.metadata.licenseKey.slice(-4)}
                     </div>
-                    
-                    {whisperXStatus.checking ? (
-                      <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700/50 rounded-lg">
-                        <p className="text-xs text-gray-600 dark:text-gray-400">
-                          🔍 Checking WhisperX service...
-                        </p>
-                      </div>
-                    ) : whisperXStatus.available ? (
-                      <div className="mt-3 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700/50 rounded-lg">
-                        <p className="text-xs text-green-800 dark:text-green-200">
-                          ✅ <strong>WhisperX service is running!</strong>
-                        </p>
-                        <p className="text-xs text-green-700 dark:text-green-300 mt-1">
-                          {whisperXStatus.diarization ? (
-                            <>🎭 <strong>Diarization enabled</strong> - Ultra-fast speaker separation on <strong>{whisperXStatus.device.toUpperCase()}</strong></>
-                          ) : (
-                            <>⚠️ <strong>Diarization disabled</strong> - Download Pyannote models below</>
-                          )}
-                        </p>
-                        <p className="text-xs text-green-600 dark:text-green-400 mt-2">
-                          ⚡ <strong>Performance:</strong> {whisperXStatus.device === 'cuda' ? '18x faster than PyTorch (GPU)' : '6x faster than PyTorch (CPU)'}
-                        </p>
-                        
-                        {/* Bouton pour télécharger Pyannote si diarization non disponible */}
-                        {!whisperXStatus.diarization && (
-                          <div className="mt-3 pt-3 border-t border-green-200 dark:border-green-700">
-                            <p className="text-xs text-green-700 dark:text-green-300 mb-3">
-                              🎭 <strong>Pyannote Models for Diarization:</strong>
+                  </div>
+                )}
+              </div>
+              {!isEnterprise() && (
+                <div className="mt-4 pt-4 border-t border-gray-200/50 dark:border-gray-700/50">
+                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                    📋 Want to see what Enterprise includes?
+                    <a href={upgradeUrl} target="_blank" rel="noopener noreferrer" className="ml-1 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium">
+                      View comparison →
+                    </a>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Existing Transcription Settings */}
+            <Card>
+              <div className="p-6">
+                <h2 className="text-xl font-bold">🎙️ Model Settings</h2>
+                <p className="mt-1 text-sm text-gray-500">Choose the AI models for different tasks.</p>
+
+                {/* Show enterprise status */}
+                <div className="mt-4 mb-6 p-3 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm">
+                      <span className="font-medium text-gray-900 dark:text-white">License: </span>
+                      {isEnterprise() ? (
+                        <span className="text-blue-600 dark:text-blue-400 font-medium">💼 Enterprise</span>
+                      ) : (
+                        <span className="text-gray-600 dark:text-gray-300">🆓 Community (MIT)</span>
+                      )}
+                    </div>
+                    {!isEnterprise() && (
+                      <button
+                        onClick={() => window.open(upgradeUrl, '_blank')}
+                        className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded-lg transition-colors"
+                      >
+                        Upgrade
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-6 pt-0 space-y-6">
+                {/* Transcription */}
+                <div>
+                  <SettingSelectRow
+                    title="Transcription Settings"
+                    selectedProvider={preferredTranscriptionProvider}
+                    setSelectedProvider={(p) => setPreferredTranscriptionProvider(p as SttTtsProvider)}
+                    providers={['openai', 'google', 'mistral', 'local']}
+                    selectedModel={preferredTranscriptionModel}
+                    setSelectedModel={setPreferredTranscriptionModel}
+                    models={{
+                      ...transcriptionModels,
+                      local: preferredTranscriptionProvider === 'local' ? getRecommendedModels() : transcriptionModels.local
+                    }}
+                  />
+
+                  {/* PyTorch Service Status (only for SERVER models) */}
+                  {preferredTranscriptionProvider === 'local' && preferredTranscriptionModel && (() => {
+                    const selectedModel = transcriptionModels.local.find(m => m.id === preferredTranscriptionModel);
+                    return selectedModel && (selectedModel as any).requiresServer;
+                  })() && (
+                      <div className="mt-4 p-4 bg-orange-50/50 dark:bg-orange-900/10 rounded-xl border border-orange-200/50 dark:border-orange-700/50">
+                        <div className="flex items-start gap-3 mb-3">
+                          <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-orange-500 to-red-600 flex items-center justify-center flex-shrink-0">
+                            <span className="text-white text-lg">🖥️</span>
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+                              PyTorch Transcription Service
+                            </h3>
+                            <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
+                              Server-side Whisper models (Medium, Large) with optional diarization
                             </p>
-                            
-                            {/* Pyannote Models List */}
-                            {pyannoteModels.length > 0 ? (
-                              <div className="space-y-2">
-                                {pyannoteModels.map((model) => (
-                                  <div 
-                                    key={model.id}
-                                    className={`flex items-center justify-between p-2 rounded-lg border ${
-                                      model.main 
-                                        ? 'bg-violet-50 dark:bg-violet-900/20 border-violet-300 dark:border-violet-700' 
-                                        : 'bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700'
-                                    }`}
-                                  >
-                                    <div className="flex-1">
-                                      <div className="flex items-center gap-2">
-                                        <span className={`text-xs font-medium ${
-                                          model.main ? 'text-violet-900 dark:text-violet-100' : 'text-gray-700 dark:text-gray-300'
-                                        }`}>
-                                          {model.name}
-                                        </span>
-                                        {model.main && (
-                                          <span className="text-[10px] px-1.5 py-0.5 bg-violet-500 text-white rounded font-semibold">
-                                            📦 MAIN MODEL
-                                          </span>
-                                        )}
-                                        {!model.main && (
-                                          <span className="text-[10px] px-1.5 py-0.5 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded">
-                                            🔄 AUTO
-                                          </span>
-                                        )}
-                                        {model.downloaded && (
-                                          <span className="text-[10px] px-1.5 py-0.5 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded">
-                                            ✓ INSTALLED
-                                          </span>
-                                        )}
-                                      </div>
-                                      <p className="text-[10px] text-gray-600 dark:text-gray-400 mt-0.5">
-                                        {model.description} • {model.size}
-                                      </p>
-                                    </div>
-                                  </div>
-                                ))}
-                                
-                                {/* Big Download button if main model not downloaded */}
-                                {pyannoteModels.some(m => m.main && !m.downloaded) && (
+                          </div>
+                        </div>
+
+                        {pytorchStatus.checking ? (
+                          <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700/50 rounded-lg">
+                            <p className="text-xs text-gray-600 dark:text-gray-400">
+                              🔄 Checking PyTorch service status...
+                            </p>
+                          </div>
+                        ) : pytorchStatus.available ? (
+                          <div className="mt-3 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700/50 rounded-lg">
+                            <p className="text-xs text-green-800 dark:text-green-200">
+                              ✅ <strong>PyTorch service is running!</strong>
+                            </p>
+                            <p className="text-xs text-green-700 dark:text-green-300 mt-1">
+                              {pytorchStatus.diarization ? (
+                                <>🎭 <strong>Diarization enabled</strong> - Speaker separation available</>
+                              ) : (
+                                <>
+                                  ⚠️ <strong>Diarization disabled</strong> - Set HUGGINGFACE_TOKEN in docker-compose.monorepo.yml
                                   <button
-                                    onClick={handleDownloadPyannote}
-                                    disabled={downloadingPyannote}
-                                    className="w-full mt-3 px-4 py-3 bg-gradient-to-r from-violet-500 to-purple-500 hover:from-violet-600 hover:to-purple-600 disabled:from-gray-400 disabled:to-gray-400 text-white text-sm font-semibold rounded-lg shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2"
+                                    onClick={async () => {
+                                      try {
+                                        const toastId = toast.loading('📥 Downloading Pyannote models... This may take a few minutes.');
+                                        const response = await fetch('http://localhost:8000/download-pyannote', {
+                                          method: 'POST'
+                                        });
+                                        if (response.ok) {
+                                          toast.success('✅ Pyannote models downloaded! Diarization enabled.', { id: toastId });
+                                          await checkPyTorchStatus();
+                                        } else {
+                                          const error = await response.json();
+                                          toast.error(`❌ ${error.detail}`, { id: toastId });
+                                        }
+                                      } catch (error) {
+                                        toast.error('❌ Failed to download Pyannote models');
+                                      }
+                                    }}
+                                    className="ml-2 text-xs px-2 py-1 bg-purple-600 text-white rounded hover:bg-purple-700"
                                   >
-                                    <span className="text-lg">📥</span>
-                                    <span>{downloadingPyannote ? 'Downloading...' : 'Download Main Model + Dependencies (2.88 GB total)'}</span>
+                                    📥 Download Pyannote
                                   </button>
-                                )}
-                                
-                                {/* All installed message */}
-                                {pyannoteModels.every(m => m.downloaded) && (
-                                  <div className="mt-3 p-2 bg-green-50 dark:bg-green-900/20 border border-green-300 dark:border-green-700 rounded-lg">
-                                    <p className="text-xs text-green-700 dark:text-green-300 text-center font-medium">
-                                      ✅ All models installed! Diarization ready.
-                                    </p>
-                                  </div>
-                                )}
-                              </div>
-                            ) : (
-                              <p className="text-xs text-gray-500 dark:text-gray-400">
-                                Loading models list...
-                              </p>
-                            )}
-                            
-                            <p className="text-xs text-green-600 dark:text-green-400 mt-3">
-                              💡 Requires accepting conditions on HuggingFace first
+                                </>
+                              )}
                             </p>
-                            <div className="text-xs text-green-600 dark:text-green-400 mt-1 space-y-1">
-                              <a 
-                                href="https://huggingface.co/pyannote/speaker-diarization-3.1" 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="block hover:underline"
-                              >
-                                → Accept speaker-diarization-3.1 ↗
-                              </a>
-                              <a 
-                                href="https://huggingface.co/pyannote/segmentation-3.0" 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="block hover:underline"
-                              >
-                                → Accept segmentation-3.0 ↗
-                              </a>
-                            </div>
+
+                          </div>
+                        ) : (
+                          <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700/50 rounded-lg">
+                            <p className="text-xs text-blue-800 dark:text-blue-200 mb-2">
+                              📦 <strong>Start PyTorch service:</strong>
+                            </p>
+                            <code className="text-xs bg-gray-900 text-green-400 p-2 rounded block font-mono">
+                              docker-compose -f docker-compose.monorepo.yml --profile pytorch up -d
+                            </code>
+                            <p className="text-xs text-blue-700 dark:text-blue-300 mt-2">
+                              💡 For diarization (speaker identification), set HUGGINGFACE_TOKEN in docker-compose.monorepo.yml
+                            </p>
+                            <button
+                              onClick={checkPyTorchStatus}
+                              className="mt-2 text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                            >
+                              🔄 Check again
+                            </button>
+
                           </div>
                         )}
                       </div>
-                    ) : (
-                      <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700/50 rounded-lg">
-                        <p className="text-xs text-blue-800 dark:text-blue-200 mb-2">
-                          📦 <strong>Start WhisperX service (optional, but MUCH faster):</strong>
-                        </p>
-                        <code className="text-xs bg-gray-900 text-green-400 p-2 rounded block font-mono">
-                          docker-compose -f docker-compose.monorepo.yml --profile whisperx up -d
-                        </code>
-                        <p className="text-xs text-blue-700 dark:text-blue-300 mt-2">
-                          💡 Requires HUGGINGFACE_TOKEN in docker-compose.monorepo.yml for diarization
-                        </p>
-                        <p className="text-xs text-violet-600 dark:text-violet-400 mt-2">
-                          🏆 <strong>Why WhisperX?</strong> Uses faster-whisper (C++ optimized) + native diarization = 6x faster!
-                        </p>
-                        <button
-                          onClick={checkWhisperXStatus}
-                          className="mt-2 text-xs text-blue-600 dark:text-blue-400 hover:underline"
-                        >
-                          🔄 Check again
-                        </button>
-                      </div>
                     )}
-                  </div>
-                )}
-                
-                {/* Feature gate for cloud providers */}
-                {preferredTranscriptionProvider !== 'local' && (
-                  <FeatureGate feature="cloudAIProviders">
-                    <div className="mt-3 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700/50 rounded-lg">
-                      <p className="text-sm text-green-800 dark:text-green-200">
-                        🎉 Enterprise cloud AI features enabled!
-                      </p>
-                    </div>
-                  </FeatureGate>
-                )}
-                
-                {/* Ollama LLM Model Selection (only for local transcriptions) */}
-                {preferredTranscriptionProvider === 'local' && (
-                  <div className="mt-4 p-4 bg-purple-50/50 dark:bg-purple-900/10 rounded-xl border border-purple-200/50 dark:border-purple-700/50">
-                    <div className="flex items-start gap-3 mb-3">
-                      <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-purple-500 to-pink-600 flex items-center justify-center flex-shrink-0">
-                        <span className="text-white text-lg">🦙</span>
-                      </div>
-                      <div className="flex-1">
-                        <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
-                          Local LLM for Title & Summary
-                        </h3>
-                      <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
-                        Ollama model for generating meeting titles and summaries (100% local, no API needed)
-                      </p>
-                      <div className="mt-2 p-2 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-700/50 rounded-lg">
-                        <p className="text-xs text-orange-800 dark:text-orange-200 mb-1">
-                          ⚠️ <strong>RAM Required:</strong> Increase Docker memory to at least 6 GB in Docker Desktop Settings → Resources
-                        </p>
-                        <p className="text-xs text-orange-800 dark:text-orange-200">
-                          ⏱️ <strong>Slow CPU?</strong> Generation can take 5-10 minutes. Use "None" for instant results or upgrade to cloud APIs.
-                        </p>
-                      </div>
-                      </div>
-                    </div>
-                    
-                    <select
-                      value={selectedOllamaModel}
-                      onChange={(e) => {
-                        setSelectedOllamaModel(e.target.value);
-                        setHasChanges(true);
-                      }}
-                      className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
-                    >
-                      {ollamaModels.map((model) => (
-                        <option key={model.id} value={model.id}>
-                          {model.name} - {model.description}
-                        </option>
-                      ))}
-                    </select>
-                    
-                    {selectedOllamaModel !== 'none' && (
-                      <>
-                        {ollamaStatus.checking ? (
+
+                  {/* WhisperX Service Status (only for DIARIZATION models) */}
+                  {preferredTranscriptionProvider === 'local' && preferredTranscriptionModel && (() => {
+                    const selectedModel = transcriptionModels.local.find(m => m.id === preferredTranscriptionModel);
+                    return selectedModel && (selectedModel as any).supportsDiarization;
+                  })() && (
+                      <div className="mt-4 p-4 bg-violet-50/50 dark:bg-violet-900/10 rounded-xl border border-violet-200/50 dark:border-violet-700/50">
+                        <div className="flex items-start gap-3 mb-3">
+                          <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-violet-600 to-purple-600 flex items-center justify-center flex-shrink-0">
+                            <span className="text-white text-lg">🏆</span>
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+                              WhisperX Ultra-Fast Diarization
+                            </h3>
+                            <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
+                              6x faster than PyTorch + Pyannote (30-40s vs 4min per hour)
+                            </p>
+                          </div>
+                        </div>
+
+                        {whisperXStatus.checking ? (
                           <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700/50 rounded-lg">
                             <p className="text-xs text-gray-600 dark:text-gray-400">
-                              🔄 Checking Ollama status...
+                              🔍 Checking WhisperX service...
                             </p>
                           </div>
-                        ) : ollamaStatus.available && ollamaStatus.models.includes(selectedOllamaModel.split(':')[0]) ? (
+                        ) : whisperXStatus.available ? (
                           <div className="mt-3 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700/50 rounded-lg">
                             <p className="text-xs text-green-800 dark:text-green-200">
-                              ✅ <strong>{ollamaModels.find(m => m.id === selectedOllamaModel)?.name}</strong> is ready!
+                              ✅ <strong>WhisperX service is running!</strong>
                             </p>
                             <p className="text-xs text-green-700 dark:text-green-300 mt-1">
-                              💡 Model size: {ollamaModels.find(m => m.id === selectedOllamaModel)?.size}
+                              {whisperXStatus.diarization ? (
+                                <>🎭 <strong>Diarization enabled</strong> - Ultra-fast speaker separation on <strong>{whisperXStatus.device.toUpperCase()}</strong></>
+                              ) : (
+                                <>⚠️ <strong>Diarization disabled</strong> - Download Pyannote models below</>
+                              )}
                             </p>
+                            <p className="text-xs text-green-600 dark:text-green-400 mt-2">
+                              ⚡ <strong>Performance:</strong> {whisperXStatus.device === 'cuda' ? '18x faster than PyTorch (GPU)' : '6x faster than PyTorch (CPU)'}
+                            </p>
+
+                            {/* Bouton pour télécharger Pyannote si diarization non disponible */}
+                            {!whisperXStatus.diarization && (
+                              <div className="mt-3 pt-3 border-t border-green-200 dark:border-green-700">
+                                <p className="text-xs text-green-700 dark:text-green-300 mb-3">
+                                  🎭 <strong>Pyannote Models for Diarization:</strong>
+                                </p>
+
+                                {/* Pyannote Models List */}
+                                {pyannoteModels.length > 0 ? (
+                                  <div className="space-y-2">
+                                    {pyannoteModels.map((model) => (
+                                      <div
+                                        key={model.id}
+                                        className={`flex items-center justify-between p-2 rounded-lg border ${model.main
+                                          ? 'bg-violet-50 dark:bg-violet-900/20 border-violet-300 dark:border-violet-700'
+                                          : 'bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700'
+                                          }`}
+                                      >
+                                        <div className="flex-1">
+                                          <div className="flex items-center gap-2">
+                                            <span className={`text-xs font-medium ${model.main ? 'text-violet-900 dark:text-violet-100' : 'text-gray-700 dark:text-gray-300'
+                                              }`}>
+                                              {model.name}
+                                            </span>
+                                            {model.main && (
+                                              <span className="text-[10px] px-1.5 py-0.5 bg-violet-500 text-white rounded font-semibold">
+                                                📦 MAIN MODEL
+                                              </span>
+                                            )}
+                                            {!model.main && (
+                                              <span className="text-[10px] px-1.5 py-0.5 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded">
+                                                🔄 AUTO
+                                              </span>
+                                            )}
+                                            {model.downloaded && (
+                                              <span className="text-[10px] px-1.5 py-0.5 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded">
+                                                ✓ INSTALLED
+                                              </span>
+                                            )}
+                                          </div>
+                                          <p className="text-[10px] text-gray-600 dark:text-gray-400 mt-0.5">
+                                            {model.description} • {model.size}
+                                          </p>
+                                        </div>
+                                      </div>
+                                    ))}
+
+                                    {/* Big Download button if main model not downloaded */}
+                                    {pyannoteModels.some(m => m.main && !m.downloaded) && (
+                                      <button
+                                        onClick={handleDownloadPyannote}
+                                        disabled={downloadingPyannote}
+                                        className="w-full mt-3 px-4 py-3 bg-gradient-to-r from-violet-500 to-purple-500 hover:from-violet-600 hover:to-purple-600 disabled:from-gray-400 disabled:to-gray-400 text-white text-sm font-semibold rounded-lg shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2"
+                                      >
+                                        <span className="text-lg">📥</span>
+                                        <span>{downloadingPyannote ? 'Downloading...' : 'Download Main Model + Dependencies (2.88 GB total)'}</span>
+                                      </button>
+                                    )}
+
+                                    {/* All installed message */}
+                                    {pyannoteModels.every(m => m.downloaded) && (
+                                      <div className="mt-3 p-2 bg-green-50 dark:bg-green-900/20 border border-green-300 dark:border-green-700 rounded-lg">
+                                        <p className="text-xs text-green-700 dark:text-green-300 text-center font-medium">
+                                          ✅ All models installed! Diarization ready.
+                                        </p>
+                                      </div>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                                    Loading models list...
+                                  </p>
+                                )}
+
+                                <p className="text-xs text-green-600 dark:text-green-400 mt-3">
+                                  💡 Requires accepting conditions on HuggingFace first
+                                </p>
+                                <div className="text-xs text-green-600 dark:text-green-400 mt-1 space-y-1">
+                                  <a
+                                    href="https://huggingface.co/pyannote/speaker-diarization-3.1"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="block hover:underline"
+                                  >
+                                    → Accept speaker-diarization-3.1 ↗
+                                  </a>
+                                  <a
+                                    href="https://huggingface.co/pyannote/segmentation-3.0"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="block hover:underline"
+                                  >
+                                    → Accept segmentation-3.0 ↗
+                                  </a>
+                                </div>
+                              </div>
+                            )}
                           </div>
-                        ) : !ollamaStatus.available ? (
+                        ) : (
                           <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700/50 rounded-lg">
                             <p className="text-xs text-blue-800 dark:text-blue-200 mb-2">
-                              📦 <strong>Start Ollama service:</strong>
+                              📦 <strong>Start WhisperX service (optional, but MUCH faster):</strong>
                             </p>
                             <code className="text-xs bg-gray-900 text-green-400 p-2 rounded block font-mono">
-                              docker-compose -f docker-compose.monorepo.yml --profile ollama up -d
+                              docker-compose -f docker-compose.monorepo.yml --profile whisperx up -d
                             </code>
+                            <p className="text-xs text-blue-700 dark:text-blue-300 mt-2">
+                              💡 Requires HUGGINGFACE_TOKEN in docker-compose.monorepo.yml for diarization
+                            </p>
+                            <p className="text-xs text-violet-600 dark:text-violet-400 mt-2">
+                              🏆 <strong>Why WhisperX?</strong> Uses faster-whisper (C++ optimized) + native diarization = 6x faster!
+                            </p>
                             <button
-                              onClick={checkOllamaStatus}
+                              onClick={checkWhisperXStatus}
                               className="mt-2 text-xs text-blue-600 dark:text-blue-400 hover:underline"
                             >
                               🔄 Check again
                             </button>
                           </div>
-                        ) : (
-                          <div className="mt-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700/50 rounded-lg">
-                            <div className="flex items-start justify-between mb-2">
-                              <div>
-                                <p className="text-xs text-yellow-800 dark:text-yellow-200 font-semibold">
-                                  📥 Model not installed
-                                </p>
-                                <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
-                                  💾 Size: {ollamaModels.find(m => m.id === selectedOllamaModel)?.size}
-                                </p>
-                              </div>
-                              <button
-                                onClick={handleDownloadModel}
-                                disabled={downloadingModel}
-                                className="px-4 py-2 bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-600 hover:to-orange-700 disabled:from-gray-400 disabled:to-gray-500 text-white text-xs font-medium rounded-lg shadow-md hover:shadow-lg transition-all disabled:cursor-not-allowed flex items-center gap-2"
-                              >
-                                {downloadingModel ? (
-                                  <>
-                                    <span className="animate-spin">⏳</span>
-                                    Downloading...
-                                  </>
-                                ) : (
-                                  <>
-                                    <span>📥</span>
-                                    Download Model
-                                  </>
-                                )}
-                              </button>
-                            </div>
-                            {downloadingModel && (
-                              <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-2">
-                                ⏱️ This may take several minutes depending on your internet speed...
-                              </p>
-                            )}
-                            {!downloadingModel && (
-                              <button
-                                onClick={checkOllamaStatus}
-                                className="mt-2 text-xs text-yellow-600 dark:text-yellow-400 hover:underline"
-                              >
-                                🔄 Refresh status
-                              </button>
-                            )}
-                          </div>
                         )}
-                      </>
-                    )}
-                    
-                    {selectedOllamaModel === 'none' && (
-                      <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700/50 rounded-lg">
-                        <p className="text-xs text-gray-600 dark:text-gray-400">
-                          ⚡ Rule-based generation active. Fast but less intelligent. Install Ollama for better results.
-                        </p>
                       </div>
                     )}
-                  </div>
-                )}
-              </div>
 
-              {/* LLM with enterprise gating */}
-               <FeatureGate feature="cloudAIProviders" showUpgradePrompt={false}>
-                 <SettingSelectRow
-                   title="Primary LLM"
-                   selectedProvider={selectedLlmProvider}
-                   setSelectedProvider={(p) => setSelectedLlmProvider(p as LlmProvider)}
-                   providers={Object.keys(llmModels)}
-                   selectedModel={selectedLlmModel}
-                   setSelectedModel={setSelectedLlmModel}
-                   models={llmModels}
-                 />
-               </FeatureGate>
+                  {/* Feature gate for cloud providers */}
+                  {preferredTranscriptionProvider !== 'local' && (
+                    <FeatureGate feature="cloudAIProviders">
+                      <div className="mt-3 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700/50 rounded-lg">
+                        <p className="text-sm text-green-800 dark:text-green-200">
+                          🎉 Enterprise cloud AI features enabled!
+                        </p>
+                      </div>
+                    </FeatureGate>
+                  )}
 
-               {/* TTS with enterprise gating */}
-               <FeatureGate feature="cloudAIProviders" showUpgradePrompt={false}>
-                 <SettingSelectRow
-                   title="Text-to-Speech"
-                   selectedProvider={selectedTtsProvider}
-                   setSelectedProvider={(p) => setSelectedTtsProvider(p as SttTtsProvider)}
-                   providers={Object.keys(ttsModels)}
-                   selectedModel={selectedTtsModel}
-                   setSelectedModel={setSelectedTtsModel}
-                   models={ttsModels}
-                 />
-               </FeatureGate>
-             </div>
-           </Card>
+                  {/* Ollama LLM Model Selection (only for local transcriptions) */}
+                  {preferredTranscriptionProvider === 'local' && (
+                    <div className="mt-4 p-4 bg-purple-50/50 dark:bg-purple-900/10 rounded-xl border border-purple-200/50 dark:border-purple-700/50">
+                      <div className="flex items-start gap-3 mb-3">
+                        <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-purple-500 to-pink-600 flex items-center justify-center flex-shrink-0">
+                          <span className="text-white text-lg">🦙</span>
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+                            Local LLM for Title & Summary
+                          </h3>
+                          <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
+                            Ollama model for generating meeting titles and summaries (100% local, no API needed)
+                          </p>
+                          <div className="mt-2 p-2 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-700/50 rounded-lg">
+                            <p className="text-xs text-orange-800 dark:text-orange-200 mb-1">
+                              ⚠️ <strong>RAM Required:</strong> Increase Docker memory to at least 6 GB in Docker Desktop Settings → Resources
+                            </p>
+                            <p className="text-xs text-orange-800 dark:text-orange-200">
+                              ⏱️ <strong>Slow CPU?</strong> Generation can take 5-10 minutes. Use "None" for instant results or upgrade to cloud APIs.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
 
-           {/* Recording Behavior Settings */}
-           <Card>
-             <div className="p-6">
-               <h2 className="text-xl font-bold">🎬 Recording Behavior</h2>
-               <p className="mt-1 text-sm text-gray-500">Control how the app behaves after recording audio.</p>
-             </div>
-             <div className="p-6 pt-0">
-               <div className="flex items-center justify-between p-4 bg-gray-50/50 dark:bg-gray-700/30 rounded-xl border border-gray-200/30 dark:border-gray-600/30">
-                 <div className="flex-1">
-                   <h3 className="text-sm font-medium text-gray-900 dark:text-white">
-                     Auto-transcribe after recording
-                   </h3>
-                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                     {autoTranscribeAfterRecording 
-                       ? "Automatically start transcription when recording stops" 
-                       : "Ask for confirmation before starting transcription"
-                     }
-                   </p>
-                 </div>
-                 <label className="relative inline-flex items-center cursor-pointer">
-                   <input
-                     type="checkbox"
-                     checked={autoTranscribeAfterRecording}
-                     onChange={(e) => setAutoTranscribeAfterRecording(e.target.checked)}
-                     className="sr-only peer"
-                   />
-                   <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
-                 </label>
-              </div>
-              
-              {/* Streaming Transcription Toggle */}
-              <div className="mt-4 flex items-center justify-between p-4 bg-gradient-to-r from-violet-50 to-purple-50 dark:from-violet-900/20 dark:to-purple-900/20 rounded-xl border border-violet-200/50 dark:border-violet-700/50">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-medium text-gray-900 dark:text-white">
-                      🚀 Live Streaming Transcription
-                    </h3>
-                    <span className="px-2 py-0.5 text-xs font-semibold bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-full">
-                      NEW
-                    </span>
-                  </div>
-                  <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">
-                    {enableStreamingTranscription 
-                      ? "⚡ Real-time transcription with live text appearing as you speak (requires WhisperX or whisper.cpp)" 
-                      : "📦 Batch transcription after recording ends (standard mode)"
-                    }
-                  </p>
-                  <p className="text-xs text-violet-600 dark:text-violet-400 mt-1">
-                    💡 Streaming gives instant feedback - see text appear live!
-                  </p>
+                      <select
+                        value={selectedOllamaModel}
+                        onChange={(e) => {
+                          setSelectedOllamaModel(e.target.value);
+                          setHasChanges(true);
+                        }}
+                        className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
+                      >
+                        {ollamaModels.map((model) => (
+                          <option key={model.id} value={model.id}>
+                            {model.name} - {model.description}
+                          </option>
+                        ))}
+                      </select>
+
+                      {selectedOllamaModel !== 'none' && (
+                        <>
+                          {ollamaStatus.checking ? (
+                            <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700/50 rounded-lg">
+                              <p className="text-xs text-gray-600 dark:text-gray-400">
+                                🔄 Checking Ollama status...
+                              </p>
+                            </div>
+                          ) : ollamaStatus.available && ollamaStatus.models.includes(selectedOllamaModel.split(':')[0]) ? (
+                            <div className="mt-3 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700/50 rounded-lg">
+                              <p className="text-xs text-green-800 dark:text-green-200">
+                                ✅ <strong>{ollamaModels.find(m => m.id === selectedOllamaModel)?.name}</strong> is ready!
+                              </p>
+                              <p className="text-xs text-green-700 dark:text-green-300 mt-1">
+                                💡 Model size: {ollamaModels.find(m => m.id === selectedOllamaModel)?.size}
+                              </p>
+                            </div>
+                          ) : !ollamaStatus.available ? (
+                            <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700/50 rounded-lg">
+                              <p className="text-xs text-blue-800 dark:text-blue-200 mb-2">
+                                📦 <strong>Start Ollama service:</strong>
+                              </p>
+                              <code className="text-xs bg-gray-900 text-green-400 p-2 rounded block font-mono">
+                                docker-compose -f docker-compose.monorepo.yml --profile ollama up -d
+                              </code>
+                              <button
+                                onClick={checkOllamaStatus}
+                                className="mt-2 text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                              >
+                                🔄 Check again
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="mt-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700/50 rounded-lg">
+                              <div className="flex items-start justify-between mb-2">
+                                <div>
+                                  <p className="text-xs text-yellow-800 dark:text-yellow-200 font-semibold">
+                                    📥 Model not installed
+                                  </p>
+                                  <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
+                                    💾 Size: {ollamaModels.find(m => m.id === selectedOllamaModel)?.size}
+                                  </p>
+                                </div>
+                                <button
+                                  onClick={handleDownloadModel}
+                                  disabled={downloadingModel}
+                                  className="px-4 py-2 bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-600 hover:to-orange-700 disabled:from-gray-400 disabled:to-gray-500 text-white text-xs font-medium rounded-lg shadow-md hover:shadow-lg transition-all disabled:cursor-not-allowed flex items-center gap-2"
+                                >
+                                  {downloadingModel ? (
+                                    <>
+                                      <span className="animate-spin">⏳</span>
+                                      Downloading...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <span>📥</span>
+                                      Download Model
+                                    </>
+                                  )}
+                                </button>
+                              </div>
+                              {downloadingModel && (
+                                <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-2">
+                                  ⏱️ This may take several minutes depending on your internet speed...
+                                </p>
+                              )}
+                              {!downloadingModel && (
+                                <button
+                                  onClick={checkOllamaStatus}
+                                  className="mt-2 text-xs text-yellow-600 dark:text-yellow-400 hover:underline"
+                                >
+                                  🔄 Refresh status
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </>
+                      )}
+
+                      {selectedOllamaModel === 'none' && (
+                        <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700/50 rounded-lg">
+                          <p className="text-xs text-gray-600 dark:text-gray-400">
+                            ⚡ Rule-based generation active. Fast but less intelligent. Install Ollama for better results.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
-                <label className="relative inline-flex items-center cursor-pointer ml-4">
-                  <input
-                    type="checkbox"
-                    checked={enableStreamingTranscription}
-                    onChange={(e) => setEnableStreamingTranscription(e.target.checked)}
-                    className="sr-only peer"
+
+                {/* LLM with enterprise gating */}
+                <FeatureGate feature="cloudAIProviders" showUpgradePrompt={false}>
+                  <SettingSelectRow
+                    title="Primary LLM"
+                    selectedProvider={selectedLlmProvider}
+                    setSelectedProvider={(p) => setSelectedLlmProvider(p as LlmProvider)}
+                    providers={Object.keys(llmModels)}
+                    selectedModel={selectedLlmModel}
+                    setSelectedModel={setSelectedLlmModel}
+                    models={llmModels}
                   />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-violet-300 dark:peer-focus:ring-violet-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-gradient-to-r peer-checked:from-violet-600 peer-checked:to-purple-600"></div>
-                </label>
+                </FeatureGate>
+
+                {/* TTS with enterprise gating */}
+                <FeatureGate feature="cloudAIProviders" showUpgradePrompt={false}>
+                  <SettingSelectRow
+                    title="Text-to-Speech"
+                    selectedProvider={selectedTtsProvider}
+                    setSelectedProvider={(p) => setSelectedTtsProvider(p as SttTtsProvider)}
+                    providers={Object.keys(ttsModels)}
+                    selectedModel={selectedTtsModel}
+                    setSelectedModel={setSelectedTtsModel}
+                    models={ttsModels}
+                  />
+                </FeatureGate>
               </div>
-              
-              {/* Auto-Generate AI Summary Toggle */}
-              <div className="mt-4 flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl border border-blue-200/50 dark:border-blue-700/50">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
+            </Card>
+
+            {/* Recording Behavior Settings */}
+            <Card>
+              <div className="p-6">
+                <h2 className="text-xl font-bold">🎬 Recording Behavior</h2>
+                <p className="mt-1 text-sm text-gray-500">Control how the app behaves after recording audio.</p>
+              </div>
+              <div className="p-6 pt-0">
+                <div className="flex items-center justify-between p-4 bg-gray-50/50 dark:bg-gray-700/30 rounded-xl border border-gray-200/30 dark:border-gray-600/30">
+                  <div className="flex-1">
                     <h3 className="text-sm font-medium text-gray-900 dark:text-white">
-                      🤖 Auto-Generate AI Summary (Ollama)
+                      Auto-transcribe after recording
                     </h3>
-                    <span className="px-2 py-0.5 text-xs font-semibold bg-blue-600 text-white rounded-full">
-                      NEW
-                    </span>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      {autoTranscribeAfterRecording
+                        ? "Automatically start transcription when recording stops"
+                        : "Ask for confirmation before starting transcription"
+                      }
+                    </p>
                   </div>
-                  <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">
-                    {autoGenerateSummaryAfterStreaming 
-                      ? "✨ Automatically generate title and summary using Ollama after streaming transcription completes." 
-                      : "📝 Generate title and summary manually from the meeting detail page."
-                    }
-                  </p>
-                  <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                    💡 Requires Ollama service to be running.
-                  </p>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={autoTranscribeAfterRecording}
+                      onChange={(e) => setAutoTranscribeAfterRecording(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                  </label>
                 </div>
-                <label className="relative inline-flex items-center cursor-pointer ml-4">
-                  <input
-                    type="checkbox"
-                    checked={autoGenerateSummaryAfterStreaming}
-                    onChange={(e) => setAutoGenerateSummaryAfterStreaming(e.target.checked)}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
-                </label>
+
+                {/* Streaming Transcription Toggle */}
+                <div className="mt-4 flex items-center justify-between p-4 bg-gradient-to-r from-violet-50 to-purple-50 dark:from-violet-900/20 dark:to-purple-900/20 rounded-xl border border-violet-200/50 dark:border-violet-700/50">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm font-medium text-gray-900 dark:text-white">
+                        🚀 Live Streaming Transcription
+                      </h3>
+                      <span className="px-2 py-0.5 text-xs font-semibold bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-full">
+                        NEW
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">
+                      {enableStreamingTranscription
+                        ? "⚡ Real-time transcription with live text appearing as you speak (requires WhisperX or whisper.cpp)"
+                        : "📦 Batch transcription after recording ends (standard mode)"
+                      }
+                    </p>
+                    <p className="text-xs text-violet-600 dark:text-violet-400 mt-1">
+                      💡 Streaming gives instant feedback - see text appear live!
+                    </p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer ml-4">
+                    <input
+                      type="checkbox"
+                      checked={enableStreamingTranscription}
+                      onChange={(e) => setEnableStreamingTranscription(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-violet-300 dark:peer-focus:ring-violet-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-gradient-to-r peer-checked:from-violet-600 peer-checked:to-purple-600"></div>
+                  </label>
+                </div>
+
+                {/* Auto-Generate AI Summary Toggle */}
+                <div className="mt-4 flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl border border-blue-200/50 dark:border-blue-700/50">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm font-medium text-gray-900 dark:text-white">
+                        🤖 Auto-Generate AI Summary (Ollama)
+                      </h3>
+                      <span className="px-2 py-0.5 text-xs font-semibold bg-blue-600 text-white rounded-full">
+                        NEW
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">
+                      {autoGenerateSummaryAfterStreaming
+                        ? "✨ Automatically generate title and summary using Ollama after streaming transcription completes."
+                        : "📝 Generate title and summary manually from the meeting detail page."
+                      }
+                    </p>
+                    <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                      💡 Requires Ollama service to be running.
+                    </p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer ml-4">
+                    <input
+                      type="checkbox"
+                      checked={autoGenerateSummaryAfterStreaming}
+                      onChange={(e) => setAutoGenerateSummaryAfterStreaming(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                  </label>
+                </div>
+
+                <div className="mt-4 p-4 bg-gray-50/50 dark:bg-gray-700/30 rounded-xl border border-gray-200/30 dark:border-gray-600/30">
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
+                      🌍 Preferred Language / Langue préférée
+                    </h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                      Language for titles, summaries, and default prompts • Langue pour les titres, résumés et prompts par défaut
+                    </p>
+                    <select
+                      value={preferredLanguage}
+                      onChange={(e) => setPreferredLanguage(e.target.value as 'fr' | 'en')}
+                      className="w-full p-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="fr">🇫🇷 Français</option>
+                      <option value="en">🇬🇧 English</option>
+                    </select>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                      {preferredLanguage === 'fr'
+                        ? "Les prompts seront optimisés pour chaque LLM en français"
+                        : "Prompts will be optimized for each LLM in English"
+                      }
+                    </p>
+                  </div>
+                </div>
+
+                {/* Hide Marketing Pages Toggle */}
+                <div className="mt-4 flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-slate-50 dark:from-gray-700/30 dark:to-slate-700/30 rounded-xl border border-gray-200/50 dark:border-gray-600/50">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm font-medium text-gray-900 dark:text-white">
+                        🎯 Hide marketing pages
+                      </h3>
+                      {isMarketingPagesGloballyForced && (
+                        <span className="px-2 py-0.5 text-xs font-semibold bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 rounded-full">
+                          FORCED BY CONFIG
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">
+                      {hideMarketingPages || isMarketingPagesGloballyForced
+                        ? "🚀 Skip home and marketing pages - go directly to login"
+                        : "📋 Show home page and full marketing content (default)"
+                      }
+                    </p>
+                    {isMarketingPagesGloballyForced && (
+                      <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">
+                        ⚙️ Marketing pages are hidden globally via VITE_HIDE_MARKETING_PAGES environment variable
+                      </p>
+                    )}
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      💡 Perfect for client deployments - removes promotional content and enables direct login access
+                    </p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer ml-4">
+                    <input
+                      type="checkbox"
+                      checked={hideMarketingPages || isMarketingPagesGloballyForced}
+                      onChange={(e) => setHideMarketingPages(e.target.checked)}
+                      disabled={isMarketingPagesGloballyForced}
+                      className="sr-only peer"
+                    />
+                    <div className={`w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-gray-300 dark:peer-focus:ring-gray-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-gray-600 ${isMarketingPagesGloballyForced ? 'opacity-50 cursor-not-allowed' : ''}`}></div>
+                  </label>
+                </div>
               </div>
-              
-              <div className="mt-4 p-4 bg-gray-50/50 dark:bg-gray-700/30 rounded-xl border border-gray-200/30 dark:border-gray-600/30">
-                 <div>
-                   <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
-                     🌍 Preferred Language / Langue préférée
-                   </h3>
-                   <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-                     Language for titles, summaries, and default prompts • Langue pour les titres, résumés et prompts par défaut
-                   </p>
-                   <select
-                     value={preferredLanguage}
-                     onChange={(e) => setPreferredLanguage(e.target.value as 'fr' | 'en')}
-                     className="w-full p-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                   >
-                     <option value="fr">🇫🇷 Français</option>
-                     <option value="en">🇬🇧 English</option>
-                   </select>
-                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                     {preferredLanguage === 'fr' 
-                       ? "Les prompts seront optimisés pour chaque LLM en français" 
-                       : "Prompts will be optimized for each LLM in English"
-                     }
-                   </p>
-                 </div>
-               </div>
-               
-               {/* Hide Marketing Pages Toggle */}
-               <div className="mt-4 flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-slate-50 dark:from-gray-700/30 dark:to-slate-700/30 rounded-xl border border-gray-200/50 dark:border-gray-600/50">
-                 <div className="flex-1">
-                   <div className="flex items-center gap-2">
-                     <h3 className="text-sm font-medium text-gray-900 dark:text-white">
-                       🎯 Hide marketing pages
-                     </h3>
-                     {isMarketingPagesGloballyForced && (
-                       <span className="px-2 py-0.5 text-xs font-semibold bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 rounded-full">
-                         FORCED BY CONFIG
-                       </span>
-                     )}
-                   </div>
-                   <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">
-                     {hideMarketingPages || isMarketingPagesGloballyForced
-                       ? "🚀 Skip home and marketing pages - go directly to login" 
-                       : "📋 Show home page and full marketing content (default)"
-                     }
-                   </p>
-                   {isMarketingPagesGloballyForced && (
-                     <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">
-                       ⚙️ Marketing pages are hidden globally via VITE_HIDE_MARKETING_PAGES environment variable
-                     </p>
-                   )}
-                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                     💡 Perfect for client deployments - removes promotional content and enables direct login access
-                   </p>
-                 </div>
-                 <label className="relative inline-flex items-center cursor-pointer ml-4">
-                   <input
-                     type="checkbox"
-                     checked={hideMarketingPages || isMarketingPagesGloballyForced}
-                     onChange={(e) => setHideMarketingPages(e.target.checked)}
-                     disabled={isMarketingPagesGloballyForced}
-                     className="sr-only peer"
-                   />
-                   <div className={`w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-gray-300 dark:peer-focus:ring-gray-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-gray-600 ${isMarketingPagesGloballyForced ? 'opacity-50 cursor-not-allowed' : ''}`}></div>
-                 </label>
-               </div>
-             </div>
-           </Card>
+            </Card>
 
-           {/* Enterprise Features */}
-           <FeatureGate feature="advancedAnalytics">
-             <Card>
-               <div className="p-6">
-                 <h3 className="text-lg font-semibold text-gray-900">📊 Advanced Analytics</h3>
-                 <p className="text-sm text-gray-500 mt-1">Enterprise analytics and monitoring</p>
-                 <div className="mt-4 grid md:grid-cols-2 gap-4">
-                   <label className="flex items-center space-x-2">
-                     <input type="checkbox" className="rounded border-gray-300" />
-                     <span className="text-sm text-gray-700">Enable usage analytics</span>
-                   </label>
-                   <label className="flex items-center space-x-2">
-                     <input type="checkbox" className="rounded border-gray-300" />
-                     <span className="text-sm text-gray-700">Performance monitoring</span>
-                   </label>
-                 </div>
-               </div>
-             </Card>
-           </FeatureGate>
+            {/* Enterprise Features */}
+            <FeatureGate feature="advancedAnalytics">
+              <Card>
+                <div className="p-6">
+                  <h3 className="text-lg font-semibold text-gray-900">📊 Advanced Analytics</h3>
+                  <p className="text-sm text-gray-500 mt-1">Enterprise analytics and monitoring</p>
+                  <div className="mt-4 grid md:grid-cols-2 gap-4">
+                    <label className="flex items-center space-x-2">
+                      <input type="checkbox" className="rounded border-gray-300" />
+                      <span className="text-sm text-gray-700">Enable usage analytics</span>
+                    </label>
+                    <label className="flex items-center space-x-2">
+                      <input type="checkbox" className="rounded border-gray-300" />
+                      <span className="text-sm text-gray-700">Performance monitoring</span>
+                    </label>
+                  </div>
+                </div>
+              </Card>
+            </FeatureGate>
 
-           <FeatureGate feature="teamCollaboration">
-             <Card>
-               <div className="p-6">
-                 <h3 className="text-lg font-semibold text-gray-900">👥 Team Collaboration</h3>
-                 <p className="text-sm text-gray-500 mt-1">Enterprise team features</p>
-                 <div className="mt-4 space-y-3">
-                   <div>
-                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                       Default Sharing
-                     </label>
-                     <select className="w-full p-2 border border-gray-300 rounded-lg">
-                       <option value="private">🔒 Private</option>
-                       <option value="team">👥 Team Only</option>
-                       <option value="organization">🏢 Organization</option>
-                     </select>
-                   </div>
-                 </div>
-               </div>
-             </Card>
-           </FeatureGate>
+            <FeatureGate feature="teamCollaboration">
+              <Card>
+                <div className="p-6">
+                  <h3 className="text-lg font-semibold text-gray-900">👥 Team Collaboration</h3>
+                  <p className="text-sm text-gray-500 mt-1">Enterprise team features</p>
+                  <div className="mt-4 space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Default Sharing
+                      </label>
+                      <select className="w-full p-2 border border-gray-300 rounded-lg">
+                        <option value="private">🔒 Private</option>
+                        <option value="team">👥 Team Only</option>
+                        <option value="organization">🏢 Organization</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            </FeatureGate>
 
-          {/* Feature Comparison Table */}
-          <div className="mt-8">
-            <FeatureComparison />
-          </div>
+            {/* Feature Comparison Table */}
+            <div className="mt-8">
+              <FeatureComparison />
+            </div>
 
-          {/* Prompt Settings */}
-          <Card>
-            <div className="p-6">
+            {/* Prompt Settings */}
+            <Card>
+              <div className="p-6">
                 <h2 className="text-xl font-bold">Prompt Settings</h2>
                 <p className="mt-1 text-sm text-gray-500">Customize the prompts used for AI analysis. These will be used by the transcription function.</p>
-            </div>
-            <div className="p-6 pt-0 space-y-4">
+              </div>
+              <div className="p-6 pt-0 space-y-4">
                 <PromptTextarea label="Title Prompt" value={promptTitle} onChange={setPromptTitle} />
                 <PromptTextarea label="Summary Prompt" value={promptSummary} onChange={setPromptSummary} />
                 <PromptTextarea label="Transcript & Diarization Prompt" value={promptTranscript} onChange={setPromptTranscript} />
-            </div>
-          </Card>
-          
-          {/* API Keys */}
-          <Card>
-            <div className="p-6">
+              </div>
+            </Card>
+
+            {/* API Keys */}
+            <Card>
+              <div className="p-6">
                 <h2 className="text-xl font-bold">API Keys</h2>
                 <p className="mt-1 text-sm text-gray-500">Keys are stored securely and never exposed on the client-side.</p>
-            </div>
-            <div className="p-6 pt-0 space-y-4">
-              {Object.keys(apiKeyInputs).map(p => 
-                <ApiKeyInputRow 
-                  key={p}
-                  provider={p}
-                  hasKey={apiKeys.some(k => k.provider === p)}
-                  value={apiKeyInputs[p as keyof typeof apiKeyInputs]}
-                  onChange={v => setApiKeyInputs(prev => ({...prev, [p]: v}))}
-                  onSave={() => handleApiKeySave(p)}
-                />
-              )}
-            </div>
-          </Card>
-          
-          {/* Device Performance Section */}
-          {preferredTranscriptionProvider === 'local' && (
-            <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm p-6 rounded-xl border border-gray-200/50 dark:border-gray-700/50 shadow-xl">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">🔬 Device Performance</h2>
-                <button
-                  onClick={handleRunBenchmark}
-                  disabled={isBenchmarking}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {isBenchmarking ? '🔄 Testing...' : '🔬 Run Test'}
-                </button>
               </div>
-              
-              {benchmark && (
-                <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-white dark:bg-gray-700 p-3 rounded-lg">
-                      <div className="text-sm text-gray-600 dark:text-gray-400">Device Class</div>
-                      <div className="font-semibold capitalize text-lg text-gray-900 dark:text-white">
-                        {benchmark.deviceClass === 'high-end' && '🚀 High-End'}
-                        {benchmark.deviceClass === 'mid-range' && '⚡ Mid-Range'}
-                        {benchmark.deviceClass === 'low-end' && '💻 Low-End'}
-                      </div>
-                    </div>
-                    <div className="bg-white dark:bg-gray-700 p-3 rounded-lg">
-                      <div className="text-sm text-gray-600 dark:text-gray-400">WebGPU Support</div>
-                      <div className="font-semibold text-lg text-gray-900 dark:text-white">
-                        {benchmark.webGPUSupported ? '✅ Supported' : '❌ Not Available'}
-                      </div>
-                    </div>
-                    <div className="bg-white dark:bg-gray-700 p-3 rounded-lg">
-                      <div className="text-sm text-gray-600 dark:text-gray-400">Estimated Memory</div>
-                      <div className="font-semibold text-lg text-gray-900 dark:text-white">{benchmark.estimatedMemoryGB}GB</div>
-                    </div>
-                    <div className="bg-white dark:bg-gray-700 p-3 rounded-lg">
-                      <div className="text-sm text-gray-600 dark:text-gray-400">CPU Cores</div>
-                      <div className="font-semibold text-lg text-gray-900 dark:text-white">{benchmark.cpuCores}</div>
-                    </div>
-                  </div>
-                  
-                  <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg border border-green-200 dark:border-green-700/50">
-                    <div className="flex items-start space-x-2">
-                      <span className="text-green-600 dark:text-green-400">🎯</span>
-                      <div>
-                        <div className="font-semibold text-green-800 dark:text-green-200">Recommended Model</div>
-                        <div className="text-green-700 dark:text-green-300">
-                          {transcriptionModels.local.find(m => m.id === benchmark.recommendedModel)?.name || benchmark.recommendedModel}
-                        </div>
-                        <div className="text-sm text-green-600 dark:text-green-400 mt-1">
-                          Optimized for your {benchmark.deviceClass} device
-                          {benchmark.webGPUSupported && ' with Apple Silicon GPU acceleration'}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Local Processing Info */}
-                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-700/50">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <span className="text-lg">🔒</span>
-                      <h3 className="font-semibold text-blue-900 dark:text-blue-200">100% Local Processing</h3>
-                    </div>
-                    <p className="text-sm text-blue-800 dark:text-blue-200 mb-2">
-                      Your recommended model runs completely locally for maximum privacy:
-                    </p>
-                    <ul className="text-xs text-blue-700 dark:text-blue-300 space-y-1 ml-4">
-                      <li>• 🔒 Zero data sent to external servers</li>
-                      <li>• ⚡ No internet required after model download</li>
-                      <li>• 🆓 No API costs or usage limits</li>
-                      <li>• 🛡️ Complete privacy and security</li>
-                      <li>• 📱 Optimized for your device capabilities</li>
-                    </ul>
-                    <div className="mt-3 text-xs text-blue-600 dark:text-blue-400">
-                      💡 Want advanced features? Voxtral is available as a cloud option with API key!
-                    </div>
-                  </div>
-                </div>
-              )}
-              
-              {!benchmark && !isBenchmarking && (
-                <div className="text-gray-600 dark:text-gray-400">
-                  Run a performance test to get personalized model recommendations for your device.
-                </div>
-              )}
-            </div>
-          )}
+              <div className="p-6 pt-0 space-y-4">
+                {Object.keys(apiKeyInputs).map(p =>
+                  <ApiKeyInputRow
+                    key={p}
+                    provider={p}
+                    hasKey={apiKeys.some(k => k.provider === p)}
+                    value={apiKeyInputs[p as keyof typeof apiKeyInputs]}
+                    onChange={v => setApiKeyInputs(prev => ({ ...prev, [p]: v }))}
+                    onSave={() => handleApiKeySave(p)}
+                  />
+                )}
+              </div>
+            </Card>
 
-          <div className="flex justify-between items-center">
+            {/* Device Performance Section */}
+            {preferredTranscriptionProvider === 'local' && (
+              <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm p-6 rounded-xl border border-gray-200/50 dark:border-gray-700/50 shadow-xl">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white">🔬 Device Performance</h2>
+                  <button
+                    onClick={handleRunBenchmark}
+                    disabled={isBenchmarking}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {isBenchmarking ? '🔄 Testing...' : '🔬 Run Test'}
+                  </button>
+                </div>
+
+                {benchmark && (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="bg-white dark:bg-gray-700 p-3 rounded-lg">
+                        <div className="text-sm text-gray-600 dark:text-gray-400">Device Class</div>
+                        <div className="font-semibold capitalize text-lg text-gray-900 dark:text-white">
+                          {benchmark.deviceClass === 'high-end' && '🚀 High-End'}
+                          {benchmark.deviceClass === 'mid-range' && '⚡ Mid-Range'}
+                          {benchmark.deviceClass === 'low-end' && '💻 Low-End'}
+                        </div>
+                      </div>
+                      <div className="bg-white dark:bg-gray-700 p-3 rounded-lg">
+                        <div className="text-sm text-gray-600 dark:text-gray-400">WebGPU Support</div>
+                        <div className="font-semibold text-lg text-gray-900 dark:text-white">
+                          {benchmark.webGPUSupported ? '✅ Supported' : '❌ Not Available'}
+                        </div>
+                      </div>
+                      <div className="bg-white dark:bg-gray-700 p-3 rounded-lg">
+                        <div className="text-sm text-gray-600 dark:text-gray-400">Estimated Memory</div>
+                        <div className="font-semibold text-lg text-gray-900 dark:text-white">{benchmark.estimatedMemoryGB}GB</div>
+                      </div>
+                      <div className="bg-white dark:bg-gray-700 p-3 rounded-lg">
+                        <div className="text-sm text-gray-600 dark:text-gray-400">CPU Cores</div>
+                        <div className="font-semibold text-lg text-gray-900 dark:text-white">{benchmark.cpuCores}</div>
+                      </div>
+                    </div>
+
+                    <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg border border-green-200 dark:border-green-700/50">
+                      <div className="flex items-start space-x-2">
+                        <span className="text-green-600 dark:text-green-400">🎯</span>
+                        <div>
+                          <div className="font-semibold text-green-800 dark:text-green-200">Recommended Model</div>
+                          <div className="text-green-700 dark:text-green-300">
+                            {transcriptionModels.local.find(m => m.id === benchmark.recommendedModel)?.name || benchmark.recommendedModel}
+                          </div>
+                          <div className="text-sm text-green-600 dark:text-green-400 mt-1">
+                            Optimized for your {benchmark.deviceClass} device
+                            {benchmark.webGPUSupported && ' with Apple Silicon GPU acceleration'}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Local Processing Info */}
+                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-700/50">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <span className="text-lg">🔒</span>
+                        <h3 className="font-semibold text-blue-900 dark:text-blue-200">100% Local Processing</h3>
+                      </div>
+                      <p className="text-sm text-blue-800 dark:text-blue-200 mb-2">
+                        Your recommended model runs completely locally for maximum privacy:
+                      </p>
+                      <ul className="text-xs text-blue-700 dark:text-blue-300 space-y-1 ml-4">
+                        <li>• 🔒 Zero data sent to external servers</li>
+                        <li>• ⚡ No internet required after model download</li>
+                        <li>• 🆓 No API costs or usage limits</li>
+                        <li>• 🛡️ Complete privacy and security</li>
+                        <li>• 📱 Optimized for your device capabilities</li>
+                      </ul>
+                      <div className="mt-3 text-xs text-blue-600 dark:text-blue-400">
+                        💡 Want advanced features? Voxtral is available as a cloud option with API key!
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {!benchmark && !isBenchmarking && (
+                  <div className="text-gray-600 dark:text-gray-400">
+                    Run a performance test to get personalized model recommendations for your device.
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="flex justify-between items-center">
               <Button onClick={handleSaveModelSettings} disabled={!hasChanges || loading}>
-                  {hasChanges ? 'Save Changes' : 'Saved'}
+                {hasChanges ? 'Save Changes' : 'Saved'}
               </Button>
               <Button onClick={handleLogout} variant="danger">Logout</Button>
-          </div>
+            </div>
           </div>
         </div>
       </div>
@@ -1700,30 +1743,30 @@ export default function SettingsScreen() {
 }
 
 function PromptTextarea({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void; }) {
-    return (
-        <div>
-            <label className="block text-sm font-medium text-gray-900 dark:text-white mb-1">{label}</label>
-            <textarea
-                value={value}
-                onChange={(e) => onChange(e.target.value)}
-                className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                rows={4}
-            />
-        </div>
-    );
+  return (
+    <div>
+      <label className="block text-sm font-medium text-gray-900 dark:text-white mb-1">{label}</label>
+      <textarea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        rows={4}
+      />
+    </div>
+  );
 }
 
 // Backend Badge Component - Affiche plusieurs badges
 function BackendBadges({ supportsDiarization, requiresServer }: { supportsDiarization?: boolean; requiresServer?: boolean }) {
   const [whisperXAvailable, setWhisperXAvailable] = useState<boolean | null>(null);
-  
+
   useEffect(() => {
     // Check backend availability
     checkWhisperXAvailability().then(setWhisperXAvailable).catch(() => setWhisperXAvailable(false));
   }, []);
-  
+
   const badges = [];
-  
+
   // Badge Backend - Priorité intelligente
   // 🏆 PRIORITÉ 1: WhisperX (si diarization + disponible)
   if (supportsDiarization && whisperXAvailable) {
@@ -1749,7 +1792,7 @@ function BackendBadges({ supportsDiarization, requiresServer }: { supportsDiariz
       </span>
     );
   }
-  
+
   // Badge Diarization (si supporté)
   if (supportsDiarization) {
     badges.push(
@@ -1758,7 +1801,7 @@ function BackendBadges({ supportsDiarization, requiresServer }: { supportsDiariz
       </span>
     );
   }
-  
+
   return <div className="flex gap-2 flex-wrap">{badges}</div>;
 }
 
@@ -1816,7 +1859,7 @@ function SettingSelectRow({ title, selectedProvider, setSelectedProvider, provid
       <div className="mt-2 space-y-1">
         <p className="text-sm text-gray-600 dark:text-gray-400">{selectedModelDesc}</p>
         {isLocal && selectedModel && (
-          <BackendBadges 
+          <BackendBadges
             supportsDiarization={selectedModelData?.supportsDiarization}
             requiresServer={selectedModelData?.requiresServer}
           />
@@ -1837,8 +1880,8 @@ function SettingSelectRow({ title, selectedProvider, setSelectedProvider, provid
             {selectedProvider === 'local' && (
               <div className="space-y-2">
                 <div className="text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/50 p-2 rounded">
-                  💡 <strong>Tip:</strong> Start with "Moonshine Tiny" (50MB, English) or "Whisper Tiny" (39MB, multilingual). 
-                  For French meetings with multiple speakers, use "Distil-Whisper Large v3" (756MB, French PRO) for best diarization. 
+                  💡 <strong>Tip:</strong> Start with "Moonshine Tiny" (50MB, English) or "Whisper Tiny" (39MB, multilingual).
+                  For French meetings with multiple speakers, use "Distil-Whisper Large v3" (756MB, French PRO) for best diarization.
                   If AI fails, use cloud transcription (OpenAI/Google).
                 </div>
                 <div className="text-green-800 dark:text-green-200 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700/50 p-2 rounded">

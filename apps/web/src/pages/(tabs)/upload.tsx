@@ -5,17 +5,19 @@ import { useLocalTranscription } from '../../hooks/useLocalTranscription';
 import { Button } from '../../components/ui/Button';
 import { Upload, FileAudio, X, CheckCircle, Sparkles, ArrowLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useTranslation } from 'react-i18next';
 
 export default function UploadAudioPage() {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+  const { t } = useTranslation();
+
   const [file, setFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [meetingId, setMeetingId] = useState<string | null>(null);
-  
+
   // 🚀 LOCAL TRANSCRIPTION HOOK
   const { transcribe, isTranscribing, progress: transcriptionProgress } = useLocalTranscription();
 
@@ -60,18 +62,18 @@ export default function UploadAudioPage() {
     const validExtensions = ['mp3', 'wav', 'webm', 'ogg', 'm4a', 'mp4', 'mpeg'];
 
     if (!validTypes.includes(selectedFile.type) && !validExtensions.includes(fileExtension || '')) {
-      toast.error('Please upload a valid audio file (MP3, WAV, WEBM, OGG, M4A)');
+      toast.error(t('upload.invalidFileType'));
       return;
     }
 
     // Validate file size (max 50MB)
     if (selectedFile.size > 50 * 1024 * 1024) {
-      toast.error('File size must be less than 50MB');
+      toast.error(t('upload.fileTooLarge'));
       return;
     }
 
     setFile(selectedFile);
-    toast.success('File selected successfully!');
+    toast.success(t('upload.fileSelected'));
   };
 
   const removeFile = () => {
@@ -84,7 +86,7 @@ export default function UploadAudioPage() {
 
   const handleUpload = async () => {
     if (!file) {
-      toast.error('Please select a file first');
+      toast.error(t('upload.selectFileFirst'));
       return;
     }
 
@@ -95,7 +97,7 @@ export default function UploadAudioPage() {
       // Get current user
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) {
-        throw new Error('Please log in to upload audio');
+        throw new Error(t('upload.loginRequired'));
       }
 
       // Upload to Storage
@@ -103,7 +105,7 @@ export default function UploadAudioPage() {
       const timestamp = Date.now();
       const fileExtension = file.name.split('.').pop();
       const fileName = `${user.id}/${timestamp}.${fileExtension}`;
-      
+
       const { error: uploadError } = await supabase.storage
         .from('meetingrecordings')
         .upload(fileName, file, {
@@ -148,21 +150,21 @@ export default function UploadAudioPage() {
 
       // 🚀 CHECK IF LOCAL TRANSCRIPTION IS SELECTED
       const isLocalTranscription = profile?.preferred_transcription_provider === 'local';
-      
+
       if (isLocalTranscription) {
         // ✨ LOCAL TRANSCRIPTION WITH BROWSER/PYTORCH/WHISPER.CPP
         console.log('🚀 Using LOCAL transcription...');
-        toast('🔄 Transcribing with local model...', { duration: 3000 });
-        
+        toast(t('upload.transcribing'), { duration: 3000 });
+
         try {
           // Transcribe directly from the file (it's already a Blob)
           const modelId = profile?.preferred_transcription_model || 'tiny';
           console.log(`📝 Transcribing with model: ${modelId}`);
-          
+
           const result = await transcribe(file, modelId);
-          
+
           console.log('✅ Local transcription completed!');
-          
+
           // Update meeting with transcription result
           const { error: updateError } = await supabase
             .from('meetings')
@@ -171,34 +173,37 @@ export default function UploadAudioPage() {
               transcript: result.chunks || [],
             })
             .eq('id', meeting.id);
-          
+
           if (updateError) {
             console.error('❌ Failed to update meeting:', updateError);
             throw updateError;
           }
-          
+
           setProgress(100);
-          toast.success('Audio uploaded and transcribed locally! 🎉');
-          
+          toast.success(t('upload.localSuccess'));
+
           // Navigate to meeting details
           setTimeout(() => {
             navigate(`/tabs/meeting/${meeting.id}`);
           }, 2000);
-          
+
+          // 🎯 Return the created meeting for auto-summary
+          // Note: added check for result.text if we want to do something with it later
+
         } catch (transcribeError) {
           console.error('❌ Local transcription failed:', transcribeError);
-          toast.error('Local transcription failed. You can retry from the meeting page.');
-          
+          toast.error(t('upload.localError'));
+
           // Still navigate to the meeting page
           setTimeout(() => {
             navigate(`/tabs/meeting/${meeting.id}`);
           }, 2000);
         }
-        
+
       } else {
         // 🌐 API TRANSCRIPTION (GOOGLE, OPENAI, ETC.)
         console.log('🌐 Using API transcription...');
-        
+
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
           const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/start-transcription`, {
@@ -212,15 +217,15 @@ export default function UploadAudioPage() {
 
           if (response.ok) {
             setProgress(100);
-            toast.success('Audio uploaded and transcription started!');
-            
+            toast.success(t('upload.uploadStarted'));
+
             // Navigate to meeting details after 2 seconds
             setTimeout(() => {
               navigate(`/tabs/meeting/${meeting.id}`);
             }, 2000);
           } else {
             setProgress(100);
-            toast.success('Audio uploaded! You can transcribe it manually.');
+            toast.success(t('upload.uploadManual'));
             setTimeout(() => {
               navigate(`/tabs/meeting/${meeting.id}`);
             }, 2000);
@@ -230,7 +235,7 @@ export default function UploadAudioPage() {
 
     } catch (error) {
       console.error('Upload error:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to upload audio');
+      toast.error(error instanceof Error ? error.message : t('upload.uploadFailed'));
       setProgress(0);
     } finally {
       setUploading(false);
@@ -256,15 +261,15 @@ export default function UploadAudioPage() {
             className="mb-4"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Meetings
+            {t('upload.backToMeetings')}
           </Button>
-          
+
           <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2 flex items-center">
             <Upload className="w-10 h-10 mr-4 text-blue-500" />
-            Upload Audio File
+            {t('upload.title')}
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
-            Upload an audio file to create a meeting and automatically transcribe it
+            {t('upload.subtitle')}
           </p>
         </div>
 
@@ -278,8 +283,8 @@ export default function UploadAudioPage() {
             className={`
               relative bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-3xl 
               border-2 border-dashed transition-all duration-300 p-12
-              ${isDragging 
-                ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-900/20 scale-105' 
+              ${isDragging
+                ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-900/20 scale-105'
                 : 'border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500'
               }
               ${uploading ? 'pointer-events-none opacity-75' : ''}
@@ -290,14 +295,14 @@ export default function UploadAudioPage() {
                 <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 flex items-center justify-center">
                   <FileAudio className="w-10 h-10 text-white" />
                 </div>
-                
+
                 <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-                  Drop your audio file here
+                  {t('upload.dropHere')}
                 </h3>
                 <p className="text-gray-600 dark:text-gray-400 mb-6">
-                  or click to browse
+                  {t('upload.clickToBrowse')}
                 </p>
-                
+
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -305,17 +310,17 @@ export default function UploadAudioPage() {
                   onChange={handleFileInput}
                   className="hidden"
                 />
-                
+
                 <Button
                   onClick={() => fileInputRef.current?.click()}
                   className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white"
                 >
                   <Upload className="w-4 h-4 mr-2" />
-                  Select Audio File
+                  {t('upload.selectButton')}
                 </Button>
-                
+
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-4">
-                  Supported formats: MP3, WAV, WEBM, OGG, M4A (max 50MB)
+                  {t('upload.supportedFormats')}
                 </p>
               </div>
             ) : (
@@ -331,11 +336,11 @@ export default function UploadAudioPage() {
                         {file.name}
                       </h4>
                       <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {formatFileSize(file.size)} • {file.type || 'Audio file'}
+                        {formatFileSize(file.size)} • {file.type || t('upload.audioFile')}
                       </p>
                     </div>
                   </div>
-                  
+
                   {!uploading && (
                     <Button
                       onClick={removeFile}
@@ -353,14 +358,14 @@ export default function UploadAudioPage() {
                   <div className="space-y-2">
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-gray-600 dark:text-gray-400">
-                        {isTranscribing ? '🚀 Transcribing locally...' : 'Uploading and processing...'}
+                        {isTranscribing ? t('upload.transcribing') : t('upload.processing')}
                       </span>
                       <span className="font-semibold text-blue-600 dark:text-blue-400">
                         {isTranscribing ? `${transcriptionProgress}%` : `${progress}%`}
                       </span>
                     </div>
                     <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                      <div 
+                      <div
                         className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 transition-all duration-500 ease-out"
                         style={{ width: `${isTranscribing ? transcriptionProgress : progress}%` }}
                       />
@@ -376,7 +381,7 @@ export default function UploadAudioPage() {
                     className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white py-4 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Sparkles className="w-5 h-5 mr-2" />
-                    Upload & Transcribe
+                    {t('upload.uploadAndTranscribe')}
                   </Button>
                 )}
 
@@ -384,7 +389,7 @@ export default function UploadAudioPage() {
                 {meetingId && (
                   <div className="flex items-center justify-center space-x-3 text-green-600 dark:text-green-400">
                     <CheckCircle className="w-6 h-6" />
-                    <span className="font-semibold">Upload successful! Redirecting...</span>
+                    <span className="font-semibold">{t('upload.successRedirect')}</span>
                   </div>
                 )}
               </div>
@@ -397,9 +402,9 @@ export default function UploadAudioPage() {
               <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mb-3">
                 <Upload className="w-5 h-5 text-blue-600 dark:text-blue-400" />
               </div>
-              <h3 className="font-semibold text-gray-900 dark:text-white mb-1">Fast Upload</h3>
+              <h3 className="font-semibold text-gray-900 dark:text-white mb-1">{t('upload.fastUploadTitle')}</h3>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                Drag & drop or select your audio file
+                {t('upload.fastUploadDesc')}
               </p>
             </div>
 
@@ -407,9 +412,9 @@ export default function UploadAudioPage() {
               <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center mb-3">
                 <Sparkles className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
               </div>
-              <h3 className="font-semibold text-gray-900 dark:text-white mb-1">Auto Transcribe</h3>
+              <h3 className="font-semibold text-gray-900 dark:text-white mb-1">{t('upload.autoTranscribeTitle')}</h3>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                Automatic transcription with AI
+                {t('upload.autoTranscribeDesc')}
               </p>
             </div>
 
@@ -417,9 +422,9 @@ export default function UploadAudioPage() {
               <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center mb-3">
                 <CheckCircle className="w-5 h-5 text-purple-600 dark:text-purple-400" />
               </div>
-              <h3 className="font-semibold text-gray-900 dark:text-white mb-1">Ready to Use</h3>
+              <h3 className="font-semibold text-gray-900 dark:text-white mb-1">{t('upload.readyTitle')}</h3>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                Access transcript & summary instantly
+                {t('upload.readyDesc')}
               </p>
             </div>
           </div>
@@ -428,4 +433,3 @@ export default function UploadAudioPage() {
     </div>
   );
 }
-

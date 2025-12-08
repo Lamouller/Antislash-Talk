@@ -5,6 +5,7 @@ import { FilePlus, ListMusic, Clock, Users, Mic, BarChart3, Activity, Upload } f
 import { Button } from '../../components/ui/Button';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { supabase } from '../../lib/supabase';
+import { useTranslation } from 'react-i18next';
 
 const formatDuration = (totalSeconds: number) => {
   if (totalSeconds < 60) {
@@ -16,24 +17,34 @@ const formatDuration = (totalSeconds: number) => {
 };
 
 interface WeeklyActivity {
-    day_name: string;
-    meetings_count: number;
-    duration_minutes: number;
+  day_name: string;
+  meetings_count: number;
+  duration_minutes: number;
 }
 
-const initialStats = [
-  { title: 'Total Meetings', value: '0', icon: ListMusic, color: 'from-blue-500 to-indigo-600' },
-  { title: 'Recordings', value: '0', icon: FilePlus, color: 'from-green-500 to-emerald-600' },
-  { title: 'Time Recorded', value: '0s', icon: Clock, color: 'from-purple-500 to-pink-600' },
-  { title: 'Avg. Participants', value: '0.0', icon: Users, color: 'from-orange-500 to-red-600' },
-];
-
 export default function TabsIndex() {
+  const { t } = useTranslation();
+
+  const initialStats = [
+    { title: t('dashboard.totalMeetings'), value: '0', icon: ListMusic, color: 'from-blue-500 to-indigo-600' },
+    { title: t('dashboard.recordings'), value: '0', icon: FilePlus, color: 'from-green-500 to-emerald-600' },
+    { title: t('dashboard.timeRecorded'), value: '0s', icon: Clock, color: 'from-purple-500 to-pink-600' },
+    { title: t('dashboard.avgParticipants'), value: '0.0', icon: Users, color: 'from-orange-500 to-red-600' },
+  ];
+
   const [summaryStats, setSummaryStats] = useState<any[]>(initialStats);
   const [chartData, setChartData] = useState<WeeklyActivity[]>([]);
   const [recentMeetings, setRecentMeetings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const location = useLocation();
+
+  // Update stats when language changes (if loading is false, to refresh titles)
+  useEffect(() => {
+    setSummaryStats(prevStats => prevStats.map((stat, index) => ({
+      ...stat,
+      title: initialStats[index].title
+    })));
+  }, [t]);
 
   const fetchDashboardData = useDebouncedCallback(async () => {
     setLoading(true);
@@ -65,27 +76,27 @@ export default function TabsIndex() {
       if (statsRes.data && statsRes.data.length > 0) {
         const stats = statsRes.data[0];
         setSummaryStats([
-          { 
-            title: 'Total Meetings', 
-            value: stats.total_meetings?.toString() || '0', 
+          {
+            title: t('dashboard.totalMeetings'),
+            value: stats.total_meetings?.toString() || '0',
             icon: ListMusic,
             color: 'from-blue-500 to-indigo-600'
           },
-          { 
-            title: 'Recordings', 
-            value: stats.total_recordings?.toString() || '0', 
+          {
+            title: t('dashboard.recordings'),
+            value: stats.total_recordings?.toString() || '0',
             icon: FilePlus,
             color: 'from-green-500 to-emerald-600'
           },
-          { 
-            title: 'Time Recorded', 
-            value: formatDuration(stats.total_duration_seconds || 0), 
+          {
+            title: t('dashboard.timeRecorded'),
+            value: formatDuration(stats.total_duration_seconds || 0),
             icon: Clock,
             color: 'from-purple-500 to-pink-600'
           },
-          { 
-            title: 'Avg. Participants', 
-            value: stats.avg_participants?.toFixed(1) || '0.0', 
+          {
+            title: t('dashboard.avgParticipants'),
+            value: stats.avg_participants?.toFixed(1) || '0.0',
             icon: Users,
             color: 'from-orange-500 to-red-600'
           },
@@ -108,7 +119,7 @@ export default function TabsIndex() {
 
   useEffect(() => {
     fetchDashboardData();
-  }, [location, fetchDashboardData]);
+  }, [location, fetchDashboardData, t]); // Add t dependency to refetch/update on language change
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-gray-900 dark:via-slate-800 dark:to-gray-900">
@@ -119,13 +130,13 @@ export default function TabsIndex() {
           <div className="text-center mb-12">
             <div className="inline-flex items-center px-4 py-2 rounded-full bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-gray-200/50 dark:border-gray-700/50 shadow-lg mb-6">
               <Activity className="w-5 h-5 text-blue-500 mr-2" />
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Dashboard Overview</span>
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('dashboard.overview')}</span>
             </div>
             <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-purple-800 dark:from-white dark:via-blue-200 dark:to-purple-200 bg-clip-text text-transparent mb-4">
-              Welcome Back
+              {t('dashboard.welcomeBack')}
             </h1>
             <p className="text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-              Track your meeting insights and transcription activity
+              {t('dashboard.welcomeSubtitle')}
             </p>
           </div>
 
@@ -171,22 +182,22 @@ export default function TabsIndex() {
                 <div className="p-2 rounded-lg bg-gradient-to-r from-blue-500 to-indigo-600 mr-3">
                   <BarChart3 className="w-5 h-5 text-white" />
                 </div>
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Weekly Activity</h2>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">{t('dashboard.weeklyActivity')}</h2>
               </div>
-              
+
               {loading ? (
                 <div className="h-64 bg-gray-200 dark:bg-gray-700 rounded-xl animate-pulse"></div>
               ) : chartData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={chartData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis 
-                      dataKey="day_name" 
+                    <XAxis
+                      dataKey="day_name"
                       stroke="#6b7280"
                       fontSize={12}
                     />
                     <YAxis stroke="#6b7280" fontSize={12} />
-                    <Tooltip 
+                    <Tooltip
                       contentStyle={{
                         backgroundColor: 'rgba(255, 255, 255, 0.95)',
                         border: 'none',
@@ -195,9 +206,9 @@ export default function TabsIndex() {
                       }}
                     />
                     <Legend />
-                    <Bar 
-                      dataKey="meetings_count" 
-                      name="Meetings" 
+                    <Bar
+                      dataKey="meetings_count"
+                      name={t('dashboard.chartMeetings')}
                       fill="url(#blueGradient)"
                       radius={[4, 4, 0, 0]}
                     />
@@ -213,7 +224,7 @@ export default function TabsIndex() {
                 <div className="h-64 flex items-center justify-center text-gray-500 dark:text-gray-400">
                   <div className="text-center">
                     <BarChart3 className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                    <p>No activity data yet</p>
+                    <p>{t('dashboard.noActivity')}</p>
                   </div>
                 </div>
               )}
@@ -226,13 +237,13 @@ export default function TabsIndex() {
                   <div className="p-2 rounded-lg bg-gradient-to-r from-green-500 to-emerald-600 mr-3">
                     <Mic className="w-5 h-5 text-white" />
                   </div>
-                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Recent Meetings</h2>
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white">{t('dashboard.recentMeetings')}</h2>
                 </div>
-                                 <Link to="/tabs/meetings">
-                   <Button variant="outline" size="small" className="text-blue-600 border-blue-200 hover:bg-blue-50">
-                     View All
-                   </Button>
-                 </Link>
+                <Link to="/tabs/meetings">
+                  <Button variant="outline" size="small" className="text-blue-600 border-blue-200 hover:bg-blue-50">
+                    {t('dashboard.viewAll')}
+                  </Button>
+                </Link>
               </div>
 
               <div className="space-y-4">
@@ -259,18 +270,17 @@ export default function TabsIndex() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-gray-900 dark:text-white truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                            {meeting.title || 'Untitled Meeting'}
+                            {meeting.title || t('dashboard.untitledMeeting')}
                           </p>
                           <p className="text-xs text-gray-500 dark:text-gray-400">
                             {new Date(meeting.created_at).toLocaleDateString()} • {formatDuration(meeting.duration || 0)}
                           </p>
                         </div>
                         <div className="flex items-center space-x-2">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            meeting.status === 'completed' 
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${meeting.status === 'completed'
                               ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
                               : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                          }`}>
+                            }`}>
                             {meeting.status}
                           </span>
                         </div>
@@ -280,10 +290,10 @@ export default function TabsIndex() {
                 ) : (
                   <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                     <Mic className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                    <p>No meetings yet</p>
+                    <p>{t('dashboard.noMeetings')}</p>
                     <Link to="/tabs/record">
                       <Button className="mt-4 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700">
-                        Start Recording
+                        {t('common.startRecording')}
                       </Button>
                     </Link>
                   </div>
@@ -298,19 +308,19 @@ export default function TabsIndex() {
               <Link to="/tabs/record">
                 <Button className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5">
                   <Mic className="w-5 h-5 mr-2" />
-                  Start Recording
+                  {t('common.startRecording')}
                 </Button>
               </Link>
               <Link to="/tabs/upload">
                 <Button className="bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5">
                   <Upload className="w-5 h-5 mr-2" />
-                  Upload Audio
+                  {t('dashboard.uploadAudio')}
                 </Button>
               </Link>
               <Link to="/tabs/meetings">
                 <Button variant="outline" className="px-6 py-3 rounded-xl border-gray-200 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700 transition-all duration-300">
                   <ListMusic className="w-5 h-5 mr-2" />
-                  View Meetings
+                  {t('dashboard.viewMeetings')}
                 </Button>
               </Link>
             </div>

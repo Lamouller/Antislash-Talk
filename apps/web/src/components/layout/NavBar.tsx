@@ -1,15 +1,17 @@
 import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { Home, ListMusic, FilePlus, Settings, Menu, X, Mic } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export default function NavBar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { t } = useTranslation();
 
   const navItems = [
-    { href: '/tabs', label: 'Home', icon: Home, color: 'from-blue-500 to-indigo-600' },
-    { href: '/tabs/meetings', label: 'Meetings', icon: ListMusic, color: 'from-green-500 to-emerald-600' },
-    { href: '/tabs/record', label: 'Record', icon: FilePlus, color: 'from-purple-500 to-pink-600' },
-    { href: '/tabs/settings', label: 'Settings', icon: Settings, color: 'from-orange-500 to-red-600' },
+    { href: '/tabs', label: t('nav.home'), icon: Home, color: 'from-blue-500 to-indigo-600' },
+    { href: '/tabs/meetings', label: t('nav.meetings'), icon: ListMusic, color: 'from-green-500 to-emerald-600' },
+    { href: '/tabs/record', label: t('nav.record'), icon: FilePlus, color: 'from-purple-500 to-pink-600' },
+    { href: '/tabs/settings', label: t('nav.settings'), icon: Settings, color: 'from-orange-500 to-red-600' },
   ];
 
   return (
@@ -50,33 +52,30 @@ export default function NavBar() {
           <div className="px-2 pt-2 pb-3 space-y-2 sm:px-3">
             {navItems.map((item) => {
               const IconComponent = item.icon;
-              
+
               return (
                 <NavLink
-                  key={item.label}
+                  key={item.href} // Changed key to href since label is translated
                   to={item.href}
                   onClick={() => setIsMobileMenuOpen(false)}
                   className={({ isActive }) => {
                     const active = isActive; // Utiliser SEULEMENT notre logique custom
-                    return `group flex items-center px-4 py-3 rounded-xl text-base font-medium transition-all duration-200 ${
-                      active
+                    return `group flex items-center px-4 py-3 rounded-xl text-base font-medium transition-all duration-200 ${active
                         ? 'bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 text-blue-700 dark:text-blue-300 shadow-md border border-blue-200/50 dark:border-blue-700/50'
                         : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50/80 dark:hover:bg-gray-800/50 hover:text-blue-600 dark:hover:text-blue-400'
-                    }`;
+                      }`;
                   }}
                 >
-                                        {({ isActive }) => {
-                        const active = isActive; // Utiliser SEULEMENT notre logique custom
+                  {({ isActive }) => {
+                    const active = isActive; // Utiliser SEULEMENT notre logique custom
                     return (
                       <>
-                        <div className={`p-2 rounded-lg mr-3 transition-all duration-200 ${
-                          active 
-                            ? `bg-gradient-to-r ${item.color} shadow-lg` 
+                        <div className={`p-2 rounded-lg mr-3 transition-all duration-200 ${active
+                            ? `bg-gradient-to-r ${item.color} shadow-lg`
                             : 'bg-gray-100 dark:bg-gray-700 group-hover:bg-gray-200 dark:group-hover:bg-gray-600'
-                        }`}>
-                          <IconComponent className={`w-5 h-5 ${
-                            active ? 'text-white' : 'text-gray-600 dark:text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400'
-                          }`} />
+                          }`}>
+                          <IconComponent className={`w-5 h-5 ${active ? 'text-white' : 'text-gray-600 dark:text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400'
+                            }`} />
                         </div>
                         <span className="font-medium">
                           {item.label}
@@ -91,7 +90,7 @@ export default function NavBar() {
               );
             })}
           </div>
-          
+
           {/* Quick Action in Mobile Menu */}
           <div className="px-4 py-3 border-t border-gray-200/50 dark:border-gray-700/50">
             <NavLink
@@ -100,7 +99,7 @@ export default function NavBar() {
               className="w-full flex items-center justify-center px-4 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5"
             >
               <Mic className="w-5 h-5 mr-2" />
-              Start Recording
+              {t('common.startRecording')}
             </NavLink>
           </div>
         </div>

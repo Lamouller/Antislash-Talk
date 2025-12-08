@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import './index.css';
+import './lib/i18n';
 
 import RootLayout from './pages/_layout';
 import TabsLayout from './pages/(tabs)/_layout';

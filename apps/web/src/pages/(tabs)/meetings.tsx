@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { MeetingCard } from '../../components/meetings/MeetingCard';
@@ -5,6 +6,7 @@ import { Link } from 'react-router-dom';
 import { Meeting } from '../../lib/schemas';
 import { ListMusic, Search, Filter, Clock, Mic, Sparkles } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
+import { useTranslation } from 'react-i18next';
 
 export default function MeetingsScreen() {
   const [meetings, setMeetings] = useState<Meeting[]>([]);
@@ -12,6 +14,7 @@ export default function MeetingsScreen() {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'completed' | 'pending'>('all');
+  const { t } = useTranslation();
 
   useEffect(() => {
     const fetchMeetings = async () => {
@@ -26,7 +29,7 @@ export default function MeetingsScreen() {
           .order('created_at', { ascending: false });
 
         if (error) throw error;
-        
+
         setMeetings(data);
       } catch (err: any) {
         setError(err.message);
@@ -36,7 +39,7 @@ export default function MeetingsScreen() {
     };
 
     fetchMeetings();
-    
+
     // Set up real-time subscription
     const channel = supabase.channel('meetings')
       .on<Meeting>(
@@ -50,13 +53,13 @@ export default function MeetingsScreen() {
           }
           if (payload.eventType === 'UPDATE') {
             const updatedMeeting = payload.new;
-            setMeetings(currentMeetings => 
+            setMeetings(currentMeetings =>
               currentMeetings.map(m => m.id === updatedMeeting.id ? updatedMeeting : m)
             );
           }
           if (payload.eventType === 'DELETE') {
             const deletedMeeting = payload.old;
-            setMeetings(currentMeetings => 
+            setMeetings(currentMeetings =>
               currentMeetings.filter(m => m.id !== deletedMeeting.id)
             );
           }
@@ -70,8 +73,8 @@ export default function MeetingsScreen() {
   }, []);
 
   const filteredMeetings = meetings.filter(meeting => {
-    const matchesSearch = meeting.title?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                         meeting.transcript?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = meeting.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      meeting.transcript?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesFilter = filterStatus === 'all' || meeting.status === filterStatus;
     return matchesSearch && matchesFilter;
   });
@@ -85,7 +88,7 @@ export default function MeetingsScreen() {
               <ListMusic className="w-8 h-8 text-white" />
             </div>
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-              Error Loading Meetings
+              {t('meetings.errorLoading')}
             </h2>
             <p className="text-gray-600 dark:text-gray-400">{error}</p>
           </div>
@@ -103,13 +106,13 @@ export default function MeetingsScreen() {
           <div className="text-center mb-12">
             <div className="inline-flex items-center px-4 py-2 rounded-full bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-gray-200/50 dark:border-gray-700/50 shadow-lg mb-6">
               <ListMusic className="w-5 h-5 text-green-500 mr-2" />
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Meeting Management</span>
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('meetings.management')}</span>
             </div>
             <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-gray-900 via-green-800 to-emerald-800 dark:from-white dark:via-green-200 dark:to-emerald-200 bg-clip-text text-transparent mb-4">
-              Your Meetings
+              {t('meetings.title')}
             </h1>
             <p className="text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-              Manage and review all your recorded meetings and transcriptions
+              {t('meetings.subtitle')}
             </p>
           </div>
 
@@ -124,7 +127,7 @@ export default function MeetingsScreen() {
                   </div>
                   <input
                     type="text"
-                    placeholder="Search meetings..."
+                    placeholder={t('meetings.searchPlaceholder')}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="block w-full pl-10 pr-3 py-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-white/50 dark:bg-gray-700/50 backdrop-blur-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
@@ -140,9 +143,9 @@ export default function MeetingsScreen() {
                       onChange={(e) => setFilterStatus(e.target.value as any)}
                       className="block w-full pl-3 pr-10 py-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-white/50 dark:bg-gray-700/50 backdrop-blur-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                     >
-                      <option value="all">All Status</option>
-                      <option value="completed">Completed</option>
-                      <option value="pending">Pending</option>
+                      <option value="all">{t('meetings.allStatus')}</option>
+                      <option value="completed">{t('meetings.completed')}</option>
+                      <option value="pending">{t('meetings.pending')}</option>
                     </select>
                   </div>
 
@@ -150,7 +153,7 @@ export default function MeetingsScreen() {
                   <Link to="/tabs/record">
                     <Button className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5">
                       <Mic className="w-5 h-5 mr-2" />
-                      New Meeting
+                      {t('meetings.newMeeting')}
                     </Button>
                   </Link>
                 </div>
@@ -164,7 +167,7 @@ export default function MeetingsScreen() {
                       <ListMusic className="w-5 h-5 text-white" />
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-blue-700 dark:text-blue-300">Total Meetings</p>
+                      <p className="text-sm font-medium text-blue-700 dark:text-blue-300">{t('dashboard.totalMeetings')}</p>
                       <p className="text-2xl font-bold text-blue-900 dark:text-blue-100">{meetings.length}</p>
                     </div>
                   </div>
@@ -175,7 +178,7 @@ export default function MeetingsScreen() {
                       <Clock className="w-5 h-5 text-white" />
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-green-700 dark:text-green-300">Completed</p>
+                      <p className="text-sm font-medium text-green-700 dark:text-green-300">{t('meetings.completed')}</p>
                       <p className="text-2xl font-bold text-green-900 dark:text-green-100">
                         {meetings.filter(m => m.status === 'completed').length}
                       </p>
@@ -188,7 +191,7 @@ export default function MeetingsScreen() {
                       <Sparkles className="w-5 h-5 text-white" />
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-yellow-700 dark:text-yellow-300">This Month</p>
+                      <p className="text-sm font-medium text-yellow-700 dark:text-yellow-300">{t('meetings.thisMonth')}</p>
                       <p className="text-2xl font-bold text-yellow-900 dark:text-yellow-100">
                         {meetings.filter(m => new Date(m.created_at).getMonth() === new Date().getMonth()).length}
                       </p>
@@ -217,40 +220,40 @@ export default function MeetingsScreen() {
                   <ListMusic className="w-12 h-12 text-gray-400 dark:text-gray-500" />
                 </div>
                 <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-                  {searchTerm || filterStatus !== 'all' ? 'No meetings found' : 'No meetings yet'}
+                  {searchTerm || filterStatus !== 'all' ? t('meetings.noMeetingsFound') : t('meetings.noMeetingsYet')}
                 </h3>
                 <p className="text-gray-600 dark:text-gray-400 mb-6">
-                  {searchTerm || filterStatus !== 'all' 
-                    ? 'Try adjusting your search or filter criteria.'
-                    : 'Start by recording your first meeting to see it here.'
+                  {searchTerm || filterStatus !== 'all'
+                    ? t('meetings.adjustCriteria')
+                    : t('meetings.startRecordingFirst')
                   }
                 </p>
                 {!searchTerm && filterStatus === 'all' && (
                   <Link to="/tabs/record">
                     <Button className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5">
                       <Mic className="w-5 h-5 mr-2" />
-                      Record First Meeting
+                      {t('meetings.recordFirstMeeting')}
                     </Button>
                   </Link>
                 )}
               </div>
             </div>
           ) : (
-                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-               {filteredMeetings.map((meeting) => (
-                 <Link key={meeting.id} to={`/tabs/meeting/${meeting.id}`} className="block">
-                   <MeetingCard 
-                     id={meeting.id}
-                     title={meeting.title}
-                     created_at={meeting.created_at}
-                     duration={meeting.duration}
-                     status={meeting.status}
-                     transcript={meeting.transcript}
-                     participantCount={0}
-                   />
-                 </Link>
-               ))}
-             </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredMeetings.map((meeting) => (
+                <Link key={meeting.id} to={`/tabs/meeting/${meeting.id}`} className="block">
+                  <MeetingCard
+                    id={meeting.id}
+                    title={meeting.title}
+                    created_at={meeting.created_at}
+                    duration={meeting.duration}
+                    status={meeting.status}
+                    transcript={meeting.transcript}
+                    participantCount={0}
+                  />
+                </Link>
+              ))}
+            </div>
           )}
         </div>
       </div>
