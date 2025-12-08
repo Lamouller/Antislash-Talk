@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../../../lib/supabase';
 import { Button } from '../../../components/ui/Button';
+import { MarkdownRenderer } from '../../../components/ui/MarkdownRenderer';
 import Waveform from '../../../components/meetings/Waveform';
 import toast from 'react-hot-toast';
 import { Calendar, Clock, Users, FileText, Play, Download, Check, X, Sparkles, MessageSquare, BarChart3, ArrowLeft, Copy, User, Edit2, FileDown, FileType, Table, Code, Wand2, Settings } from 'lucide-react';
@@ -1009,9 +1010,10 @@ export default function MeetingDetail() {
                       <Wand2 className="w-4 h-4 text-purple-600" />
                     </Button>
                   </div>
-                  <p className="text-gray-800 dark:text-gray-200 leading-relaxed text-lg whitespace-pre-wrap">
-                    {summary}
-                  </p>
+                  <MarkdownRenderer
+                    content={summary}
+                    className="text-lg"
+                  />
                 </div>
               ) : (
                 <div className="text-center py-12 text-gray-500 dark:text-gray-400">

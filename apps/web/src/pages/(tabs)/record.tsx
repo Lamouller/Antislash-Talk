@@ -1100,7 +1100,6 @@ export default function RecordingScreen() {
                   </span>
                 )}
 
-                {/* Custom prompts indicator */}
                 {(userPrompts.title !== 'Generate a short, descriptive title for the meeting in French.' ||
                   userPrompts.summary !== 'Provide a concise one-paragraph summary of the key discussion points and decisions, in French.' ||
                   userPrompts.transcript !== 'A detailed, diarized transcript with speaker identification.') && (
@@ -1110,54 +1109,6 @@ export default function RecordingScreen() {
                     </span>
                   )}
               </div>
-            </div>
-
-            {/* Prompt Template Selector */}
-            <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm rounded-2xl border border-gray-200/50 dark:border-gray-700/50 shadow-lg p-6 mb-8">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center">
-                  <Sparkles className="w-4 h-4 mr-2 text-purple-500" />
-                  {t('record.promptTemplate')}
-                </h3>
-                <Button
-                  variant="ghost"
-                  size="small"
-                  onClick={() => navigate('/tabs/prompts')}
-                  className="text-xs"
-                >
-                  <Plus className="w-3 h-3 mr-1" />
-                  {t('record.managePrompts')}
-                </Button>
-              </div>
-
-              {promptTemplates.length > 0 ? (
-                <select
-                  className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-white/50 dark:bg-gray-700/50 backdrop-blur-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
-                  value={selectedPromptId || ''}
-                  onChange={(e) => applyPromptTemplate(e.target.value)}
-                  disabled={isRecording || isTranscribing}
-                >
-                  <option value="">{t('record.selectPrompt')}</option>
-                  {promptTemplates.map(template => (
-                    <option key={template.id} value={template.id}>
-                      {template.is_favorite && '⭐ '}
-                      {template.name}
-                      {template.category !== 'custom' && ` (${template.category})`}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <div className="text-center py-4 text-sm text-gray-500 dark:text-gray-400">
-                  <p className="mb-2">{t('record.noPrompts')}</p>
-                  <Button
-                    variant="outline"
-                    size="small"
-                    onClick={() => navigate('/tabs/prompts')}
-                  >
-                    {t('record.createFirst')}
-                  </Button>
-                </div>
-              )}
             </div>
 
             {/* Action Buttons */}
@@ -1172,6 +1123,7 @@ export default function RecordingScreen() {
                   {t('record.startRecording')}
                 </Button>
               )}
+
 
               {isRecording && (
                 <div className="grid grid-cols-2 gap-4">
@@ -1209,6 +1161,54 @@ export default function RecordingScreen() {
                       <Sparkles className="w-5 h-5 mr-2 text-purple-500" />
                       {t('record.processingOptions')}
                     </h3>
+
+                    {/* Prompt Template Selector */}
+                    <div className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-xl p-4 mb-4 border border-purple-200 dark:border-purple-700/30">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="text-sm font-semibold text-purple-900 dark:text-purple-100 flex items-center">
+                          <Sparkles className="w-4 h-4 mr-2 text-purple-600" />
+                          {t('record.promptTemplate')}
+                        </h4>
+                        <Button
+                          variant="ghost"
+                          size="small"
+                          onClick={() => navigate('/tabs/prompts')}
+                          className="text-xs"
+                        >
+                          <Plus className="w-3 h-3 mr-1" />
+                          {t('record.managePrompts')}
+                        </Button>
+                      </div>
+
+                      {promptTemplates.length > 0 ? (
+                        <select
+                          className="w-full px-4 py-3 border border-purple-300 dark:border-purple-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
+                          value={selectedPromptId || ''}
+                          onChange={(e) => applyPromptTemplate(e.target.value)}
+                          disabled={isTranscribing}
+                        >
+                          <option value="">{t('record.selectPrompt')}</option>
+                          {promptTemplates.map(template => (
+                            <option key={template.id} value={template.id}>
+                              {template.is_favorite && '⭐ '}
+                              {template.name}
+                              {template.category !== 'custom' && ` (${template.category})`}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <div className="text-center py-2 text-sm text-purple-700 dark:text-purple-300">
+                          <p className="mb-2">{t('record.noPrompts')}</p>
+                          <Button
+                            variant="outline"
+                            size="small"
+                            onClick={() => navigate('/tabs/prompts')}
+                          >
+                            {t('record.createFirst')}
+                          </Button>
+                        </div>
+                      )}
+                    </div>
 
                     {/* Automatic processing with user preferences */}
                     <div className="grid gap-3">
