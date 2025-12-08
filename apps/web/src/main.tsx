@@ -20,6 +20,7 @@ import MeetingsScreen from './pages/(tabs)/meetings';
 import RecordScreen from './pages/(tabs)/record';
 import UploadScreen from './pages/(tabs)/upload';
 import SettingsScreen from './pages/(tabs)/settings';
+import PromptWorkshopScreen from './pages/(tabs)/prompts';
 import MeetingDetailPage from './pages/(tabs)/meeting/[id]';
 
 import ReportIndexScreen from './pages/report';
@@ -54,6 +55,8 @@ const router = createBrowserRouter([
           { path: 'meetings', element: <MeetingsScreen /> },
           { path: 'record', element: <RecordScreen /> },
           { path: 'upload', element: <UploadScreen /> },
+          { path: 'upload', element: <UploadScreen /> },
+          { path: 'prompts', element: <PromptWorkshopScreen /> },
           { path: 'settings', element: <SettingsScreen /> },
           { path: 'meeting/:id', element: <MeetingDetailPage /> },
         ],
