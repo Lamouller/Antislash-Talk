@@ -297,14 +297,4 @@
         "csvMetaInfo": "Meeting Information",
         "csvTranscriptData": "Transcript Data"
     },
-    "nav": {
-        "home": "Home",
-        "meetings": "Meetings",
-        "record": "Record",
-        "upload": "Upload",
-        "settings": "Settings",
-        "reports": "Reports",
-        "login": "Login",
-        "subtitle": "AI Meeting Assistant"
-    }
 }

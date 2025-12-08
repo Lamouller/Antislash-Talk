@@ -297,14 +297,4 @@
         "csvMetaInfo": "Informations de la réunion",
         "csvTranscriptData": "Données de transcription"
     },
-    "nav": {
-        "home": "Accueil",
-        "meetings": "Réunions",
-        "record": "Enregistrer",
-        "upload": "Importer",
-        "settings": "Paramètres",
-        "reports": "Rapports",
-        "login": "Connexion",
-        "subtitle": "Assistant de réunion IA"
-    }
 }
