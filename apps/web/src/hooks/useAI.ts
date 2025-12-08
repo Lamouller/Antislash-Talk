@@ -96,9 +96,15 @@ export function useAI() {
 
     const generateGoogle = async (apiKey: string, model: string, system: string, user: string) => {
         // Simple implementation for Google Gemini via REST API
-        // Note: Gemini API structure is slightly different
-        const modelId = model || 'gemini-1.5-flash';
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${apiKey}`;
+        // Always strip 'models/' prefix just in case it crept in
+        const cleanModel = (model || 'gemini-1.5-flash-001').replace(/^models\//, '');
+
+        // Use v1 for stable models, but v1beta for experimental ones (like 2.0-flash-exp)
+        const apiVersion = cleanModel.includes('exp') ? 'v1beta' : 'v1';
+
+        const url = `https://generativelanguage.googleapis.com/${apiVersion}/models/${cleanModel}:generateContent?key=${apiKey}`;
+
+        console.log(`🤖 Call Google API: ${cleanModel} (${apiVersion})`);
 
         const response = await fetch(url, {
             method: 'POST',
@@ -107,14 +113,21 @@ export function useAI() {
             },
             body: JSON.stringify({
                 contents: [
-                    { role: 'user', parts: [{ text: `${system}\n\n${user}` }] }
-                ]
+                    {
+                        role: 'user',
+                        parts: [{ text: `${system}\n\n${user}` }]
+                    }
+                ],
+                // Add generation config for safety/consistency
+                generationConfig: {
+                    temperature: 0.7,
+                }
             })
         });
 
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.error?.message || 'Google API error');
+            throw new Error(error.error?.message || `Google API error: ${response.statusText}`);
         }
 
         const data = await response.json();

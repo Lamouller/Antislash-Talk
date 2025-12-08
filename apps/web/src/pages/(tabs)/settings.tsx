@@ -58,14 +58,24 @@ const llmModels: Record<LlmProvider, Model[]> = {
       description: 'Latest experimental model. Fastest with multimodal capabilities.',
     },
     {
+      id: 'gemini-1.5-pro-002',
+      name: 'Gemini 1.5 Pro-002',
+      description: 'Latest stable production model. Improved reasoning and coding.',
+    },
+    {
+      id: 'gemini-1.5-flash-002',
+      name: 'Gemini 1.5 Flash-002',
+      description: 'Latest stable fast model. Improvements in speed and latency.',
+    },
+    {
       id: 'gemini-1.5-pro',
       name: 'Gemini 1.5 Pro',
-      description: 'Most capable model for complex reasoning tasks.',
+      description: 'Legacy capable model for complex reasoning tasks.',
     },
     {
       id: 'gemini-1.5-flash',
       name: 'Gemini 1.5 Flash',
-      description: 'Fast and cost-effective for diverse tasks.',
+      description: 'Legacy fast model for diverse tasks.',
     },
     {
       id: 'gemini-1.5-flash-8b',
