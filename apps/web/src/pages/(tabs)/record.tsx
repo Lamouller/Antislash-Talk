@@ -713,6 +713,7 @@ export default function RecordingScreen() {
       console.log('💾 Inserting meeting with payload:', meetingPayload);
 
 
+
       const { data: meetingData, error: meetingError } = await supabase
         .from('meetings')
         .insert(meetingPayload)
