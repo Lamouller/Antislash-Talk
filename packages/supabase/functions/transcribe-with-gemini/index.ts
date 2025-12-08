@@ -20,9 +20,9 @@ async function handleGoogleTranscription(apiKey: string, model: string, audioBlo
 
   // Language will be determined by the caller, use 'fr' as default
   const isEnglish = false; // Will be updated by caller
-  
+
   const defaultPrompts = {
-    title: isEnglish 
+    title: isEnglish
       ? 'Concise and informative meeting title (60 chars max, in English). Gemini, use your contextual understanding to capture the essence of the discussion.'
       : 'Titre de réunion concis et informatif (60 caractères max, en français). Gemini, utilisez votre compréhension contextuelle pour capturer l\'essence de la discussion.',
     summary: isEnglish
@@ -101,7 +101,7 @@ EXAMPLE RESPONSE (ONE SPEAKER):
 
 REMINDER: Respond with ONLY the JSON object. No markdown formatting (no \`\`\`json), no explanations, just the raw JSON.
     `;
-  
+
   const response = await fetch(`${GEMINI_API_BASE_URL}/models/${model}:generateContent?key=${apiKey}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -120,7 +120,7 @@ REMINDER: Respond with ONLY the JSON object. No markdown formatting (no \`\`\`js
     const errorBody = await response.text();
     throw new Error(`Google API (transcription) failed: ${errorBody}`);
   }
-  
+
   const result = await response.json();
   if (!result.candidates || !result.candidates[0]?.content?.parts[0]?.text) {
     throw new Error("Transcription result from Google was empty or in an unexpected format.");
@@ -128,16 +128,16 @@ REMINDER: Respond with ONLY the JSON object. No markdown formatting (no \`\`\`js
 
   const rawText = result.candidates[0].content.parts[0].text;
   console.log("🔍 RAW TEXT FROM GEMINI (first 500 chars):", rawText.substring(0, 500));
-  
+
   // Nettoyage plus agressif
   let cleanedText = rawText
     .replace(/^```json\n?/, '')  // Supprime ```json au début
     .replace(/\n?```$/, '')       // Supprime ``` à la fin
     .replace(/^```\n?/, '')       // Supprime ``` seul au début
     .trim();
-  
+
   console.log("🧹 CLEANED TEXT (first 500 chars):", cleanedText.substring(0, 500));
-  
+
   let parsedJson;
   try {
     parsedJson = JSON.parse(cleanedText);
@@ -207,7 +207,7 @@ async function handleOpenAITranscription(apiKey: string, model: string, audioBlo
 
   const gptResponse = await fetch(`${OPENAI_API_BASE_URL}/chat/completions`, {
     method: 'POST',
-    headers: { 
+    headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${apiKey}`
     },
@@ -225,7 +225,7 @@ async function handleOpenAITranscription(apiKey: string, model: string, audioBlo
 
   const gptResult = await gptResponse.json();
   const resultJson = JSON.parse(gptResult.choices[0].message.content);
-  
+
   // Robustness check: if transcript is a string, parse it again.
   if (resultJson && typeof resultJson.transcript === 'string') {
     try {
@@ -242,18 +242,18 @@ async function handleOpenAITranscription(apiKey: string, model: string, audioBlo
 // --- Helper for PyTorch Local Service (OPTIONNEL) ---
 async function handlePyTorchTranscription(model: string, audioBlob: Blob, language: string) {
   console.log(`📡 Calling PyTorch service at: ${PYTORCH_SERVICE_URL}`);
-  
+
   // Vérifier que le service est disponible
   try {
     const healthCheck = await fetch(`${PYTORCH_SERVICE_URL}/health`, {
       method: 'GET',
       signal: AbortSignal.timeout(5000), // Timeout 5s
     });
-    
+
     if (!healthCheck.ok) {
       throw new Error(`PyTorch service unavailable (HTTP ${healthCheck.status})`);
     }
-    
+
     console.log('✅ PyTorch service is healthy');
   } catch (error) {
     console.error('❌ PyTorch service health check failed:', error);
@@ -262,38 +262,38 @@ async function handlePyTorchTranscription(model: string, audioBlob: Blob, langua
       'or start the service with: docker-compose --profile pytorch up -d'
     );
   }
-  
+
   // Créer FormData pour l'upload
   const formData = new FormData();
   formData.append('file', audioBlob, 'audio.webm');
   formData.append('language', language);
   formData.append('model', model || 'medium');
   formData.append('enable_diarization', 'true');
-  
+
   console.log(`🎯 Transcribing with PyTorch model: ${model || 'medium'}`);
-  
+
   const response = await fetch(`${PYTORCH_SERVICE_URL}/transcribe`, {
     method: 'POST',
     body: formData,
     signal: AbortSignal.timeout(300000), // Timeout 5min pour transcription
   });
-  
+
   if (!response.ok) {
     const errorText = await response.text();
     console.error('❌ PyTorch transcription failed:', errorText);
     throw new Error(`PyTorch transcription failed: ${errorText}`);
   }
-  
+
   const result = await response.json();
   console.log(`✅ PyTorch transcription completed in ${result.processing_time}s`);
-  
+
   // Convertir le format PyTorch au format attendu
   return {
     title: `Meeting - ${new Date().toLocaleDateString()}`,
     summary: generateSummaryFromTranscript(result.transcript, result.segments),
     transcript: result.segments.map((seg: any, idx: number) => ({
       id: idx,
-      speaker: result.speakers?.find((s: any) => 
+      speaker: result.speakers?.find((s: any) =>
         s.start <= seg.start && s.end >= seg.end
       )?.speaker || 'Speaker_01',
       text: seg.text,
@@ -306,7 +306,7 @@ async function handlePyTorchTranscription(model: string, audioBlob: Blob, langua
 // Générer un résumé simple à partir de la transcription
 function generateSummaryFromTranscript(fullText: string, segments: any[]): string {
   const duration = segments.length > 0 ? Math.round(segments[segments.length - 1].end) : 0;
-  
+
   return `📊 Résumé de la réunion:
   
 **Durée**: ${Math.floor(duration / 60)} minutes
@@ -339,10 +339,10 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     );
 
-    // Get meeting to retrieve recording_url
+    // Get meeting to retrieve recording_url AND prompts
     const { data: meeting } = await serviceSupabaseClient
       .from('meetings')
-      .select('recording_url, user_id')
+      .select('recording_url, user_id, prompt_title, prompt_summary, prompt_transcript')
       .eq('id', meeting_id)
       .single();
 
@@ -380,16 +380,24 @@ Deno.serve(async (req) => {
     const audioBlob = await serviceSupabaseClient.storage
       .from('meetingrecordings')
       .download(recordingPath);
-      
+
     if (audioBlob.error) throw new Error(`Failed to download audio: ${audioBlob.error.message}`);
     if (!audioBlob.data) throw new Error('Downloaded audio data is null.');
 
+    // 🔥 USE PROMPTS FROM MEETING FIRST, FALLBACK TO PROFILE
     const userPrompts: Prompts = {
-      title: profile?.prompt_title,
-      summary: profile?.prompt_summary,
-      transcript: profile?.prompt_transcript,
+      title: meeting.prompt_title || profile?.prompt_title,
+      summary: meeting.prompt_summary || profile?.prompt_summary,
+      transcript: meeting.prompt_transcript || profile?.prompt_transcript,
     };
-    
+
+    console.log('🎯 Using prompts:', {
+      title: userPrompts.title ? 'Custom' : 'Default',
+      summary: userPrompts.summary ? 'Custom (' + userPrompts.summary.substring(0, 50) + '...)' : 'Default',
+      transcript: userPrompts.transcript ? 'Custom' : 'Default'
+    });
+
+
     // Pass language preference separately
     const userLanguage = profile?.preferred_language || 'fr';
 
@@ -424,7 +432,7 @@ Deno.serve(async (req) => {
       .eq('id', meeting_id);
 
     if (updateError) throw updateError;
-    
+
     return new Response(JSON.stringify(analysisResult), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
