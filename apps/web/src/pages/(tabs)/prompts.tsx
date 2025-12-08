@@ -182,7 +182,7 @@ Règles:
         <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900 overflow-hidden">
             {/* Header */}
             <header className="flex-none bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-8 py-6">
-                <div className="flex items-center justify-between max-w-6xl mx-auto w-full">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 max-w-6xl mx-auto w-full">
                     <div>
                         <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
                             <Sparkles className="w-8 h-8 text-blue-600 dark:text-blue-400" />
@@ -192,7 +192,7 @@ Règles:
                             {t('prompts.subtitle')}
                         </p>
                     </div>
-                    <div className="flex gap-3">
+                    <div className="flex flex-wrap gap-3 w-full sm:w-auto">
                         {/* Tabs Navigation */}
                         <div className="flex bg-slate-100 dark:bg-slate-700 p-1 rounded-lg">
                             <button

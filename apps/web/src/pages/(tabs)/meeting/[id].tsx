@@ -962,8 +962,19 @@ export default function MeetingDetail() {
               </div>
 
               {summary ? (
-                <div className="bg-gradient-to-r from-blue-50/50 to-indigo-50/50 dark:from-blue-900/10 dark:to-indigo-900/10 rounded-2xl p-6 border border-blue-200/30 dark:border-blue-700/30">
-                  <p className="text-gray-800 dark:text-gray-200 leading-relaxed text-lg">
+                <div className="bg-gradient-to-r from-blue-50/50 to-indigo-50/50 dark:from-blue-900/10 dark:to-indigo-900/10 rounded-2xl p-6 border border-blue-200/30 dark:border-blue-700/30 relative group">
+                  <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Button
+                      variant="ghost"
+                      size="small"
+                      onClick={() => setSummary(null)}
+                      className="bg-white/50 hover:bg-white dark:bg-black/20 dark:hover:bg-black/40"
+                      title={t('meetingDetail.regenerate')}
+                    >
+                      <Wand2 className="w-4 h-4 text-purple-600" />
+                    </Button>
+                  </div>
+                  <p className="text-gray-800 dark:text-gray-200 leading-relaxed text-lg whitespace-pre-wrap">
                     {summary}
                   </p>
                 </div>
