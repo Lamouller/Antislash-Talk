@@ -22,7 +22,7 @@ export function useAI() {
 
         const { data: profile } = await supabase
             .from('profiles')
-            .select('preferred_llm, preferred_llm_model')
+            .select('preferred_llm, preferred_llm_model, preferred_transcription_provider, preferred_transcription_model')
             .eq('id', user.id)
             .single();
 
@@ -97,11 +97,12 @@ export function useAI() {
     const generateGoogle = async (apiKey: string, model: string, system: string, user: string) => {
         // Simple implementation for Google Gemini via REST API
         // Always strip 'models/' prefix just in case it crept in
-        // Default to the latest stable flash model (002) which is very reliable
-        const cleanModel = (model || 'gemini-1.5-flash-002').replace(/^models\//, '');
+        // Default to the stable generic alias 'gemini-1.5-flash' (points to latest stable)
+        const cleanModel = (model || 'gemini-1.5-flash').replace(/^models\//, '');
 
-        // Use v1beta for widespread compatibility (1.5, 2.0, etc.)
-        const apiVersion = 'v1beta';
+        // Use v1 for stable models (flash, pro, etc.) which is most reliable.
+        // ONLY use v1beta for experimental models (like 2.0-flash-exp)
+        const apiVersion = cleanModel.includes('exp') ? 'v1beta' : 'v1';
 
         const url = `https://generativelanguage.googleapis.com/${apiVersion}/models/${cleanModel}:generateContent?key=${apiKey}`;
 
@@ -167,8 +168,17 @@ export function useAI() {
                         if (key) {
                             console.log(`✅ Found valid key for ${p}. Switching provider.`);
                             provider = p as any;
-                            // Reset model to default for that provider since the old model ID might be invalid
-                            model = undefined;
+
+                            // Smart Model Selection:
+                            // If we fallback to the provider that is ALSO the transcription provider,
+                            // try to use that model instead of the default.
+                            if (profile?.preferred_transcription_provider === p && profile?.preferred_transcription_model) {
+                                console.log(`🧠 Smart Fallback: Using transcription model ${profile.preferred_transcription_model}`);
+                                model = profile.preferred_transcription_model;
+                            } else {
+                                // Otherwise reset to default
+                                model = undefined;
+                            }
                             break;
                         }
                     }
