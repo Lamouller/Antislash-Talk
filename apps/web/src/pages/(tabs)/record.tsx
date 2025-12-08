@@ -6,6 +6,7 @@ import { Mic, Square, Pause as PauseIcon, RefreshCw, Play, Radio, Waves, Sparkle
 import { useWebAudioRecorder } from '../../hooks/useWebAudioRecorder';
 import { useLocalTranscription, LocalTranscriptionResult } from '../../hooks/useLocalTranscription';
 import { useOllama } from '../../hooks/useOllama';
+import { useWakeLock } from '../../hooks/useWakeLock';
 import { getAdaptivePrompts, getWhisperOptimizedPrompts, requiresSpecialPrompts } from '../../lib/adaptive-prompts';
 import { processStreamingSegment, SpeakerMapping, SpeakerSegment } from '../../lib/speaker-name-detector';
 import toast from 'react-hot-toast';
@@ -98,6 +99,10 @@ export default function RecordingScreen() {
   const ollama = useOllama();
   const generateTitle = ollama.generateTitle;
   const generateSummary = ollama.generateSummary;
+  const { isSupported: wakeLockSupported, isActive: wakeLockActive, requestLock: requestWakeLock, releaseLock: releaseWakeLock } = useWakeLock();
+
+  // Silent audio for iOS background persistence
+  const silentAudioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     setIsPaused(recorderIsPaused);
@@ -232,6 +237,22 @@ export default function RecordingScreen() {
       console.log('='.repeat(60));
       console.log('');
 
+      // 🔒 Request Wake Lock to prevent screen sleep
+      if (wakeLockSupported) {
+        await requestWakeLock();
+        console.log('[record] 🔒 Wake Lock requested');
+      }
+
+      // 🎵 Play silent audio for iOS background persistence
+      if (silentAudioRef.current) {
+        try {
+          await silentAudioRef.current.play();
+          console.log('[record] 🎵 Silent audio started for iOS persistence');
+        } catch (err) {
+          console.warn('[record] ⚠️ Could not start silent audio:', err);
+        }
+      }
+
       // Réinitialiser les segments live et le mapping de speakers
       setLiveTranscriptionSegments([]);
       setSpeakerMapping({});
@@ -310,6 +331,19 @@ export default function RecordingScreen() {
   const handleStopRecording = async () => {
     console.log('%c[record] ⏹️ STOPPING RECORDING', 'color: #dc2626; font-weight: bold');
     stopRecording();
+
+    // 🔓 Release Wake Lock
+    if (wakeLockActive) {
+      await releaseWakeLock();
+      console.log('[record] 🔓 Wake Lock released');
+    }
+
+    // 🎵 Stop silent audio
+    if (silentAudioRef.current) {
+      silentAudioRef.current.pause();
+      silentAudioRef.current.currentTime = 0;
+      console.log('[record] 🎵 Silent audio stopped');
+    }
 
     // Désactiver le mode streaming live (la transcription continue pour les derniers chunks)
     setIsStreamingActive(false);
@@ -788,470 +822,467 @@ export default function RecordingScreen() {
   const StateIcon = stateConfig.icon;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-pink-100 dark:from-gray-900 dark:via-purple-900/20 dark:to-pink-900/20">
-      <div className="relative overflow-hidden pt-8 pb-16">
-        <div className="absolute inset-0 bg-gradient-to-r from-purple-600/10 via-pink-600/10 to-red-600/10"></div>
-        <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-
-          {/* Header */}
-          <div className="text-center mb-12">
-            <div className="inline-flex items-center px-4 py-2 rounded-full bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-gray-200/50 dark:border-gray-700/50 shadow-lg mb-6">
               <FileAudio className="w-5 h-5 text-purple-500 mr-2" />
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('record.audioRecording')}</span>
-            </div>
+            </div >
             <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-gray-900 via-purple-800 to-pink-800 dark:from-white dark:via-purple-200 dark:to-pink-200 bg-clip-text text-transparent mb-4">
               {stateConfig.title}
             </h1>
             <p className="text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
               {stateConfig.subtitle}
             </p>
-          </div>
+          </div >
 
-          {/* Main Recording Interface */}
-          <div className="max-w-2xl mx-auto">
+    {/* Main Recording Interface */ }
+    < div className = "max-w-2xl mx-auto" >
 
-            {/* Status Card */}
-            <div className={`bg-gradient-to-r ${stateConfig.bgColor} backdrop-blur-sm rounded-2xl border border-gray-200/50 dark:border-gray-700/50 shadow-lg p-8 mb-8`}>
-              <div className="text-center">
-                <div className={`w-24 h-24 mx-auto mb-6 rounded-full bg-gradient-to-r ${stateConfig.color} flex items-center justify-center shadow-xl animate-pulse`}>
-                  <StateIcon className="w-12 h-12 text-white" />
-                </div>
+      {/* Status Card */ }
+      < div className = {`bg-gradient-to-r ${stateConfig.bgColor} backdrop-blur-sm rounded-2xl border border-gray-200/50 dark:border-gray-700/50 shadow-lg p-8 mb-8`
+}>
+  <div className="text-center">
+    <div className={`w-24 h-24 mx-auto mb-6 rounded-full bg-gradient-to-r ${stateConfig.color} flex items-center justify-center shadow-xl animate-pulse`}>
+      <StateIcon className="w-12 h-12 text-white" />
+    </div>
 
-                {/* Timer */}
-                <div className="text-center mb-6">
-                  <div className="text-6xl font-mono font-bold text-gray-900 dark:text-white mb-2">
-                    {formatTime(duration)}
-                  </div>
-                  <div className="flex items-center justify-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
-                    <Clock className="w-4 h-4" />
-                    <span>{t('record.duration')}</span>
-                  </div>
-                </div>
+    {/* Timer */}
+    <div className="text-center mb-6">
+      <div className="text-6xl font-mono font-bold text-gray-900 dark:text-white mb-2">
+        {formatTime(duration)}
+      </div>
+      <div className="flex items-center justify-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
+        <Clock className="w-4 h-4" />
+        <span>{t('record.duration')}</span>
+      </div>
+    </div>
 
-                {/* Recording Indicator */}
-                {isRecording && (
-                  <div className="flex items-center justify-center space-x-2 mb-6">
-                    <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
-                    <span className="text-sm font-medium text-red-600 dark:text-red-400">
-                      {isPaused ? t('record.paused') : t('record.recording')}
-                    </span>
-                  </div>
-                )}
+    {/* Recording Indicator */}
+    {isRecording && (
+      <div className="flex items-center justify-center space-x-2 mb-6">
+        <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+        <span className="text-sm font-medium text-red-600 dark:text-red-400">
+          {isPaused ? t('record.paused') : t('record.recording')}
+        </span>
+      </div>
+    )}
 
-                {/* Progress for transcription */}
-                {isTranscribing && (
-                  <div className="mb-6">
-                    <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400 mb-2">
-                      <span>{t('record.transcribingProgress')}</span>
-                      <span>{Math.round(transcriptionProgress)}%</span>
-                    </div>
-                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                      <div
-                        className="bg-gradient-to-r from-blue-500 to-indigo-600 h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${transcriptionProgress}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
+    {/* Progress for transcription */}
+    {isTranscribing && (
+      <div className="mb-6">
+        <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400 mb-2">
+          <span>{t('record.transcribingProgress')}</span>
+          <span>{Math.round(transcriptionProgress)}%</span>
+        </div>
+        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+          <div
+            className="bg-gradient-to-r from-blue-500 to-indigo-600 h-2 rounded-full transition-all duration-300"
+            style={{ width: `${transcriptionProgress}%` }}
+          ></div>
+        </div>
+      </div>
+    )}
+  </div>
+            </div >
 
-            {/* 🚀 LIVE TRANSCRIPTION ZONE - Visible dès le début de l'enregistrement ! */}
-            {(enableStreamingTranscription && (isRecording || isStreamingActive || isTranscribing || liveTranscriptionSegments.length > 0)) && (
-              <div className="bg-gradient-to-r from-violet-50 to-purple-50 dark:from-violet-900/20 dark:to-purple-900/20 border border-violet-200 dark:border-violet-700/50 rounded-2xl p-6 mb-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-r from-violet-600 to-purple-600 flex items-center justify-center animate-pulse">
-                    <Waves className="w-5 h-5 text-white" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                      💬 {t('record.liveTranscription')}
-                    </h3>
-                    <p className="text-xs text-violet-600 dark:text-violet-400">
-                      {t('record.liveSubtitle')}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {isStreamingActive ? (
-                      <>
-                        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                        <span className="text-xs font-medium text-green-600 dark:text-green-400">
-                          {t('record.streaming')}
-                        </span>
-                      </>
-                    ) : (
-                      <>
-                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                        <span className="text-xs font-medium text-blue-600 dark:text-blue-400">
-                          {liveTranscriptionSegments.length > 0 ? t('record.completed') : t('record.ready')}
-                        </span>
-                      </>
-                    )}
-                  </div>
-                </div>
+  {/* 🚀 LIVE TRANSCRIPTION ZONE - Visible dès le début de l'enregistrement ! */ }
+{
+  (enableStreamingTranscription && (isRecording || isStreamingActive || isTranscribing || liveTranscriptionSegments.length > 0)) && (
+    <div className="bg-gradient-to-r from-violet-50 to-purple-50 dark:from-violet-900/20 dark:to-purple-900/20 border border-violet-200 dark:border-violet-700/50 rounded-2xl p-6 mb-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-10 h-10 rounded-full bg-gradient-to-r from-violet-600 to-purple-600 flex items-center justify-center animate-pulse">
+          <Waves className="w-5 h-5 text-white" />
+        </div>
+        <div className="flex-1">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+            💬 {t('record.liveTranscription')}
+          </h3>
+          <p className="text-xs text-violet-600 dark:text-violet-400">
+            {t('record.liveSubtitle')}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          {isStreamingActive ? (
+            <>
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <span className="text-xs font-medium text-green-600 dark:text-green-400">
+                {t('record.streaming')}
+              </span>
+            </>
+          ) : (
+            <>
+              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+              <span className="text-xs font-medium text-blue-600 dark:text-blue-400">
+                {liveTranscriptionSegments.length > 0 ? t('record.completed') : t('record.ready')}
+              </span>
+            </>
+          )}
+        </div>
+      </div>
 
-                {/* Scrollable transcription zone - Auto-scroll activé */}
-                <div
-                  ref={transcriptionContainerRef}
-                  className="max-h-96 overflow-y-auto bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm rounded-xl p-4 space-y-3 border border-violet-200/50 dark:border-violet-700/30 scroll-smooth"
-                >
-                  {liveTranscriptionSegments.length > 0 ? (
-                    liveTranscriptionSegments.map((segment, idx) => (
-                      <div
-                        key={idx}
-                        className="animate-in fade-in slide-in-from-bottom-2 duration-300"
-                      >
-                        <div className="flex items-start gap-3">
-                          {segment.speaker && (
-                            <span className="text-xs font-semibold text-violet-600 dark:text-violet-400 bg-violet-100 dark:bg-violet-900/30 px-2 py-1 rounded-full">
-                              {segment.speaker}
-                            </span>
-                          )}
-                          <p className="flex-1 text-sm text-gray-900 dark:text-gray-100 leading-relaxed">
-                            {segment.text}
-                          </p>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-8">
-                      <div className="flex items-center justify-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-                        <Waves className="w-5 h-5 text-violet-500 animate-pulse" />
-                        <span>{t('record.waiting')}</span>
-                      </div>
-                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
-                        {t('record.segmentsAppear')}
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Loading indicator - visible only during active streaming */}
-                  {isStreamingActive && liveTranscriptionSegments.length > 0 && (
-                    <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 animate-pulse">
-                      <div className="w-1.5 h-1.5 bg-violet-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                      <div className="w-1.5 h-1.5 bg-violet-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                      <div className="w-1.5 h-1.5 bg-violet-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
-                      <span className="ml-2">{t('record.receivingSegments')}</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Statistics */}
-                <div className="mt-4 flex items-center justify-between text-xs text-violet-600 dark:text-violet-400">
-                  <span>✨ {t('record.segmentsReceived', { count: liveTranscriptionSegments.length })}</span>
-                  <span>🏆 {t('record.diarization')}</span>
-                </div>
-              </div>
-            )}
-
-            {/* Audio Security Policy Notice */}
-            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-2xl p-4 mb-6">
+      {/* Scrollable transcription zone - Auto-scroll activé */}
+      <div
+        ref={transcriptionContainerRef}
+        className="max-h-96 overflow-y-auto bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm rounded-xl p-4 space-y-3 border border-violet-200/50 dark:border-violet-700/30 scroll-smooth"
+      >
+        {liveTranscriptionSegments.length > 0 ? (
+          liveTranscriptionSegments.map((segment, idx) => (
+            <div
+              key={idx}
+              className="animate-in fade-in slide-in-from-bottom-2 duration-300"
+            >
               <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <Clock className="w-4 h-4 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-100 mb-1">
-                    🔒 {t('record.securityPolicy')}
-                  </h3>
-                  <p className="text-xs text-blue-700 dark:text-blue-300">
-                    <Trans i18nKey="record.securityDesc" components={{ strong: <strong /> }} />
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Meeting Title Input */}
-            <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm rounded-2xl border border-gray-200/50 dark:border-gray-700/50 shadow-lg p-6 mb-8">
-              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-                {t('record.meetingTitle')}
-              </label>
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder={`Meeting ${new Date().toLocaleDateString()}`}
-                className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-white/50 dark:bg-gray-700/50 backdrop-blur-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
-                disabled={isRecording || isTranscribing}
-              />
-            </div>
-
-            {/* User Preferences Display */}
-            <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm rounded-2xl border border-gray-200/50 dark:border-gray-700/50 shadow-lg p-6 mb-8">
-              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4 flex items-center">
-                <Settings className="w-4 h-4 mr-2" />
-                {t('record.settingsTitle')}
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="p-3 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg border border-blue-200/30 dark:border-blue-700/30">
-                  <div className="text-xs text-blue-600 dark:text-blue-400 uppercase tracking-wide font-medium">{t('record.provider')}</div>
-                  <div className="text-sm font-semibold text-blue-900 dark:text-blue-100 capitalize">
-                    {userPreferences.transcription_provider}
-                    {userPreferences.transcription_provider === 'local' && (
-                      <span className="ml-2 text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 px-2 py-1 rounded-full">
-                        {t('record.private')}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div className="p-3 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-lg border border-purple-200/30 dark:border-purple-700/30">
-                  <div className="text-xs text-purple-600 dark:text-purple-400 uppercase tracking-wide font-medium">{t('record.model')}</div>
-                  <div className="text-sm font-semibold text-purple-900 dark:text-purple-100">
-                    {userPreferences.transcription_model}
-                  </div>
-                </div>
-              </div>
-              <div className="mt-3 space-y-2 text-xs text-gray-600 dark:text-gray-400">
-                {userPreferences.transcription_provider === 'local' ? (
-                  <span className="flex items-center">
-                    <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
-                    {t('record.localDesc')}
-                  </span>
-                ) : (
-                  <span className="flex items-center">
-                    <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
-                    {t('record.cloudDesc')}
+                {segment.speaker && (
+                  <span className="text-xs font-semibold text-violet-600 dark:text-violet-400 bg-violet-100 dark:bg-violet-900/30 px-2 py-1 rounded-full">
+                    {segment.speaker}
                   </span>
                 )}
-
-                {/* Custom prompts indicator */}
-                {(userPrompts.title !== 'Generate a short, descriptive title for the meeting in French.' ||
-                  userPrompts.summary !== 'Provide a concise one-paragraph summary of the key discussion points and decisions, in French.' ||
-                  userPrompts.transcript !== 'A detailed, diarized transcript with speaker identification.') && (
-                    <span className="flex items-center">
-                      <span className="w-2 h-2 bg-purple-500 rounded-full mr-2"></span>
-                      {t('record.customPrompts')}
-                    </span>
-                  )}
+                <p className="flex-1 text-sm text-gray-900 dark:text-gray-100 leading-relaxed">
+                  {segment.text}
+                </p>
               </div>
             </div>
-
-            {/* Action Buttons */}
-            <div className="grid gap-4">
-              {!isRecording && !audioBlob && (
-                <Button
-                  onClick={handleStartRecording}
-                  disabled={pageState !== 'ready'}
-                  className="w-full bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white py-4 text-lg font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5"
-                >
-                  <Mic className="w-6 h-6 mr-3" />
-                  {t('record.startRecording')}
-                </Button>
-              )}
-
-              {isRecording && (
-                <div className="grid grid-cols-2 gap-4">
-                  <Button
-                    onClick={handlePauseResume}
-                    variant="outline"
-                    className="py-4 text-lg font-semibold rounded-xl border-gray-200 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
-                  >
-                    {isPaused ? (
-                      <>
-                        <Play className="w-6 h-6 mr-2" />
-                        {t('record.resume')}
-                      </>
-                    ) : (
-                      <>
-                        <PauseIcon className="w-6 h-6 mr-2" />
-                        {t('record.pause')}
-                      </>
-                    )}
-                  </Button>
-                  <Button
-                    onClick={handleStopRecording}
-                    className="bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white py-4 text-lg font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
-                  >
-                    <Square className="w-6 h-6 mr-2" />
-                    {t('record.stop')}
-                  </Button>
-                </div>
-              )}
-
-              {audioBlob && !isRecording && !autoTranscribeAfterRecording && (
-                <div className="space-y-4">
-                  <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm rounded-2xl border border-gray-200/50 dark:border-gray-700/50 shadow-lg p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
-                      <Sparkles className="w-5 h-5 mr-2 text-purple-500" />
-                      {t('record.processingOptions')}
-                    </h3>
-
-                    {/* Automatic processing with user preferences */}
-                    <div className="grid gap-3">
-
-                      {/* 🆕 Prompt Selector */}
-                      <div className="mb-2">
-                        <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5 block">
-                          {t('prompts.select_prompt') || 'Select Prompt'}
-                        </label>
-                        <select
-                          value={selectedPromptId}
-                          onChange={(e) => {
-                            const newId = e.target.value;
-                            setSelectedPromptId(newId);
-
-                            // Immediately update the prompt content used for logic
-                            if (newId === 'default') {
-                              // Revert to default or 'custom prompts' form logic if used
-                              console.log('Reverting to default prompt');
-                            } else {
-                              const p = availablePrompts.find(pr => pr.id === newId);
-                              if (p) {
-                                console.log('Selected custom prompt:', p.name);
-                                // Update userPrompts to use this content immediately
-                                setUserPrompts(prev => ({
-                                  ...prev,
-                                  summary: p.content
-                                }));
-                              }
-                            }
-                          }}
-                          className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white/50 dark:bg-gray-700/50 backdrop-blur-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all font-medium"
-                        >
-                          <option value="default">Default Summary Prompt</option>
-                          {availablePrompts.length > 0 && (
-                            <optgroup label="My Custom Prompts">
-                              {availablePrompts.map(p => (
-                                <option key={p.id} value={p.id}>
-                                  {p.category === 'summary' ? '📝 ' : '⚡️ '}{p.name}
-                                </option>
-                              ))}
-                            </optgroup>
-                          )}
-                        </select>
-                      </div>
-
-                      <Button
-                        onClick={() => {
-                          if (userPreferences.transcription_provider === 'local') {
-                            handleTranscription('local', userPreferences.transcription_model);
-                          } else {
-                            handleSave(); // Will trigger async transcription with user preferences
-                          }
-                        }}
-                        disabled={isTranscribing}
-                        className="w-full bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white py-4 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 text-lg font-semibold"
-                      >
-                        {userPreferences.transcription_provider === 'local' ? (
-                          <>
-                            <Waves className="w-5 h-5 mr-2" />
-                            {userPreferences.transcription_model === 'whisper-tiny' && !selectedPromptId && selectedPromptId !== 'default' ?
-                              t('record.transcribeLocal', { model: userPreferences.transcription_model }) :
-                              `Generate with ${selectedPromptId !== 'default' ? 'Custom Prompt' : 'Default'}`
-                            }
-                          </>
-                        ) : (
-                          <>
-                            <Sparkles className="w-5 h-5 mr-2" />
-                            {t('record.processCloud', { provider: userPreferences.transcription_provider, model: userPreferences.transcription_model })}
-                          </>
-                        )}
-                      </Button>
-
-                      {/* Alternative options */}
-                      <details className="mt-4">
-                        <summary className="cursor-pointer text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors">
-                          🔧 {t('record.otherOptions')}
-                        </summary>
-                        <div className="mt-3 grid gap-2">
-                          {userPreferences.transcription_provider !== 'local' && (
-                            <Button
-                              onClick={() => handleTranscription('local', 'Xenova/whisper-tiny')}
-                              disabled={isTranscribing}
-                              variant="outline"
-                              className="w-full py-2 text-sm rounded-lg border-gray-200 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
-                            >
-                              <Waves className="w-4 h-4 mr-2" />
-                              {t('record.tryLocal')}
-                            </Button>
-                          )}
-                          <Button
-                            onClick={handleMistralTranscription}
-                            disabled={isTranscribing}
-                            variant="outline"
-                            className="w-full py-2 text-sm rounded-lg border-gray-200 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
-                          >
-                            <Settings className="w-4 h-4 mr-2" />
-                            {t('record.testMistral')}
-                          </Button>
-                          <Button
-                            onClick={() => handleSave()}
-                            disabled={isTranscribing}
-                            variant="outline"
-                            className="w-full py-2 text-sm rounded-lg border-gray-200 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
-                          >
-                            <FileAudio className="w-4 h-4 mr-2" />
-                            {t('record.saveAudioOnly')}
-                          </Button>
-                        </div>
-                      </details>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Auto-transcription indicator when enabled */}
-              {audioBlob && !isRecording && autoTranscribeAfterRecording && !isTranscribing && (
-                <div className="bg-blue-50/70 dark:bg-blue-900/30 backdrop-blur-sm rounded-2xl border border-blue-200/50 dark:border-blue-700/50 shadow-lg p-6">
-                  <div className="text-center">
-                    <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg">
-                      <Sparkles className="w-8 h-8 text-white" />
-                    </div>
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                      {t('record.autoProcessingEnabled')}
-                    </h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                      {userPreferences.transcription_provider === 'local'
-                        ? t('record.localDesc')
-                        : t('record.cloudDesc')
-                      } using your preferred settings:
-                      <br />
-                      <span className="font-medium">{userPreferences.transcription_provider} - {userPreferences.transcription_model}</span>
-                    </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      {t('record.changeSettings')}
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* Reset Button */}
-              {(audioBlob || pageState === 'error') && !isRecording && !isTranscribing && (
-                <Button
-                  onClick={() => {
-                    resetRecorder();
-                    setTitle('');
-                    setPageState('ready');
-                    setSavedMeetingId(null);
-                  }}
-                  variant="outline"
-                  className="w-full py-3 rounded-xl border-gray-200 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
-                >
-                  <RefreshCw className="w-5 h-5 mr-2" />
-                  {t('record.startOver')}
-                </Button>
-              )}
+          ))
+        ) : (
+          <div className="text-center py-8">
+            <div className="flex items-center justify-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+              <Waves className="w-5 h-5 text-violet-500 animate-pulse" />
+              <span>{t('record.waiting')}</span>
             </div>
-
-            {/* Success Message */}
-            {savedMeetingId && (
-              <div className="mt-8 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 backdrop-blur-sm rounded-2xl border border-green-200/50 dark:border-green-700/50 shadow-lg p-6">
-                <div className="text-center">
-                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 flex items-center justify-center">
-                    <Sparkles className="w-8 h-8 text-white" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-green-900 dark:text-green-100 mb-2">
-                    {t('record.successTitle')}
-                  </h3>
-                  <p className="text-green-700 dark:text-green-300 mb-4">
-                    {t('record.successDesc')}
-                  </p>
-                </div>
-              </div>
-            )}
+            <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
+              {t('record.segmentsAppear')}
+            </p>
           </div>
+        )}
+
+        {/* Loading indicator - visible only during active streaming */}
+        {isStreamingActive && liveTranscriptionSegments.length > 0 && (
+          <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 animate-pulse">
+            <div className="w-1.5 h-1.5 bg-violet-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+            <div className="w-1.5 h-1.5 bg-violet-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+            <div className="w-1.5 h-1.5 bg-violet-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+            <span className="ml-2">{t('record.receivingSegments')}</span>
+          </div>
+        )}
+      </div>
+
+      {/* Statistics */}
+      <div className="mt-4 flex items-center justify-between text-xs text-violet-600 dark:text-violet-400">
+        <span>✨ {t('record.segmentsReceived', { count: liveTranscriptionSegments.length })}</span>
+        <span>🏆 {t('record.diarization')}</span>
+      </div>
+    </div>
+  )
+}
+
+{/* Audio Security Policy Notice */ }
+<div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-2xl p-4 mb-6">
+  <div className="flex items-start gap-3">
+    <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center flex-shrink-0 mt-0.5">
+      <Clock className="w-4 h-4 text-white" />
+    </div>
+    <div>
+      <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-100 mb-1">
+        🔒 {t('record.securityPolicy')}
+      </h3>
+      <p className="text-xs text-blue-700 dark:text-blue-300">
+        <Trans i18nKey="record.securityDesc" components={{ strong: <strong /> }} />
+      </p>
+    </div>
+  </div>
+</div>
+
+{/* Meeting Title Input */ }
+<div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm rounded-2xl border border-gray-200/50 dark:border-gray-700/50 shadow-lg p-6 mb-8">
+  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+    {t('record.meetingTitle')}
+  </label>
+  <input
+    type="text"
+    value={title}
+    onChange={(e) => setTitle(e.target.value)}
+    placeholder={`Meeting ${new Date().toLocaleDateString()}`}
+    className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-white/50 dark:bg-gray-700/50 backdrop-blur-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
+    disabled={isRecording || isTranscribing}
+  />
+</div>
+
+{/* User Preferences Display */ }
+<div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm rounded-2xl border border-gray-200/50 dark:border-gray-700/50 shadow-lg p-6 mb-8">
+  <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4 flex items-center">
+    <Settings className="w-4 h-4 mr-2" />
+    {t('record.settingsTitle')}
+  </h3>
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div className="p-3 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg border border-blue-200/30 dark:border-blue-700/30">
+      <div className="text-xs text-blue-600 dark:text-blue-400 uppercase tracking-wide font-medium">{t('record.provider')}</div>
+      <div className="text-sm font-semibold text-blue-900 dark:text-blue-100 capitalize">
+        {userPreferences.transcription_provider}
+        {userPreferences.transcription_provider === 'local' && (
+          <span className="ml-2 text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 px-2 py-1 rounded-full">
+            {t('record.private')}
+          </span>
+        )}
+      </div>
+    </div>
+    <div className="p-3 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-lg border border-purple-200/30 dark:border-purple-700/30">
+      <div className="text-xs text-purple-600 dark:text-purple-400 uppercase tracking-wide font-medium">{t('record.model')}</div>
+      <div className="text-sm font-semibold text-purple-900 dark:text-purple-100">
+        {userPreferences.transcription_model}
+      </div>
+    </div>
+  </div>
+  <div className="mt-3 space-y-2 text-xs text-gray-600 dark:text-gray-400">
+    {userPreferences.transcription_provider === 'local' ? (
+      <span className="flex items-center">
+        <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
+        {t('record.localDesc')}
+      </span>
+    ) : (
+      <span className="flex items-center">
+        <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
+        {t('record.cloudDesc')}
+      </span>
+    )}
+
+    {/* Custom prompts indicator */}
+    {(userPrompts.title !== 'Generate a short, descriptive title for the meeting in French.' ||
+      userPrompts.summary !== 'Provide a concise one-paragraph summary of the key discussion points and decisions, in French.' ||
+      userPrompts.transcript !== 'A detailed, diarized transcript with speaker identification.') && (
+        <span className="flex items-center">
+          <span className="w-2 h-2 bg-purple-500 rounded-full mr-2"></span>
+          {t('record.customPrompts')}
+        </span>
+      )}
+  </div>
+</div>
+
+{/* Action Buttons */ }
+<div className="grid gap-4">
+  {!isRecording && !audioBlob && (
+    <Button
+      onClick={handleStartRecording}
+      disabled={pageState !== 'ready'}
+      className="w-full bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white py-4 text-lg font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5"
+    >
+      <Mic className="w-6 h-6 mr-3" />
+      {t('record.startRecording')}
+    </Button>
+  )}
+
+  {isRecording && (
+    <div className="grid grid-cols-2 gap-4">
+      <Button
+        onClick={handlePauseResume}
+        variant="outline"
+        className="py-4 text-lg font-semibold rounded-xl border-gray-200 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
+      >
+        {isPaused ? (
+          <>
+            <Play className="w-6 h-6 mr-2" />
+            {t('record.resume')}
+          </>
+        ) : (
+          <>
+            <PauseIcon className="w-6 h-6 mr-2" />
+            {t('record.pause')}
+          </>
+        )}
+      </Button>
+      <Button
+        onClick={handleStopRecording}
+        className="bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white py-4 text-lg font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
+      >
+        <Square className="w-6 h-6 mr-2" />
+        {t('record.stop')}
+      </Button>
+    </div>
+  )}
+
+  {audioBlob && !isRecording && !autoTranscribeAfterRecording && (
+    <div className="space-y-4">
+      <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm rounded-2xl border border-gray-200/50 dark:border-gray-700/50 shadow-lg p-6">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+          <Sparkles className="w-5 h-5 mr-2 text-purple-500" />
+          {t('record.processingOptions')}
+        </h3>
+
+        {/* Automatic processing with user preferences */}
+        <div className="grid gap-3">
+
+          {/* 🆕 Prompt Selector */}
+          <div className="mb-2">
+            <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5 block">
+              {t('prompts.select_prompt') || 'Select Prompt'}
+            </label>
+            <select
+              value={selectedPromptId}
+              onChange={(e) => {
+                const newId = e.target.value;
+                setSelectedPromptId(newId);
+
+                // Immediately update the prompt content used for logic
+                if (newId === 'default') {
+                  // Revert to default or 'custom prompts' form logic if used
+                  console.log('Reverting to default prompt');
+                } else {
+                  const p = availablePrompts.find(pr => pr.id === newId);
+                  if (p) {
+                    console.log('Selected custom prompt:', p.name);
+                    // Update userPrompts to use this content immediately
+                    setUserPrompts(prev => ({
+                      ...prev,
+                      summary: p.content
+                    }));
+                  }
+                }
+              }}
+              className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white/50 dark:bg-gray-700/50 backdrop-blur-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all font-medium"
+            >
+              <option value="default">Default Summary Prompt</option>
+              {availablePrompts.length > 0 && (
+                <optgroup label="My Custom Prompts">
+                  {availablePrompts.map(p => (
+                    <option key={p.id} value={p.id}>
+                      {p.category === 'summary' ? '📝 ' : '⚡️ '}{p.name}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+            </select>
+          </div>
+
+          <Button
+            onClick={() => {
+              if (userPreferences.transcription_provider === 'local') {
+                handleTranscription('local', userPreferences.transcription_model);
+              } else {
+                handleSave(); // Will trigger async transcription with user preferences
+              }
+            }}
+            disabled={isTranscribing}
+            className="w-full bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white py-4 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 text-lg font-semibold"
+          >
+            {userPreferences.transcription_provider === 'local' ? (
+              <>
+                <Waves className="w-5 h-5 mr-2" />
+                {userPreferences.transcription_model === 'whisper-tiny' && !selectedPromptId && selectedPromptId !== 'default' ?
+                  t('record.transcribeLocal', { model: userPreferences.transcription_model }) :
+                  `Generate with ${selectedPromptId !== 'default' ? 'Custom Prompt' : 'Default'}`
+                }
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-5 h-5 mr-2" />
+                {t('record.processCloud', { provider: userPreferences.transcription_provider, model: userPreferences.transcription_model })}
+              </>
+            )}
+          </Button>
+
+          {/* Alternative options */}
+          <details className="mt-4">
+            <summary className="cursor-pointer text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors">
+              🔧 {t('record.otherOptions')}
+            </summary>
+            <div className="mt-3 grid gap-2">
+              {userPreferences.transcription_provider !== 'local' && (
+                <Button
+                  onClick={() => handleTranscription('local', 'Xenova/whisper-tiny')}
+                  disabled={isTranscribing}
+                  variant="outline"
+                  className="w-full py-2 text-sm rounded-lg border-gray-200 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
+                >
+                  <Waves className="w-4 h-4 mr-2" />
+                  {t('record.tryLocal')}
+                </Button>
+              )}
+              <Button
+                onClick={handleMistralTranscription}
+                disabled={isTranscribing}
+                variant="outline"
+                className="w-full py-2 text-sm rounded-lg border-gray-200 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
+              >
+                <Settings className="w-4 h-4 mr-2" />
+                {t('record.testMistral')}
+              </Button>
+              <Button
+                onClick={() => handleSave()}
+                disabled={isTranscribing}
+                variant="outline"
+                className="w-full py-2 text-sm rounded-lg border-gray-200 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
+              >
+                <FileAudio className="w-4 h-4 mr-2" />
+                {t('record.saveAudioOnly')}
+              </Button>
+            </div>
+          </details>
         </div>
       </div>
     </div>
+  )}
+
+  {/* Auto-transcription indicator when enabled */}
+  {audioBlob && !isRecording && autoTranscribeAfterRecording && !isTranscribing && (
+    <div className="bg-blue-50/70 dark:bg-blue-900/30 backdrop-blur-sm rounded-2xl border border-blue-200/50 dark:border-blue-700/50 shadow-lg p-6">
+      <div className="text-center">
+        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg">
+          <Sparkles className="w-8 h-8 text-white" />
+        </div>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+          {t('record.autoProcessingEnabled')}
+        </h3>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+          {userPreferences.transcription_provider === 'local'
+            ? t('record.localDesc')
+            : t('record.cloudDesc')
+          } using your preferred settings:
+          <br />
+          <span className="font-medium">{userPreferences.transcription_provider} - {userPreferences.transcription_model}</span>
+        </p>
+        <p className="text-xs text-gray-500 dark:text-gray-400">
+          {t('record.changeSettings')}
+        </p>
+      </div>
+    </div>
+  )}
+
+  {/* Reset Button */}
+  {(audioBlob || pageState === 'error') && !isRecording && !isTranscribing && (
+    <Button
+      onClick={() => {
+        resetRecorder();
+        setTitle('');
+        setPageState('ready');
+        setSavedMeetingId(null);
+      }}
+      variant="outline"
+      className="w-full py-3 rounded-xl border-gray-200 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
+    >
+      <RefreshCw className="w-5 h-5 mr-2" />
+      {t('record.startOver')}
+    </Button>
+  )}
+</div>
+
+{/* Success Message */ }
+{
+  savedMeetingId && (
+    <div className="mt-8 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 backdrop-blur-sm rounded-2xl border border-green-200/50 dark:border-green-700/50 shadow-lg p-6">
+      <div className="text-center">
+        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 flex items-center justify-center">
+          <Sparkles className="w-8 h-8 text-white" />
+        </div>
+        <h3 className="text-lg font-semibold text-green-900 dark:text-green-100 mb-2">
+          {t('record.successTitle')}
+        </h3>
+        <p className="text-green-700 dark:text-green-300 mb-4">
+          {t('record.successDesc')}
+        </p>
+      </div>
+    </div>
+  )
+}
+          </div >
+        </div >
+      </div >
+    </div >
   );
 }
