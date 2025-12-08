@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
-import { Mic, Square, Pause as PauseIcon, RefreshCw, Play, Radio, Waves, Sparkles, Clock, FileAudio, Settings } from 'lucide-react';
+import { Mic, Square, Pause as PauseIcon, RefreshCw, Play, Radio, Waves, Sparkles, Clock, FileAudio, Settings, Plus } from 'lucide-react';
 import { useWebAudioRecorder } from '../../hooks/useWebAudioRecorder';
 import { useLocalTranscription, LocalTranscriptionResult } from '../../hooks/useLocalTranscription';
 import { useOllama } from '../../hooks/useOllama';
@@ -12,6 +12,19 @@ import { processStreamingSegment, SpeakerMapping, SpeakerSegment } from '../../l
 import toast from 'react-hot-toast';
 import { Button } from '../../components/ui/Button';
 import { useTranslation, Trans } from 'react-i18next';
+
+// PromptTemplate interface
+interface PromptTemplate {
+  id: string;
+  user_id: string;
+  name: string;
+  description: string;
+  category: 'summary' | 'title' | 'system' | 'transcript' | 'custom';
+  content: string;
+  is_favorite: boolean;
+  created_at: string;
+  updated_at: string;
+}
 
 // Local formatTime function to avoid import issues
 const formatTime = (seconds: number): string => {
@@ -48,6 +61,10 @@ export default function RecordingScreen() {
     summary: '',
     transcript: ''
   });
+
+  // Prompt templates state
+  const [promptTemplates, setPromptTemplates] = useState<PromptTemplate[]>([]);
+  const [selectedPromptId, setSelectedPromptId] = useState<string | null>(null);
 
   // Recording behavior state - restored auto-processing logic
   const [autoTranscribeAfterRecording, setAutoTranscribeAfterRecording] = useState(true);
@@ -190,6 +207,59 @@ export default function RecordingScreen() {
 
     fetchUserPreferences();
   }, []);
+
+  // Fetch prompt templates on component mount
+  useEffect(() => {
+    const fetchPromptTemplates = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const { data, error } = await supabase
+          .from('prompt_templates')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('is_favorite', { ascending: false })
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          console.warn('Could not fetch prompt templates:', error.message);
+          return;
+        }
+
+        setPromptTemplates(data || []);
+        console.log('📝 Loaded prompt templates:', data?.length || 0);
+      } catch (error) {
+        console.error('Error fetching prompt templates:', error);
+      }
+    };
+
+    fetchPromptTemplates();
+  }, []);
+
+  // Function to apply a prompt template
+  const applyPromptTemplate = (templateId: string) => {
+    const template = promptTemplates.find(t => t.id === templateId);
+    if (!template) return;
+
+    console.log('✨ Applying prompt template:', template.name, 'Category:', template.category);
+
+    // Apply prompt based on category
+    if (template.category === 'summary') {
+      setUserPrompts(prev => ({ ...prev, summary: template.content }));
+    } else if (template.category === 'title') {
+      setUserPrompts(prev => ({ ...prev, title: template.content }));
+    } else if (template.category === 'transcript') {
+      setUserPrompts(prev => ({ ...prev, transcript: template.content }));
+    } else if (template.category === 'custom') {
+      // For custom prompts, apply to summary by default
+      setUserPrompts(prev => ({ ...prev, summary: template.content }));
+    }
+
+    setSelectedPromptId(templateId);
+    toast.success(`Prompt "${template.name}" appliqué ✨`);
+  };
+
 
   const handleStartRecording = async () => {
     try {
@@ -1040,6 +1110,54 @@ export default function RecordingScreen() {
                     </span>
                   )}
               </div>
+            </div>
+
+            {/* Prompt Template Selector */}
+            <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm rounded-2xl border border-gray-200/50 dark:border-gray-700/50 shadow-lg p-6 mb-8">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center">
+                  <Sparkles className="w-4 h-4 mr-2 text-purple-500" />
+                  {t('record.promptTemplate')}
+                </h3>
+                <Button
+                  variant="ghost"
+                  size="small"
+                  onClick={() => navigate('/tabs/prompts')}
+                  className="text-xs"
+                >
+                  <Plus className="w-3 h-3 mr-1" />
+                  {t('record.managePrompts')}
+                </Button>
+              </div>
+
+              {promptTemplates.length > 0 ? (
+                <select
+                  className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-white/50 dark:bg-gray-700/50 backdrop-blur-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
+                  value={selectedPromptId || ''}
+                  onChange={(e) => applyPromptTemplate(e.target.value)}
+                  disabled={isRecording || isTranscribing}
+                >
+                  <option value="">{t('record.selectPrompt')}</option>
+                  {promptTemplates.map(template => (
+                    <option key={template.id} value={template.id}>
+                      {template.is_favorite && '⭐ '}
+                      {template.name}
+                      {template.category !== 'custom' && ` (${template.category})`}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div className="text-center py-4 text-sm text-gray-500 dark:text-gray-400">
+                  <p className="mb-2">{t('record.noPrompts')}</p>
+                  <Button
+                    variant="outline"
+                    size="small"
+                    onClick={() => navigate('/tabs/prompts')}
+                  >
+                    {t('record.createFirst')}
+                  </Button>
+                </div>
+              )}
             </div>
 
             {/* Action Buttons */}
