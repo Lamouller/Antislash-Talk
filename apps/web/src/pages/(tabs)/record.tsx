@@ -72,7 +72,6 @@ export default function RecordingScreen() {
   // 📝 Prompt Selection State
   const [availablePrompts, setAvailablePrompts] = useState<PromptTemplate[]>([]);
   const [selectedPromptId, setSelectedPromptId] = useState<string>('default');
-  const [isLoadingPrompts, setIsLoadingPrompts] = useState(false);
 
   const {
     isRecording,
@@ -198,7 +197,6 @@ export default function RecordingScreen() {
 
     const fetchPrompts = async () => {
       try {
-        setIsLoadingPrompts(true);
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
 
@@ -214,8 +212,6 @@ export default function RecordingScreen() {
         setAvailablePrompts(data || []);
       } catch (err) {
         console.error('Error fetching prompts:', err);
-      } finally {
-        setIsLoadingPrompts(false);
       }
     };
 

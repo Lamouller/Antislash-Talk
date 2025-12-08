@@ -4,7 +4,7 @@ import { supabase } from '../../../lib/supabase';
 import { Button } from '../../../components/ui/Button';
 import Waveform from '../../../components/meetings/Waveform';
 import toast from 'react-hot-toast';
-import { Calendar, Clock, Users, FileText, Play, Download, Check, X, Sparkles, MessageSquare, BarChart3, ArrowLeft, Copy, User, Edit2, FileDown, FileType, Table, Code, Wand2 } from 'lucide-react';
+import { Calendar, Clock, Users, FileText, Play, Download, Check, X, Sparkles, MessageSquare, BarChart3, ArrowLeft, Copy, User, Edit2, FileDown, FileType, Table, Code, Wand2, Settings } from 'lucide-react';
 import jsPDF from 'jspdf';
 import { useTranslation } from 'react-i18next';
 import { useLocalTranscription } from '../../../hooks/useLocalTranscription';
