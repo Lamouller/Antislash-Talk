@@ -296,5 +296,5 @@
         "csvHeaderText": "Text",
         "csvMetaInfo": "Meeting Information",
         "csvTranscriptData": "Transcript Data"
-    },
+    }
 }
