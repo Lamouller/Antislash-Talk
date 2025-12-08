@@ -692,7 +692,7 @@ export default function RecordingScreen() {
         });
       }
 
-      // Insert meeting record with user preferences
+      // Insert meeting record with user preferences AND selected prompts
       const meetingPayload = {
         user_id: user.id,
         title: meetingTitle || `Meeting ${new Date().toLocaleDateString()}`,
@@ -703,10 +703,15 @@ export default function RecordingScreen() {
         status: transcriptionResult ? 'completed' : 'pending',
         transcription_provider: transcriptionResult ? 'local' : userPreferences.transcription_provider,
         transcription_model: userPreferences.transcription_model, // Always use user's preferred model
-        participant_count: 1
+        participant_count: 1,
+        // Save selected prompts for async transcription
+        prompt_title: userPrompts.title || null,
+        prompt_summary: userPrompts.summary || null,
+        prompt_transcript: userPrompts.transcript || null
       };
 
       console.log('💾 Inserting meeting with payload:', meetingPayload);
+
 
       const { data: meetingData, error: meetingError } = await supabase
         .from('meetings')
