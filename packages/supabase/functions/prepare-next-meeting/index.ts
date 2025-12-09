@@ -25,8 +25,8 @@ interface PrepareNextMeetingResponse {
     tasks_from_previous: Task[];
 }
 
-// Default prompt for preparation generation
-const DEFAULT_PREPARATION_PROMPT = `
+// Default prompt for preparation generation (English)
+const DEFAULT_PREPARATION_PROMPT_EN = `
 Analyze the previous meeting transcript and summary to prepare for the next meeting.
 
 Generate a structured preparation document in Markdown format that includes:
@@ -57,6 +57,40 @@ Generate a structured preparation document in Markdown format that includes:
 
 Format the output in clear, professional Markdown suitable for distribution to meeting participants.
 Use bullet points, checkboxes, and formatting to make it scannable.
+`;
+
+// Default prompt for preparation generation (French)
+const DEFAULT_PREPARATION_PROMPT_FR = `
+Analysez la transcription et le résumé de la réunion précédente pour préparer la prochaine réunion.
+
+Générez un document de préparation structuré en format Markdown qui inclut :
+
+1. **📋 Récapitulatif de la dernière réunion**
+   - Résumé des points clés discutés
+   - Principales décisions prises
+
+2. **✅ État d'avancement des tâches de la dernière réunion**
+   - Listez chaque tâche avec son statut actuel :
+     * ✅ Tâches terminées
+     * ⏳ Tâches en cours
+     * ❌ Tâches en attente
+   - Mettez en évidence les éléments bloqués ou en retard
+
+3. **🎯 Sujets suggérés pour la prochaine réunion**
+   - Points nécessitant un suivi
+   - Questions non résolues
+   - Nouveaux sujets basés sur la discussion précédente
+
+4. **📝 Ordre du jour proposé**
+   - Liste ordonnée des sujets à aborder
+   - Temps estimé pour chaque sujet (si pertinent)
+
+5. **👥 Points d'action à examiner**
+   - Qui doit rapporter sur quoi
+   - Questions à poser aux participants
+
+Formatez le résultat en Markdown clair et professionnel, adapté pour distribution aux participants.
+Utilisez des puces, des cases à cocher et du formatage pour le rendre facile à parcourir.
 `;
 
 export const handler = async (req: Request) => {
@@ -103,8 +137,18 @@ export const handler = async (req: Request) => {
             throw new Error('Unauthorized: You can only prepare meetings from your own meetings');
         }
 
-        // 2. Get custom preparation prompt if specified
-        let preparationPrompt = DEFAULT_PREPARATION_PROMPT;
+        // 2. Get user's language preference first (for prompt selection)
+        const { data: profileLang } = await serviceSupabaseClient
+            .from('profiles')
+            .select('preferred_language')
+            .eq('id', user.id)
+            .single();
+        
+        const userLanguage = profileLang?.preferred_language || 'fr';
+        console.log('🌍 User language:', userLanguage);
+
+        // Get custom preparation prompt if specified, otherwise use default in user's language
+        let preparationPrompt = userLanguage === 'fr' ? DEFAULT_PREPARATION_PROMPT_FR : DEFAULT_PREPARATION_PROMPT_EN;
 
         if (preparation_prompt_id) {
             const { data: customPrompt } = await serviceSupabaseClient
@@ -120,16 +164,17 @@ export const handler = async (req: Request) => {
             }
         }
 
-        // 3. Get user's preferred LLM (use transcription settings for consistency)
+        // 3. Get user's preferred LLM and language (use transcription settings for consistency)
         const { data: profile } = await serviceSupabaseClient
             .from('profiles')
-            .select('preferred_transcription_provider, preferred_transcription_model')
+            .select('preferred_transcription_provider, preferred_transcription_model, preferred_language')
             .eq('id', user.id)
             .single();
 
-        console.log('🔍 Profile LLM settings:', {
+        console.log('🔍 Profile settings:', {
             provider: profile?.preferred_transcription_provider,
-            model: profile?.preferred_transcription_model
+            model: profile?.preferred_transcription_model,
+            language: profile?.preferred_language
         });
 
         // Use transcription provider (which is already configured in settings)
