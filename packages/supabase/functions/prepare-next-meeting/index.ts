@@ -120,15 +120,21 @@ export const handler = async (req: Request) => {
             }
         }
 
-        // 3. Get user's preferred LLM
+        // 3. Get user's preferred LLM (use transcription settings for consistency)
         const { data: profile } = await serviceSupabaseClient
             .from('profiles')
-            .select('preferred_llm, preferred_llm_model')
+            .select('preferred_transcription_provider, preferred_transcription_model')
             .eq('id', user.id)
             .single();
 
-        const llmProvider = profile?.preferred_llm || 'openai';
-        const llmModel = profile?.preferred_llm_model || (llmProvider === 'openai' ? 'gpt-4o' : 'gemini-1.5-pro-latest');
+        console.log('🔍 Profile LLM settings:', {
+            provider: profile?.preferred_transcription_provider,
+            model: profile?.preferred_transcription_model
+        });
+
+        // Use transcription provider (which is already configured in settings)
+        const llmProvider = profile?.preferred_transcription_provider || 'google';
+        const llmModel = profile?.preferred_transcription_model || (llmProvider === 'google' ? 'gemini-2.0-flash-exp' : 'gpt-4o');
 
         // 4. Get API key
         const { data: apiKeyData } = await serviceSupabaseClient
