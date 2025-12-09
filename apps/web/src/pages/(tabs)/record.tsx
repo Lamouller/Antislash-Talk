@@ -911,7 +911,7 @@ export default function RecordingScreen() {
           if (!isCompleted) {
             console.warn('⚠️ Transcription timeout - navigating anyway');
             toast.dismiss('transcription-progress');
-            toast.warning('⏱️ Transcription prend plus de temps que prévu. Vous pouvez vérifier plus tard.', { duration: 5000 });
+            toast('⏱️ Transcription prend plus de temps que prévu. Vous pouvez vérifier plus tard.', { duration: 5000, icon: '⚠️' });
           }
 
         } catch (error) {
