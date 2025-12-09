@@ -281,6 +281,7 @@
         "pageTitle": "Meeting Details",
         "statusUnknown": "Unknown",
         "listenToRecording": "Listen to Recording",
+        "startRecording": "Start Recording",
         "recordingPlayback": "Recording Playback",
         "meetingSummary": "Meeting Summary",
         "generateTitleSummary": "Generate Title & Summary",

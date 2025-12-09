@@ -11,6 +11,7 @@ import { getAdaptivePrompts, getWhisperOptimizedPrompts, requiresSpecialPrompts 
 import { processStreamingSegment, SpeakerMapping, SpeakerSegment } from '../../lib/speaker-name-detector';
 import toast from 'react-hot-toast';
 import { Button } from '../../components/ui/Button';
+import { MarkdownRenderer } from '../../components/ui/MarkdownRenderer';
 import { useTranslation, Trans } from 'react-i18next';
 
 // PromptTemplate interface
@@ -1158,8 +1159,8 @@ export default function RecordingScreen() {
                   <Sparkles className="w-4 h-4 mr-2" />
                   📝 Notes de préparation
                 </h3>
-                <div className="text-sm text-blue-800 dark:text-blue-200 whitespace-pre-wrap max-h-60 overflow-y-auto p-3 bg-white/50 dark:bg-gray-800/50 rounded-lg">
-                  {preparationNotes}
+                <div className="text-sm text-blue-800 dark:text-blue-200 max-h-60 overflow-y-auto p-3 bg-white/50 dark:bg-gray-800/50 rounded-lg">
+                  <MarkdownRenderer content={preparationNotes} />
                 </div>
               </div>
             )}
