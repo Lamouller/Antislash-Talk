@@ -859,6 +859,17 @@ export default function MeetingDetail() {
 
                   {/* Actions Toolbar */}
                   <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 lg:mb-6">
+                    {/* Start Recording Button (for draft meetings) */}
+                    {meeting.meeting_status === 'draft' && (
+                      <Button
+                        onClick={() => navigate(`/tabs/record?meetingId=${id}`)}
+                        className="flex-1 sm:flex-none bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white shadow-lg hover:shadow-xl transition-all hover:-translate-y-0.5"
+                      >
+                        <Play className="w-4 h-4 mr-2" />
+                        🎙️ {t('meetingDetail.startRecording')}
+                      </Button>
+                    )}
+
                     {/* Prepare Next Meeting Button */}
                     {meeting.status === 'completed' && (
                       <div className="flex-1 sm:flex-none">

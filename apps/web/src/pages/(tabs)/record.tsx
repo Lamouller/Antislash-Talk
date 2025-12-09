@@ -45,6 +45,9 @@ export default function RecordingScreen() {
   const [isPaused, setIsPaused] = useState(false);
   const [title, setTitle] = useState('');
   const [savedMeetingId, setSavedMeetingId] = useState<string | null>(null);
+  const [existingMeetingId, setExistingMeetingId] = useState<string | null>(null);
+  const [preparationNotes, setPreparationNotes] = useState('');
+  const [contextNotes, setContextNotes] = useState('');
   const { t } = useTranslation();
 
   // User preferences state
@@ -112,6 +115,46 @@ export default function RecordingScreen() {
   useEffect(() => {
     setIsPaused(recorderIsPaused);
   }, [recorderIsPaused]);
+
+  // 🎯 Load existing meeting if meetingId is provided in URL
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const meetingId = searchParams.get('meetingId');
+    
+    if (meetingId) {
+      console.log('🔗 Meeting ID provided in URL:', meetingId);
+      setExistingMeetingId(meetingId);
+      
+      // Load meeting details
+      const loadMeeting = async () => {
+        try {
+          const { data: meeting, error } = await supabase
+            .from('meetings')
+            .select('*')
+            .eq('id', meetingId)
+            .single();
+          
+          if (error) throw error;
+          
+          if (meeting) {
+            console.log('✅ Loaded existing meeting:', meeting);
+            setTitle(meeting.title || '');
+            setPreparationNotes(meeting.preparation_notes || '');
+            
+            // If meeting has preparation notes, show toast
+            if (meeting.preparation_notes) {
+              toast.success(`📝 Recording for: ${meeting.title}`, { duration: 3000 });
+            }
+          }
+        } catch (error) {
+          console.error('❌ Failed to load meeting:', error);
+          toast.error('Failed to load meeting details');
+        }
+      };
+      
+      loadMeeting();
+    }
+  }, []);
 
   // 📜 Auto-scroll vers le bas quand de nouveaux segments arrivent
   useEffect(() => {
@@ -507,7 +550,16 @@ export default function RecordingScreen() {
 
                   console.log('📊 Generating summary with AI using custom prompts...');
                   console.log('   → Custom summary prompt:', userPrompts.summary ? 'YES' : 'NO');
-                  const aiSummary = await generateSummary(result.text, userPrompts.summary || undefined);
+                  console.log('   → Context notes:', contextNotes ? 'YES' : 'NO');
+                  
+                  // Enrich summary prompt with context notes if provided
+                  let summaryPrompt = userPrompts.summary;
+                  if (contextNotes) {
+                    const contextSection = `\n\nADDITIONAL CONTEXT NOTES (to include in the summary):\n${contextNotes}`;
+                    summaryPrompt = summaryPrompt ? summaryPrompt + contextSection : `Summarize the following meeting transcript. Pay special attention to the context notes provided.${contextSection}`;
+                  }
+                  
+                  const aiSummary = await generateSummary(result.text, summaryPrompt || undefined);
 
                   // Mettre à jour le meeting avec le titre et summary générés
                   const { error: updateError } = await supabase
@@ -695,19 +747,22 @@ export default function RecordingScreen() {
       // Insert meeting record with user preferences AND selected prompts
       const meetingPayload = {
         user_id: user.id,
-        title: meetingTitle || `Meeting ${new Date().toLocaleDateString()}`,
+        title: meetingTitle || title || `Meeting ${new Date().toLocaleDateString()}`,
         duration: Math.round(duration),
         recording_url: audioUrl,
         transcript: transcript,
         summary: summary,
         status: transcriptionResult ? 'completed' : 'pending',
+        meeting_status: transcriptionResult ? 'completed' : 'in_progress',
         transcription_provider: transcriptionResult ? 'local' : userPreferences.transcription_provider,
         transcription_model: userPreferences.transcription_model,
         participant_count: 1,
         // Save selected prompts for async transcription (verified: columns exist in DB)
         prompt_title: userPrompts.title || null,
         prompt_summary: userPrompts.summary || null,
-        prompt_transcript: userPrompts.transcript || null
+        prompt_transcript: userPrompts.transcript || null,
+        // Save context notes for enriching the summary generation
+        context_notes: contextNotes || null
       };
 
       console.log('💾 Inserting meeting with payload:', meetingPayload);
@@ -1073,6 +1128,37 @@ export default function RecordingScreen() {
                 className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-white/50 dark:bg-gray-700/50 backdrop-blur-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
                 disabled={isRecording || isTranscribing}
               />
+            </div>
+
+            {/* Preparation Notes (read-only) */}
+            {preparationNotes && (
+              <div className="bg-blue-50/70 dark:bg-blue-900/20 backdrop-blur-sm rounded-2xl border border-blue-200/50 dark:border-blue-700/50 shadow-lg p-6 mb-8">
+                <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-100 mb-3 flex items-center">
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  📝 Notes de préparation
+                </h3>
+                <div className="text-sm text-blue-800 dark:text-blue-200 whitespace-pre-wrap max-h-60 overflow-y-auto p-3 bg-white/50 dark:bg-gray-800/50 rounded-lg">
+                  {preparationNotes}
+                </div>
+              </div>
+            )}
+
+            {/* Context Notes (editable) - for enriching the summary */}
+            <div className="bg-amber-50/70 dark:bg-amber-900/20 backdrop-blur-sm rounded-2xl border border-amber-200/50 dark:border-amber-700/50 shadow-lg p-6 mb-8">
+              <label className="block text-sm font-semibold text-amber-900 dark:text-amber-100 mb-3 flex items-center">
+                <Sparkles className="w-4 h-4 mr-2" />
+                📌 Notes de contexte (optionnel)
+              </label>
+              <textarea
+                value={contextNotes}
+                onChange={(e) => setContextNotes(e.target.value)}
+                placeholder="Ajoutez des notes pendant l'enregistrement pour enrichir le résumé AI (ex: décisions prises, points clés, références non-verbales...)"
+                className="w-full px-4 py-3 border border-amber-200 dark:border-amber-600 rounded-xl bg-white/50 dark:bg-gray-700/50 backdrop-blur-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all min-h-[120px] resize-y"
+                disabled={isTranscribing}
+              />
+              <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
+                💡 Ces notes seront utilisées comme contexte additionnel lors de la génération du résumé AI
+              </p>
             </div>
 
             {/* User Preferences Display */}
