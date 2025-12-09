@@ -105,52 +105,46 @@ export const handler = async (req: Request) => {
     // Check if we're in a local environment (no Netlify webhook)
     if (!NETLIFY_WEBHOOK_URL) {
       console.warn("⚠️ NETLIFY_WEBHOOK_URL not set - Running in LOCAL mode");
-      console.log("📝 Triggering direct transcription in local mode...");
+      console.log("📝 Triggering direct transcription in local mode (async)...");
       
       // In local mode, call transcribe-with-gemini handler directly (no HTTP request)
-      try {
-        console.log("Calling transcribe-with-gemini handler directly...");
-        
-        // Create a new request for the transcribe handler
-        const transcribeRequest = new Request(req.url, {
-          method: 'POST',
-          headers: req.headers,
-          body: JSON.stringify({ meeting_id: meeting_id }),
+      // Launch transcription in background to avoid timeout
+      console.log("🚀 Starting async transcription for meeting:", meeting_id);
+      
+      // Create a new request for the transcribe handler
+      const transcribeRequest = new Request(req.url, {
+        method: 'POST',
+        headers: req.headers,
+        body: JSON.stringify({ meeting_id: meeting_id }),
+      });
+      
+      // Launch transcription in background (fire-and-forget)
+      transcribeWithGemini(transcribeRequest)
+        .then(async (response) => {
+          if (response.ok) {
+            const result = await response.json();
+            console.log("✅ Async transcription completed successfully for meeting:", meeting_id);
+            console.log("Result:", result);
+          } else {
+            const errorText = await response.text();
+            console.error(`❌ Async transcription failed for meeting ${meeting_id}:`, errorText);
+          }
+        })
+        .catch((error) => {
+          console.error(`❌ Async transcription error for meeting ${meeting_id}:`, error.message);
         });
-        
-        const transcribeResponse = await transcribeWithGemini(transcribeRequest);
-
-        if (!transcribeResponse.ok) {
-          const errorText = await transcribeResponse.text();
-          console.error(`Transcription failed with status ${transcribeResponse.status}:`, errorText);
-          throw new Error(`Transcription failed: ${errorText}`);
-        }
-
-        const transcriptionResult = await transcribeResponse.json();
-        console.log("✅ Local transcription completed successfully");
-        
-        return new Response(JSON.stringify({ 
-          message: `Meeting ${meeting_id} transcribed successfully in local mode`,
-          mode: 'local',
-          meeting_id: meeting_id,
-          transcription: transcriptionResult
-        }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 200
-        });
-      } catch (error) {
-        console.error("❌ Local transcription error:", error);
-        // Return success but with error info - don't fail the whole request
-        return new Response(JSON.stringify({ 
-          message: `Meeting ${meeting_id} saved but transcription failed`,
-          mode: 'local',
-          meeting_id: meeting_id,
-          error: error.message
-        }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 202
-        });
-      }
+      
+      // Return immediately to avoid timeout
+      console.log("✅ Transcription started in background for meeting:", meeting_id);
+      return new Response(JSON.stringify({ 
+        message: `Transcription process started for meeting ${meeting_id}`,
+        mode: 'local_async',
+        meeting_id: meeting_id,
+        status: 'processing'
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 202 // 202 Accepted - processing in background
+      });
     }
 
     console.log("Found Netlify webhook URL. Ready to trigger.");
