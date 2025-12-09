@@ -775,12 +775,33 @@ export default function RecordingScreen() {
 
 
 
+      let meetingData;
+      let meetingError;
 
-      const { data: meetingData, error: meetingError } = await supabase
-        .from('meetings')
-        .insert(meetingPayload)
-        .select()
-        .single();
+      if (existingMeetingId) {
+        // 🔄 Update existing meeting (when recording from a draft)
+        console.log('🔄 Updating existing meeting:', existingMeetingId);
+        
+        const result = await supabase
+          .from('meetings')
+          .update(meetingPayload)
+          .eq('id', existingMeetingId)
+          .select()
+          .single();
+        
+        meetingData = result.data;
+        meetingError = result.error;
+      } else {
+        // ✨ Create new meeting
+        const result = await supabase
+          .from('meetings')
+          .insert(meetingPayload)
+          .select()
+          .single();
+        
+        meetingData = result.data;
+        meetingError = result.error;
+      }
 
       console.log('💾 Saved meeting with preferences:', {
         id: meetingData.id,
