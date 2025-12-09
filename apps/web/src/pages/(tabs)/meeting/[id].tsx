@@ -836,29 +836,29 @@ export default function MeetingDetail() {
                   <div className="flex-1 min-w-0">
                     <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-100 dark:border-gray-700 inline-block w-full mb-6">
                       <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 dark:text-white leading-tight mb-4">
-                    {meeting.title}
-                  </h1>
+                        {meeting.title}
+                      </h1>
 
                       <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 dark:text-gray-300">
                         <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
                           <Calendar className="w-4 h-4 text-blue-500" />
                           <span>{formatDate(meeting.created_at, i18n.language)}</span>
-                    </div>
+                        </div>
 
-                    {meeting.duration && (
+                        {meeting.duration && (
                           <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
                             <Clock className="w-4 h-4 text-green-500" />
                             <span>{formatDuration(meeting.duration)}</span>
-                      </div>
-                    )}
+                          </div>
+                        )}
 
                         <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
                           <Users className="w-4 h-4 text-purple-500" />
                           <span>{t('meetingDetail.participantCount', { count: meeting.participant_count || 1 })}</span>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
 
                   {/* Actions Section */}
                   <div className="space-y-4 mb-6">
