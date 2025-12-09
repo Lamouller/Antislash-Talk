@@ -2,6 +2,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
+import { handler as transcribeWithGemini } from '../transcribe-with-gemini/index.ts'
 
 console.log("Initializing start-transcription function...");
 
@@ -106,19 +107,18 @@ export const handler = async (req: Request) => {
       console.warn("⚠️ NETLIFY_WEBHOOK_URL not set - Running in LOCAL mode");
       console.log("📝 Triggering direct transcription in local mode...");
       
-      // In local mode, call transcribe-with-gemini directly
+      // In local mode, call transcribe-with-gemini handler directly (no HTTP request)
       try {
-        const transcribeUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/transcribe-with-gemini`;
-        console.log(`Calling transcription function at: ${transcribeUrl}`);
+        console.log("Calling transcribe-with-gemini handler directly...");
         
-        const transcribeResponse = await fetch(transcribeUrl, {
+        // Create a new request for the transcribe handler
+        const transcribeRequest = new Request(req.url, {
           method: 'POST',
-          headers: {
-            'Authorization': req.headers.get('Authorization')!,
-            'Content-Type': 'application/json',
-          },
+          headers: req.headers,
           body: JSON.stringify({ meeting_id: meeting_id }),
         });
+        
+        const transcribeResponse = await transcribeWithGemini(transcribeRequest);
 
         if (!transcribeResponse.ok) {
           const errorText = await transcribeResponse.text();
