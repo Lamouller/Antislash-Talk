@@ -192,38 +192,6 @@
         "selectPrompt": "Sélectionner un modèle de prompt...",
         "noPrompts": "Aucun modèle de prompt enregistré",
         "createFirst": "Créer mon premier prompt",
-        "meetingTimeline": {
-            "title": "Série de Réunions",
-            "current": "Actuelle",
-            "totalMeetings": "{{count}} réunions",
-            "position": "Réunion {{current}} sur {{total}}"
-        },
-        "meetingStatus": {
-            "draft": "Brouillon",
-            "scheduled": "Planifiée",
-            "in_progress": "En cours",
-            "completed": "Terminée",
-            "cancelled": "Annulée"
-        },
-        "prepareMeeting": {
-            "button": "Préparer la réunion suivante",
-            "generating": "Génération de la préparation...",
-            "success": "Préparation créée avec succès !",
-            "error": "Erreur lors de la préparation : {{error}}"
-        },
-        "preparationNotes": {
-            "title": "Notes de Préparation",
-            "edit": "Éditer",
-            "preview": "Aperçu",
-            "save": "Sauvegarder",
-            "saved": "Notes sauvegardées",
-            "saveError": "Erreur lors de la sauvegarde",
-            "lastSaved": "Dernière sauvegarde : {{time}}",
-            "placeholder": "Rédigez vos notes de préparation en Markdown...\n\nExemple:\n## Points à aborder\n- Point 1\n- Point 2\n\n## Tâches en attente\n- [ ] Tâche 1\n- [x] Tâche 2",
-            "markdownSupport": "Markdown supporté",
-            "empty": "Aucune note de préparation",
-            "startEditing": "Commencer à écrire"
-        },
         "startRecording": "Démarrer l'enregistrement",
         "resume": "Reprendre",
         "pause": "Pause",
@@ -353,5 +321,37 @@
         "csvHeaderText": "Texte",
         "csvMetaInfo": "Informations de la réunion",
         "csvTranscriptData": "Données de transcription"
+    },
+    "meetingTimeline": {
+        "title": "Série de Réunions",
+        "current": "Actuelle",
+        "totalMeetings": "{{count}} réunions",
+        "position": "Réunion {{current}} sur {{total}}"
+    },
+    "meetingStatus": {
+        "draft": "Brouillon",
+        "scheduled": "Planifiée",
+        "in_progress": "En cours",
+        "completed": "Terminée",
+        "cancelled": "Annulée"
+    },
+    "prepareMeeting": {
+        "button": "Préparer la réunion suivante",
+        "generating": "Génération de la préparation...",
+        "success": "Préparation créée avec succès !",
+        "error": "Erreur lors de la préparation : {{error}}"
+    },
+    "preparationNotes": {
+        "title": "Notes de Préparation",
+        "edit": "Éditer",
+        "preview": "Aperçu",
+        "save": "Sauvegarder",
+        "saved": "Notes sauvegardées",
+        "saveError": "Erreur lors de la sauvegarde",
+        "lastSaved": "Dernière sauvegarde : {{time}}",
+        "placeholder": "Rédigez vos notes de préparation en Markdown...\n\nExemple:\n## Points à aborder\n- Point 1\n- Point 2\n\n## Tâches en attente\n- [ ] Tâche 1\n- [x] Tâche 2",
+        "markdownSupport": "Markdown supporté",
+        "empty": "Aucune note de préparation",
+        "startEditing": "Commencer à écrire"
     }
 }

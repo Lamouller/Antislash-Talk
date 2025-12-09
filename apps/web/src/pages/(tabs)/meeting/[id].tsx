@@ -864,6 +864,17 @@ export default function MeetingDetail() {
                     </span>
                   </div>
 
+                  {/* Prepare Next Meeting Button */}
+                  {meeting.status === 'completed' && (
+                    <PrepareMeetingButton
+                      meetingId={id!}
+                      meetingTitle={meeting.title}
+                      seriesName={meeting.series_name}
+                      variant="secondary"
+                      size="small"
+                    />
+                  )}
+
                   {audioUrl && (
                     <Button
                       onClick={() => {
@@ -1036,20 +1047,6 @@ export default function MeetingDetail() {
 
             {/* Meeting Series Timeline */}
             <MeetingTimeline currentMeetingId={id!} className="mb-8" />
-
-            {/* Prepare Next Meeting Button */}
-            {meeting.status === 'completed' && (
-              <div className="mb-8">
-                <PrepareMeetingButton
-                  meetingId={id!}
-                  meetingTitle={meeting.title}
-                  seriesName={meeting.series_name}
-                  variant="primary"
-                  size="large"
-                  className="w-full"
-                />
-              </div>
-            )}
 
             {/* Transcript Section */}
             {(Array.isArray(meeting.transcript) && meeting.transcript.length > 0) ? (
