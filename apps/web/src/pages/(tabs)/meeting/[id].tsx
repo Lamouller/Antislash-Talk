@@ -1138,8 +1138,8 @@ export default function MeetingDetail() {
                 )}
               </div>
 
-            {/* Transcript Section */}
-            {(Array.isArray(meeting.transcript) && meeting.transcript.length > 0) ? (
+              {/* Transcript Section */}
+              {(Array.isArray(meeting.transcript) && meeting.transcript.length > 0) ? (
               <div data-section="transcript" className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-3xl border border-gray-200/50 dark:border-gray-700/50 shadow-xl p-8 hover:shadow-2xl transition-all duration-300 mb-8">
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-8 flex items-center">
                   <div className="w-8 h-8 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 flex items-center justify-center mr-3 shadow-lg">
@@ -1238,9 +1238,9 @@ export default function MeetingDetail() {
                   })}
                 </div>
               </div>
-            ) : meeting.transcript && hasUtterancesFormat(meeting.transcript) && meeting.transcript.utterances.length > 0 ? (
-              // Fallback pour l'ancien format
-              <div data-section="transcript" className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-3xl border border-gray-200/50 dark:border-gray-700/50 shadow-xl p-8 hover:shadow-2xl transition-all duration-300 mb-8">
+              ) : meeting.transcript && hasUtterancesFormat(meeting.transcript) && meeting.transcript.utterances.length > 0 ? (
+                // Fallback pour l'ancien format
+                <div data-section="transcript" className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-3xl border border-gray-200/50 dark:border-gray-700/50 shadow-xl p-8 hover:shadow-2xl transition-all duration-300 mb-8">
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-8 flex items-center">
                   <div className="w-8 h-8 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 flex items-center justify-center mr-3 shadow-lg">
                     <FileText className="w-4 h-4 text-white" />
@@ -1312,9 +1312,9 @@ export default function MeetingDetail() {
                   ))}
                 </div>
               </div>
-            ) : (
-              // Affichage par défaut quand il n'y a pas de transcript
-              <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-3xl border border-gray-200/50 dark:border-gray-700/50 shadow-xl p-8 hover:shadow-2xl transition-all duration-300 mb-8">
+              ) : (
+                // Affichage par défaut quand il n'y a pas de transcript
+                <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-3xl border border-gray-200/50 dark:border-gray-700/50 shadow-xl p-8 hover:shadow-2xl transition-all duration-300 mb-8">
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-8 flex items-center">
                   <div className="w-8 h-8 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 flex items-center justify-center mr-3 shadow-lg">
                     <FileText className="w-4 h-4 text-white" />
@@ -1379,11 +1379,11 @@ export default function MeetingDetail() {
                   )}
                 </div>
               </div>
-            )}
-          </div>
+              )}
+            </div>
 
-          {/* Sidebar */}
-          <div className="space-y-6">
+            {/* Sidebar */}
+            <div className="space-y-6">
             {/* Meeting Series Timeline */}
             <div data-section="timeline">
               <MeetingTimeline currentMeetingId={id!} />
@@ -1509,11 +1509,12 @@ export default function MeetingDetail() {
                 </Button>
               </div>
             </div>
+            </div>
           </div>
-        </div>
-        {/* Export Modal */}
-        {showExportModal && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+
+          {/* Export Modal */}
+          {showExportModal && (
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-white dark:bg-gray-800 rounded-3xl border border-gray-200/50 dark:border-gray-700/50 shadow-2xl max-w-md w-full overflow-hidden">
               <div className="bg-gradient-to-r from-blue-500 to-indigo-600 p-6">
                 <h3 className="text-xl font-bold text-white mb-2">{t('meetingDetail.exportModalTitle')}</h3>
@@ -1557,9 +1558,9 @@ export default function MeetingDetail() {
                 </div>
               </div>
             </div>
-          </div>
-        )}
-      </div>
+            </div>
+          )}
+        </div>
 
 
 
