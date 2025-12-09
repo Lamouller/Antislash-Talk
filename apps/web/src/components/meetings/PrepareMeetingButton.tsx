@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { Button } from '../ui/Button';
@@ -68,9 +68,10 @@ export function PrepareMeetingButton({
 
         } catch (error) {
             console.error('Error preparing meeting:', error);
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
             toast.error(
                 t('prepareMeeting.error', {
-                    error: error.message || 'Unknown error'
+                    error: errorMessage
                 }),
                 { id: 'prepare-meeting' }
             );

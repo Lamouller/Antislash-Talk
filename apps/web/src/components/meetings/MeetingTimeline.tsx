@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { Calendar, CheckCircle, Circle, Clock, ChevronRight } from 'lucide-react';
@@ -135,14 +135,14 @@ export function MeetingTimeline({ currentMeetingId, className = '' }: MeetingTim
                     {timeline.map((meeting, index) => {
                         const config = statusConfig[meeting.meeting_status];
                         const StatusIcon = config.icon;
-                        const isLast = index === timeline.length - 1;
+
 
                         return (
                             <div key={meeting.id} className="relative">
                                 {/* Connector dot */}
                                 <div className={`absolute left-0 w-8 h-8 rounded-full flex items-center justify-center ${meeting.is_current
-                                        ? 'bg-gradient-to-r from-indigo-500 to-purple-500 ring-4 ring-indigo-100 dark:ring-indigo-900/50'
-                                        : config.bg
+                                    ? 'bg-gradient-to-r from-indigo-500 to-purple-500 ring-4 ring-indigo-100 dark:ring-indigo-900/50'
+                                    : config.bg
                                     }`}>
                                     <StatusIcon className={`w-4 h-4 ${meeting.is_current ? 'text-white' : config.color}`} />
                                 </div>
@@ -152,8 +152,8 @@ export function MeetingTimeline({ currentMeetingId, className = '' }: MeetingTim
                                     <Link
                                         to={`/tabs/meeting/${meeting.id}`}
                                         className={`block p-4 rounded-xl border transition-all group ${meeting.is_current
-                                                ? 'bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 border-indigo-300 dark:border-indigo-700 shadow-md'
-                                                : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-indigo-300 dark:hover:border-indigo-700 hover:shadow-md'
+                                            ? 'bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 border-indigo-300 dark:border-indigo-700 shadow-md'
+                                            : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-indigo-300 dark:hover:border-indigo-700 hover:shadow-md'
                                             }`}
                                     >
                                         <div className="flex items-start justify-between">
@@ -170,8 +170,8 @@ export function MeetingTimeline({ currentMeetingId, className = '' }: MeetingTim
                                                 </div>
 
                                                 <h4 className={`font-semibold truncate ${meeting.is_current
-                                                        ? 'text-indigo-900 dark:text-indigo-100'
-                                                        : 'text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400'
+                                                    ? 'text-indigo-900 dark:text-indigo-100'
+                                                    : 'text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400'
                                                     }`}>
                                                     {meeting.title}
                                                 </h4>
@@ -188,8 +188,8 @@ export function MeetingTimeline({ currentMeetingId, className = '' }: MeetingTim
                                             </div>
 
                                             <ChevronRight className={`w-5 h-5 transition-transform ${meeting.is_current
-                                                    ? 'text-indigo-600 dark:text-indigo-400'
-                                                    : 'text-gray-400 group-hover:translate-x-1 group-hover:text-indigo-600'
+                                                ? 'text-indigo-600 dark:text-indigo-400'
+                                                : 'text-gray-400 group-hover:translate-x-1 group-hover:text-indigo-600'
                                                 }`} />
                                         </div>
                                     </Link>
