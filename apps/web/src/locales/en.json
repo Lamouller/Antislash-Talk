@@ -192,6 +192,38 @@
         "selectPrompt": "Select a prompt template...",
         "noPrompts": "No prompt templates saved",
         "createFirst": "Create my first prompt",
+        "meetingTimeline": {
+            "title": "Meeting Series",
+            "current": "Current",
+            "totalMeetings": "{{count}} meetings",
+            "position": "Meeting {{current}} of {{total}}"
+        },
+        "meetingStatus": {
+            "draft": "Draft",
+            "scheduled": "Scheduled",
+            "in_progress": "In Progress",
+            "completed": "Completed",
+            "cancelled": "Cancelled"
+        },
+        "prepareMeeting": {
+            "button": "Prepare Next Meeting",
+            "generating": "Generating preparation...",
+            "success": "Preparation created successfully!",
+            "error": "Error preparing meeting: {{error}}"
+        },
+        "preparationNotes": {
+            "title": "Preparation Notes",
+            "edit": "Edit",
+            "preview": "Preview",
+            "save": "Save",
+            "saved": "Notes saved",
+            "saveError": "Error saving notes",
+            "lastSaved": "Last saved: {{time}}",
+            "placeholder": "Write your preparation notes in Markdown...\n\nExample:\n## Topics to Discuss\n- Topic 1\n- Topic 2\n\n## Pending Tasks\n- [ ] Task 1\n- [x] Task 2",
+            "markdownSupport": "Markdown supported",
+            "empty": "No preparation notes",
+            "startEditing": "Start editing"
+        },
         "startRecording": "Start Recording",
         "resume": "Resume",
         "pause": "Pause",

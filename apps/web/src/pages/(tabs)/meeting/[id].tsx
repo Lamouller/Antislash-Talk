@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../../../lib/supabase';
 import { Button } from '../../../components/ui/Button';
 import { MarkdownRenderer } from '../../../components/ui/MarkdownRenderer';
+import { MeetingTimeline } from '../../../components/meetings/MeetingTimeline';
+import { PrepareMeetingButton } from '../../../components/meetings/PrepareMeetingButton';
 import Waveform from '../../../components/meetings/Waveform';
 import toast from 'react-hot-toast';
 import { Calendar, Clock, Users, FileText, Play, Download, Check, X, Sparkles, MessageSquare, BarChart3, ArrowLeft, Copy, User, Edit2, FileDown, FileType, Table, Code, Wand2, Settings } from 'lucide-react';
@@ -25,6 +27,12 @@ type MeetingData = {
   duration?: number;
   speaker_names?: Record<string, string> | null;
   audio_expires_at?: string | null;
+  // Meeting series fields
+  parent_meeting_id?: string | null;
+  series_name?: string | null;
+  preparation_notes?: string | null;
+  scheduled_date?: string | null;
+  meeting_status?: 'draft' | 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
 };
 
 type Participant = {
@@ -1025,6 +1033,23 @@ export default function MeetingDetail() {
                 </div>
               )}
             </div>
+
+            {/* Meeting Series Timeline */}
+            <MeetingTimeline currentMeetingId={id!} className="mb-8" />
+
+            {/* Prepare Next Meeting Button */}
+            {meeting.status === 'completed' && (
+              <div className="mb-8">
+                <PrepareMeetingButton
+                  meetingId={id!}
+                  meetingTitle={meeting.title}
+                  seriesName={meeting.series_name}
+                  variant="primary"
+                  size="large"
+                  className="w-full"
+                />
+              </div>
+            )}
 
             {/* Transcript Section */}
             {(Array.isArray(meeting.transcript) && meeting.transcript.length > 0) ? (
