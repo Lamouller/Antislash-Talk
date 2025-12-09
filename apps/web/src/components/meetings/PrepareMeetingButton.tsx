@@ -105,17 +105,17 @@ export function PrepareMeetingButton({
             size={size}
             onClick={handlePrepare}
             disabled={loading}
-            className={`bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 ${className}`}
+            className={`bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white ${className}`}
         >
             {loading ? (
                 <>
-                    <Loader className="w-5 h-5 mr-2 animate-spin" />
+                    <Loader className="w-5 h-5 mr-2 animate-spin text-white" />
                     {t('prepareMeeting.generating')}
                 </>
             ) : (
                 <>
-                    <Sparkles className="w-5 h-5 mr-2" />
-                    <Calendar className="w-5 h-5 mr-2" />
+                    <Sparkles className="w-5 h-5 mr-2 text-white" />
+                    <Calendar className="w-5 h-5 mr-2 text-white" />
                     {t('prepareMeeting.button')}
                 </>
             )}
