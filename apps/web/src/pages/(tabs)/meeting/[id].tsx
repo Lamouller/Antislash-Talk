@@ -921,31 +921,31 @@ export default function MeetingDetail() {
                           🧭 Navigation rapide
                         </span>
                         <div className="flex flex-wrap gap-2">
-                          {meeting.preparation_notes && (
-                            <button
-                              onClick={() => {
-                                const section = document.querySelector('[data-section="preparation-notes"]');
-                                if (section) section.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                              }}
-                              className="inline-flex items-center gap-1.5 px-3 py-2 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-xl transition-all text-xs font-medium text-blue-700 dark:text-blue-300 hover:shadow-sm"
-                            >
-                              <Sparkles className="w-3.5 h-3.5" />
-                              <span>Notes prépa</span>
-                            </button>
-                          )}
+                      {meeting.preparation_notes && (
+                        <button
+                          onClick={() => {
+                            const section = document.querySelector('[data-section="preparation-notes"]');
+                            if (section) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                          }}
+                          className="inline-flex items-center gap-1.5 px-3 py-2 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-xl transition-all text-xs font-medium text-blue-700 dark:text-blue-300 hover:shadow-sm"
+                        >
+                          <Sparkles className="w-3.5 h-3.5" />
+                          <span>Notes prépa</span>
+                        </button>
+                      )}
                           
-                          {summary && (
-                            <button
-                              onClick={() => {
-                                const section = document.querySelector('[data-section="summary"]');
-                                if (section) section.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                              }}
-                              className="inline-flex items-center gap-1.5 px-3 py-2 bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 dark:hover:bg-purple-900/30 border border-purple-200 dark:border-purple-800 rounded-xl transition-all text-xs font-medium text-purple-700 dark:text-purple-300 hover:shadow-sm"
-                            >
-                              <MessageSquare className="w-3.5 h-3.5" />
-                              <span>Résumé</span>
-                            </button>
-                          )}
+                      {summary && (
+                        <button
+                          onClick={() => {
+                            const section = document.querySelector('[data-section="summary"]');
+                            if (section) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                          }}
+                          className="inline-flex items-center gap-1.5 px-3 py-2 bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 dark:hover:bg-purple-900/30 border border-purple-200 dark:border-purple-800 rounded-xl transition-all text-xs font-medium text-purple-700 dark:text-purple-300 hover:shadow-sm"
+                        >
+                          <MessageSquare className="w-3.5 h-3.5" />
+                          <span>Résumé</span>
+                        </button>
+                      )}
                           
                           {meeting.transcript && (Array.isArray(meeting.transcript) && meeting.transcript.length > 0 || hasUtterancesFormat(meeting.transcript)) && (
                             <button
@@ -960,16 +960,16 @@ export default function MeetingDetail() {
                             </button>
                           )}
                           
-                          <button
-                            onClick={() => {
-                              const section = document.querySelector('[data-section="timeline"]');
-                              if (section) section.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                            }}
-                            className="inline-flex items-center gap-1.5 px-3 py-2 bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-800 rounded-xl transition-all text-xs font-medium text-indigo-700 dark:text-indigo-300 hover:shadow-sm"
-                          >
-                            <Calendar className="w-3.5 h-3.5" />
-                            <span>Historique</span>
-                          </button>
+                      <button
+                        onClick={() => {
+                          const section = document.querySelector('[data-section="timeline"]');
+                          if (section) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }}
+                        className="inline-flex items-center gap-1.5 px-3 py-2 bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-800 rounded-xl transition-all text-xs font-medium text-indigo-700 dark:text-indigo-300 hover:shadow-sm"
+                      >
+                        <Calendar className="w-3.5 h-3.5" />
+                        <span>Historique</span>
+                      </button>
                         </div>
                       </div>
                     )}
@@ -1011,192 +1011,132 @@ export default function MeetingDetail() {
                 </div>
               )}
 
-              {/* Summary Section */}
-              {/* Summary Section */}
+              {/* Summary Section - Unified */}
               <div data-section="summary" className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-3xl border border-gray-200/50 dark:border-gray-700/50 shadow-xl p-8 hover:shadow-2xl transition-all duration-300">
-                <div className="flex flex-col gap-4 mb-4">
-                  <h3 className="text-xl font-bold flex items-center gap-2">
-                    <Sparkles className="w-5 h-5 text-purple-500" />
-                    {t('meetingDetail.summaryTitle')}
-                  </h3>
+                {/* Header */}
+                <h3 className="text-2xl font-bold flex items-center gap-2 mb-6">
+                  <Sparkles className="w-6 h-6 text-purple-500" />
+                  {t('meetingDetail.summaryTitle')}
+                </h3>
 
-                  {!summary && !generatingSummary && (
-                    <div className="bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-900/10 dark:to-indigo-900/10 rounded-xl p-5 border border-purple-100 dark:border-purple-800/30">
-                      <h4 className="text-sm font-semibold text-purple-900 dark:text-purple-100 mb-4 flex items-center">
-                        <Settings className="w-4 h-4 mr-2" />
-                        Options de Génération
-                      </h4>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                        {/* Title Prompt Selector */}
-                        <div className="space-y-2">
-                          <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide flex items-center">
-                            <FileType className="w-3 h-3 mr-1.5" />
-                            Style de Titre
-                          </label>
-                          <div className="relative group">
-                            <select
-                              className="w-full pl-4 pr-10 py-2.5 text-sm bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl appearance-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all shadow-sm group-hover:border-purple-300 dark:group-hover:border-purple-700"
-                              value={selectedTitlePromptId}
-                              onChange={(e) => setSelectedTitlePromptId(e.target.value)}
-                            >
-                              <option value="default">✨ Défaut (Standard)</option>
-                              {promptTemplates
-                                .filter(p => p.category === 'title')
-                                .length > 0 && (
-                                  <optgroup label="Mes Prompts Personnalisés">
-                                    {promptTemplates
-                                      .filter(p => p.category === 'title')
-                                      .map(p => (
-                                        <option key={p.id} value={p.id}>{p.name}</option>
-                                      ))
-                                    }
-                                  </optgroup>
-                                )
-                              }
-                            </select>
-                            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Summary Prompt Selector */}
-                        <div className="space-y-2">
-                          <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide flex items-center">
-                            <FileText className="w-3 h-3 mr-1.5" />
-                            Style de Résumé
-                          </label>
-                          <div className="relative group">
-                            <select
-                              className="w-full pl-4 pr-10 py-2.5 text-sm bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl appearance-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all shadow-sm group-hover:border-purple-300 dark:group-hover:border-purple-700"
-                              value={selectedSummaryPromptId}
-                              onChange={(e) => setSelectedSummaryPromptId(e.target.value)}
-                            >
-                              <option value="default">📝 Défaut (Standard)</option>
-                              {promptTemplates
-                                .filter(p => p.category === 'summary' || p.category === 'custom')
-                                .length > 0 && (
-                                  <optgroup label="Mes Prompts Personnalisés">
-                                    {promptTemplates
-                                      .filter(p => p.category === 'summary' || p.category === 'custom')
-                                      .map(p => (
-                                        <option key={p.id} value={p.id}>{p.name}</option>
-                                      ))
-                                    }
-                                  </optgroup>
-                                )
-                              }
-                            </select>
-                            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                            </div>
-                          </div>
+                {/* Prompt Selectors - Always visible */}
+                <div className="bg-gradient-to-br from-purple-50/50 to-indigo-50/50 dark:from-purple-900/10 dark:to-indigo-900/10 rounded-2xl p-5 border border-purple-200/30 dark:border-purple-800/30 mb-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    {/* Title Prompt Selector */}
+                    <div className="space-y-2">
+                      <label className="text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide flex items-center">
+                        <FileType className="w-3.5 h-3.5 mr-1.5" />
+                        Style de Titre
+                      </label>
+                      <div className="relative group">
+                        <select
+                          className="w-full pl-3 pr-10 py-2.5 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl appearance-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all shadow-sm"
+                          value={selectedTitlePromptId}
+                          onChange={(e) => setSelectedTitlePromptId(e.target.value)}
+                        >
+                          <option value="default">✨ Défaut</option>
+                          {promptTemplates.filter(p => p.category === 'title').map(p => (
+                            <option key={p.id} value={p.id}>{p.name}</option>
+                          ))}
+                        </select>
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
                         </div>
                       </div>
+                    </div>
 
-                      <Button
-                        onClick={handleGenerateSummary}
-                        className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-semibold py-3 rounded-xl shadow-lg shadow-purple-500/20 transition-all transform hover:-translate-y-0.5 active:translate-y-0"
-                      >
+                    {/* Summary Prompt Selector */}
+                    <div className="space-y-2">
+                      <label className="text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide flex items-center">
+                        <FileText className="w-3.5 h-3.5 mr-1.5" />
+                        Style de Résumé
+                      </label>
+                      <div className="relative group">
+                        <select
+                          className="w-full pl-3 pr-10 py-2.5 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl appearance-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all shadow-sm"
+                          value={selectedSummaryPromptId}
+                          onChange={(e) => setSelectedSummaryPromptId(e.target.value)}
+                        >
+                          <option value="default">📝 Défaut</option>
+                          {promptTemplates.filter(p => p.category === 'summary' || p.category === 'custom').map(p => (
+                            <option key={p.id} value={p.id}>{p.name}</option>
+                          ))}
+                        </select>
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Generate/Regenerate Button */}
+                  <Button
+                    onClick={handleGenerateSummary}
+                    disabled={generatingSummary}
+                    className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-semibold py-3 rounded-xl shadow-lg shadow-purple-500/20 transition-all transform hover:-translate-y-0.5 active:translate-y-0"
+                  >
+                    {generatingSummary ? (
+                      <>
+                        <BarChart3 className="w-5 h-5 mr-2 animate-spin" />
+                        {t('meetingDetail.generating')}
+                      </>
+                    ) : (
+                      <>
                         <Wand2 className="w-5 h-5 mr-2" />
-                        {t('meetingDetail.buttonGenerateSummary')}
+                        {summary ? 'Régénérer' : t('meetingDetail.buttonGenerateSummary')}
+                      </>
+                    )}
+                  </Button>
+                </div>
+
+                {/* Summary Content or Placeholder */}
+                {summary ? (
+                  <div className="space-y-4">
+                    <div className="bg-gradient-to-r from-blue-50/50 to-indigo-50/50 dark:from-blue-900/10 dark:to-indigo-900/10 rounded-2xl p-6 border border-blue-200/30 dark:border-blue-700/30">
+                      <MarkdownRenderer content={summary} className="text-base leading-relaxed" />
+                    </div>
+
+                    {/* Quick Actions */}
+                    <div className="flex items-center justify-between p-3 bg-gray-50/50 dark:bg-gray-900/20 rounded-xl border border-gray-200/30 dark:border-gray-700/30">
+                      <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+                        <span className="font-medium">Prompts:</span>
+                        {meeting.title_prompt_id || meeting.summary_prompt_id ? (
+                          <>
+                            <span className="px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded">
+                              {promptTemplates.find(p => p.id === meeting.title_prompt_id)?.name || 'Défaut'}
+                            </span>
+                            <span className="px-2 py-0.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded">
+                              {promptTemplates.find(p => p.id === meeting.summary_prompt_id)?.name || 'Défaut'}
+                            </span>
+                          </>
+                        ) : (
+                          <span className="text-gray-500">Défaut</span>
+                        )}
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="small"
+                        onClick={() => {
+                          navigator.clipboard.writeText(summary);
+                          toast.success('Résumé copié !');
+                        }}
+                        className="inline-flex items-center gap-1.5 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                        <span>Copier</span>
                       </Button>
                     </div>
-                  )}
-
-                  {generatingSummary && (
-                    <div className="flex items-center text-purple-600 animate-pulse">
-                      <BarChart3 className="w-4 h-4 mr-2 animate-spin" />
-                      {t('meetingDetail.generating')}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                    <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 flex items-center justify-center">
+                      <MessageSquare className="w-6 h-6 opacity-50" />
                     </div>
-                  )}
-                </div>
+                    <p className="text-sm font-medium">{t('meetingDetail.noSummary')}</p>
+                    <p className="text-xs mt-1">{t('meetingDetail.generateInsight')}</p>
+                  </div>
+                )}
               </div>
-
-              {summary ? (
-                <div className="space-y-4">
-                  {/* Summary Content */}
-                  <div className="bg-gradient-to-r from-blue-50/50 to-indigo-50/50 dark:from-blue-900/10 dark:to-indigo-900/10 rounded-2xl p-6 border border-blue-200/30 dark:border-blue-700/30">
-                    <MarkdownRenderer
-                      content={summary}
-                      className="text-lg"
-                    />
-                  </div>
-
-                  {/* Action Bar - Always visible */}
-                  <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl border border-gray-200/50 dark:border-gray-700/50 p-4">
-                    <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-                      {/* Prompts Used */}
-                      <div className="flex-1 space-y-2">
-                        <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                          ✨ Prompts utilisés
-                        </span>
-                        <div className="flex flex-wrap gap-2">
-                          {meeting.title_prompt_id ? (
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg text-xs font-medium text-purple-700 dark:text-purple-300">
-                              <FileType className="w-3 h-3" />
-                              <span>Titre: {promptTemplates.find(p => p.id === meeting.title_prompt_id)?.name || 'Custom'}</span>
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 dark:bg-gray-900/20 border border-gray-200 dark:border-gray-800 rounded-lg text-xs font-medium text-gray-600 dark:text-gray-400">
-                              <FileType className="w-3 h-3" />
-                              <span>Titre: Défaut</span>
-                            </span>
-                          )}
-                          
-                          {meeting.summary_prompt_id ? (
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg text-xs font-medium text-indigo-700 dark:text-indigo-300">
-                              <FileText className="w-3 h-3" />
-                              <span>Résumé: {promptTemplates.find(p => p.id === meeting.summary_prompt_id)?.name || 'Custom'}</span>
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 dark:bg-gray-900/20 border border-gray-200 dark:border-gray-800 rounded-lg text-xs font-medium text-gray-600 dark:text-gray-400">
-                              <FileText className="w-3 h-3" />
-                              <span>Résumé: Défaut</span>
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Actions */}
-                      <div className="flex flex-wrap gap-2">
-                        <Button
-                          variant="outline"
-                          size="small"
-                          onClick={() => {
-                            navigator.clipboard.writeText(summary);
-                            toast.success('Résumé copié !');
-                          }}
-                          className="inline-flex items-center gap-2 border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
-                        >
-                          <Copy className="w-3.5 h-3.5" />
-                          <span>Copier</span>
-                        </Button>
-                        
-                        <Button
-                          variant="outline"
-                          size="small"
-                          onClick={() => setSummary(null)}
-                          className="inline-flex items-center gap-2 border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-900/20"
-                        >
-                          <Wand2 className="w-3.5 h-3.5" />
-                          <span>Régénérer</span>
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 flex items-center justify-center">
-                    <MessageSquare className="w-8 h-8 opacity-50" />
-                  </div>
-                  <p className="text-lg font-medium">{t('meetingDetail.noSummary')}</p>
-                  <p className="text-sm mt-2">{t('meetingDetail.generateInsight')}</p>
-                </div>
-              )}
-            </div>
 
             {/* Transcript Section */}
             {(Array.isArray(meeting.transcript) && meeting.transcript.length > 0) ? (
