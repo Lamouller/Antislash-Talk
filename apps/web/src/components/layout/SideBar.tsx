@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { Home, ListMusic, FilePlus, Settings, LogOut, User, Mic, Sparkles, Upload } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { Button } from '../ui/Button';
@@ -7,16 +7,17 @@ import { useTranslation } from 'react-i18next';
 
 export default function SideBar() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [user, setUser] = useState<any>(null);
   const { t } = useTranslation();
 
   const navItems = [
-    { href: '/tabs', label: t('nav.home'), icon: Home, color: 'from-blue-500 to-indigo-600' },
-    { href: '/tabs/meetings', label: t('nav.meetings'), icon: ListMusic, color: 'from-green-500 to-emerald-600' },
-    { href: '/tabs/record', label: t('nav.record'), icon: FilePlus, color: 'from-purple-500 to-pink-600' },
-    { href: '/tabs/upload', label: t('nav.upload'), icon: Upload, color: 'from-pink-500 to-rose-600' },
-    { href: '/tabs/prompts', label: t('nav.prompts') || 'Atelier Prompts', icon: Sparkles, color: 'from-yellow-500 to-orange-600' },
-    { href: '/tabs/settings', label: t('nav.settings'), icon: Settings, color: 'from-orange-500 to-red-600' },
+    { href: '/tabs', label: t('nav.home'), icon: Home, color: 'from-blue-500 to-indigo-600', exact: true },
+    { href: '/tabs/meetings', label: t('nav.meetings'), icon: ListMusic, color: 'from-green-500 to-emerald-600', exact: false },
+    { href: '/tabs/record', label: t('nav.record'), icon: FilePlus, color: 'from-purple-500 to-pink-600', exact: true },
+    { href: '/tabs/upload', label: t('nav.upload'), icon: Upload, color: 'from-pink-500 to-rose-600', exact: true },
+    { href: '/tabs/prompts', label: t('nav.prompts') || 'Atelier Prompts', icon: Sparkles, color: 'from-yellow-500 to-orange-600', exact: true },
+    { href: '/tabs/settings', label: t('nav.settings'), icon: Settings, color: 'from-orange-500 to-red-600', exact: true },
   ];
 
   useEffect(() => {
@@ -62,39 +63,39 @@ export default function SideBar() {
         <nav className="flex-1 px-4 pb-4 space-y-2">
           {navItems.map((item) => {
             const IconComponent = item.icon;
+            
+            // Custom active logic: check if current path matches
+            const isItemActive = item.exact 
+              ? location.pathname === item.href
+              : location.pathname.startsWith(item.href);
 
             return (
               <NavLink
-                key={item.href} // Changed key to href since label is translated
+                key={item.href}
                 to={item.href}
-                className={({ isActive }) => {
-                  const active = isActive; // Utiliser SEULEMENT notre logique custom
-                  return `group flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 ${active
+                end={item.exact}
+                className={() => {
+                  return `group flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 ${isItemActive
                     ? 'bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 text-blue-700 dark:text-blue-300 shadow-md border border-blue-200/50 dark:border-blue-700/50'
                     : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50/80 dark:hover:bg-gray-800/50 hover:text-blue-600 dark:hover:text-blue-400'
                     }`;
                 }}
               >
-                {({ isActive }) => {
-                  const active = isActive; // Utiliser SEULEMENT notre logique custom
-                  return (
-                    <>
-                      <div className={`p-2 rounded-lg mr-3 transition-all duration-200 ${active
-                        ? `bg-gradient-to-r ${item.color} shadow-lg`
-                        : 'bg-gray-100 dark:bg-gray-700 group-hover:bg-gray-200 dark:group-hover:bg-gray-600'
-                        }`}>
-                        <IconComponent className={`w-5 h-5 ${active ? 'text-white' : 'text-gray-600 dark:text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400'
-                          }`} />
-                      </div>
-                      <span className="font-medium flex-1">
-                        {item.label}
-                      </span>
-                      {active && (
-                        <div className="w-2 h-2 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 shadow-sm"></div>
-                      )}
-                    </>
-                  );
-                }}
+                <>
+                  <div className={`p-2 rounded-lg mr-3 transition-all duration-200 ${isItemActive
+                    ? `bg-gradient-to-r ${item.color} shadow-lg`
+                    : 'bg-gray-100 dark:bg-gray-700 group-hover:bg-gray-200 dark:group-hover:bg-gray-600'
+                    }`}>
+                    <IconComponent className={`w-5 h-5 ${isItemActive ? 'text-white' : 'text-gray-600 dark:text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400'
+                      }`} />
+                  </div>
+                  <span className="font-medium flex-1">
+                    {item.label}
+                  </span>
+                  {isItemActive && (
+                    <div className="w-2 h-2 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 shadow-sm"></div>
+                  )}
+                </>
               </NavLink>
             );
           })}
