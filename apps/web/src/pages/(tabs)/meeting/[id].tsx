@@ -1561,9 +1561,7 @@ export default function MeetingDetail() {
             </div>
           )}
         </div>
-
-
-
+      </div>
     </div>
   );
 }
