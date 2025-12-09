@@ -893,12 +893,14 @@ export default function MeetingDetail() {
                             const audioSection = document.getElementById('audio-player-section');
                             if (audioSection) {
                               audioSection.scrollIntoView({ behavior: 'smooth' });
+                              // Attendre que le scroll soit terminé puis cliquer sur le bouton play
                               setTimeout(() => {
-                                const audioElement = audioSection.querySelector('audio');
-                                if (audioElement) {
-                                  audioElement.play().catch(err => console.log('Audio autoplay prevented:', err));
+                                // Chercher le bouton play dans Waveform (icône Play de lucide-react)
+                                const playButton = audioSection.querySelector('button[class*="bg-indigo"]') as HTMLButtonElement;
+                                if (playButton) {
+                                  playButton.click();
                                 }
-                              }, 500);
+                              }, 800);
                             }
                           }}
                           className="w-full sm:w-auto bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl transition-all hover:-translate-y-0.5"
