@@ -192,4 +192,6 @@ export const handler = async (req: Request) => {
 };
 
 // Serve the function when run standalone
-Deno.serve(handler); 
+if (import.meta.main) {
+  Deno.serve(handler);
+} 
