@@ -857,8 +857,8 @@ export default function MeetingDetail() {
                   </div>
                 </div>
 
-                  {/* Actions Toolbar */}
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 lg:mb-6">
+                  {/* Actions Toolbar - Primary actions */}
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-4">
                     {/* Start Recording Button (for draft meetings) */}
                     {meeting.meeting_status === 'draft' && (
                       <Button
@@ -899,79 +899,67 @@ export default function MeetingDetail() {
                           }, 500);
                         }
                       }}
-                        className="flex-1 sm:flex-none bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 shadow-md transition-all hover:-translate-y-0.5"
+                        className="flex-1 sm:flex-none bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl transition-all hover:-translate-y-0.5"
                     >
-                        <Play className="w-4 h-4 mr-2 text-purple-600" />
+                        <Play className="w-4 h-4 mr-2" />
                       {t('meetingDetail.listenToRecording')}
                     </Button>
                   )}
                   </div>
 
-                  {/* Quick Navigation Toolbar */}
-                  <div className="bg-gradient-to-r from-purple-50/50 to-pink-50/50 dark:from-purple-900/20 dark:to-pink-900/20 backdrop-blur-sm rounded-2xl border border-purple-200/50 dark:border-purple-700/50 p-4 mb-6">
-                    <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center">
-                      <Sparkles className="w-4 h-4 mr-2 text-purple-600" />
-                      🧭 Navigation rapide
-                    </h4>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                      {/* Notes de préparation */}
-                      {meeting.preparation_notes && (
-                        <button
-                          onClick={() => {
-                            const section = document.querySelector('[data-section="preparation-notes"]');
-                            if (section) section.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                          }}
-                          className="flex items-center gap-2 px-3 py-2 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 hover:border-blue-500/50 rounded-xl transition-all text-sm font-medium text-blue-700 dark:text-blue-300 hover:shadow-md"
-                        >
-                          <Sparkles className="w-4 h-4" />
-                          <span className="hidden sm:inline">Notes</span>
-                          <span className="sm:hidden">📝</span>
-                        </button>
-                      )}
-                      
-                      {/* Résumé */}
-                      {summary && (
-                        <button
-                          onClick={() => {
-                            const section = document.querySelector('[data-section="summary"]');
-                            if (section) section.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                          }}
-                          className="flex items-center gap-2 px-3 py-2 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 hover:border-purple-500/50 rounded-xl transition-all text-sm font-medium text-purple-700 dark:text-purple-300 hover:shadow-md"
-                        >
-                          <MessageSquare className="w-4 h-4" />
-                          <span className="hidden sm:inline">Résumé</span>
-                          <span className="sm:hidden">📋</span>
-                        </button>
-                      )}
-                      
-                      {/* Transcript */}
-                      {meeting.transcript && (Array.isArray(meeting.transcript) && meeting.transcript.length > 0 || hasUtterancesFormat(meeting.transcript)) && (
-                        <button
-                          onClick={() => {
-                            const section = document.querySelector('[data-section="transcript"]');
-                            if (section) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                          }}
-                          className="flex items-center gap-2 px-3 py-2 bg-green-500/10 hover:bg-green-500/20 border border-green-500/30 hover:border-green-500/50 rounded-xl transition-all text-sm font-medium text-green-700 dark:text-green-300 hover:shadow-md"
-                        >
-                          <FileText className="w-4 h-4" />
-                          <span className="hidden sm:inline">Transcript</span>
-                          <span className="sm:hidden">📄</span>
-                        </button>
-                      )}
-                      
-                      {/* Timeline */}
+                  {/* Quick Navigation - Jump to sections */}
+                  <div className="flex flex-wrap items-center gap-2 pb-4 border-b border-gray-200/50 dark:border-gray-700/50">
+                    <span className="text-xs font-medium text-gray-500 dark:text-gray-400 mr-1">🧭 Navigation:</span>
+                    
+                    {meeting.preparation_notes && (
                       <button
                         onClick={() => {
-                          const section = document.querySelector('[data-section="timeline"]');
+                          const section = document.querySelector('[data-section="preparation-notes"]');
                           if (section) section.scrollIntoView({ behavior: 'smooth', block: 'center' });
                         }}
-                        className="flex items-center gap-2 px-3 py-2 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 hover:border-indigo-500/50 rounded-xl transition-all text-sm font-medium text-indigo-700 dark:text-indigo-300 hover:shadow-md"
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg transition-all text-xs font-medium text-blue-700 dark:text-blue-300 hover:shadow-sm"
                       >
-                        <Calendar className="w-4 h-4" />
-                        <span className="hidden sm:inline">Historique</span>
-                        <span className="sm:hidden">📅</span>
+                        <Sparkles className="w-3 h-3" />
+                        <span>Notes prépa</span>
                       </button>
-                    </div>
+                    )}
+                    
+                    {summary && (
+                      <button
+                        onClick={() => {
+                          const section = document.querySelector('[data-section="summary"]');
+                          if (section) section.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 dark:hover:bg-purple-900/30 border border-purple-200 dark:border-purple-800 rounded-lg transition-all text-xs font-medium text-purple-700 dark:text-purple-300 hover:shadow-sm"
+                      >
+                        <MessageSquare className="w-3 h-3" />
+                        <span>Résumé</span>
+                      </button>
+                    )}
+                    
+                    {meeting.transcript && (Array.isArray(meeting.transcript) && meeting.transcript.length > 0 || hasUtterancesFormat(meeting.transcript)) && (
+                      <button
+                        onClick={() => {
+                          const section = document.querySelector('[data-section="transcript"]');
+                          if (section) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-lg transition-all text-xs font-medium text-green-700 dark:text-green-300 hover:shadow-sm"
+                      >
+                        <FileText className="w-3 h-3" />
+                        <span>Transcript</span>
+                      </button>
+                    )}
+                    
+                    <button
+                      onClick={() => {
+                        const section = document.querySelector('[data-section="timeline"]');
+                        if (section) section.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                      }}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-800 rounded-lg transition-all text-xs font-medium text-indigo-700 dark:text-indigo-300 hover:shadow-sm"
+                    >
+                      <Calendar className="w-3 h-3" />
+                      <span>Historique</span>
+                    </button>
                   </div>
                 </div>
               </div>
