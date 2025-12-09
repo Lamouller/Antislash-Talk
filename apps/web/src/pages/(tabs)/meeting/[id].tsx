@@ -833,29 +833,29 @@ export default function MeetingDetail() {
                   <div className="flex-1 min-w-0">
                     <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-100 dark:border-gray-700 inline-block w-full mb-6">
                       <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 dark:text-white leading-tight mb-4">
-                        {meeting.title}
-                      </h1>
-                      
+                    {meeting.title}
+                  </h1>
+
                       <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 dark:text-gray-300">
                         <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
                           <Calendar className="w-4 h-4 text-blue-500" />
                           <span>{formatDate(meeting.created_at, i18n.language)}</span>
-                        </div>
-                        
-                        {meeting.duration && (
+                    </div>
+
+                    {meeting.duration && (
                           <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
                             <Clock className="w-4 h-4 text-green-500" />
                             <span>{formatDuration(meeting.duration)}</span>
-                          </div>
-                        )}
-                        
+                      </div>
+                    )}
+
                         <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
                           <Users className="w-4 h-4 text-purple-500" />
                           <span>{t('meetingDetail.participantCount', { count: meeting.participant_count || 1 })}</span>
-                        </div>
                       </div>
                     </div>
                   </div>
+                </div>
 
                   {/* Actions Toolbar */}
                   <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 lg:mb-6">
@@ -870,34 +870,34 @@ export default function MeetingDetail() {
                       </Button>
                     )}
 
-                    {/* Prepare Next Meeting Button */}
-                    {meeting.status === 'completed' && (
+                  {/* Prepare Next Meeting Button */}
+                  {meeting.status === 'completed' && (
                       <div className="flex-1 sm:flex-none">
-                        <PrepareMeetingButton
-                          meetingId={id!}
-                          meetingTitle={meeting.title}
-                          seriesName={meeting.series_name}
+                    <PrepareMeetingButton
+                      meetingId={id!}
+                      meetingTitle={meeting.title}
+                      seriesName={meeting.series_name}
                           variant="primary"
                           size="medium"
                           className="w-full justify-center shadow-md"
-                        />
+                    />
                       </div>
-                    )}
+                  )}
 
-                    {audioUrl && (
-                      <Button
-                        onClick={() => {
-                          const audioSection = document.getElementById('audio-player-section');
-                          if (audioSection) {
-                            audioSection.scrollIntoView({ behavior: 'smooth' });
-                          }
-                        }}
+                  {audioUrl && (
+                    <Button
+                      onClick={() => {
+                        const audioSection = document.getElementById('audio-player-section');
+                        if (audioSection) {
+                          audioSection.scrollIntoView({ behavior: 'smooth' });
+                        }
+                      }}
                         className="flex-1 sm:flex-none bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 shadow-md transition-all hover:-translate-y-0.5"
-                      >
+                    >
                         <Play className="w-4 h-4 mr-2 text-purple-600" />
-                        {t('meetingDetail.listenToRecording')}
-                      </Button>
-                    )}
+                      {t('meetingDetail.listenToRecording')}
+                    </Button>
+                  )}
                   </div>
                 </div>
               </div>
@@ -1067,7 +1067,7 @@ export default function MeetingDetail() {
                 </div>
               )}
             </div>
-              
+
             {/* Transcript Section */}
             {(Array.isArray(meeting.transcript) && meeting.transcript.length > 0) ? (
               <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-3xl border border-gray-200/50 dark:border-gray-700/50 shadow-xl p-8 hover:shadow-2xl transition-all duration-300 mb-8">

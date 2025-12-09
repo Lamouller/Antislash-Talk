@@ -81,21 +81,21 @@ export default function SideBar() {
                     }`;
                 }}
               >
-                <>
+                    <>
                   <div className={`p-2 rounded-lg mr-3 transition-all duration-200 ${isItemActive
-                    ? `bg-gradient-to-r ${item.color} shadow-lg`
-                    : 'bg-gray-100 dark:bg-gray-700 group-hover:bg-gray-200 dark:group-hover:bg-gray-600'
-                    }`}>
+                        ? `bg-gradient-to-r ${item.color} shadow-lg`
+                        : 'bg-gray-100 dark:bg-gray-700 group-hover:bg-gray-200 dark:group-hover:bg-gray-600'
+                        }`}>
                     <IconComponent className={`w-5 h-5 ${isItemActive ? 'text-white' : 'text-gray-600 dark:text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400'
-                      }`} />
-                  </div>
-                  <span className="font-medium flex-1">
-                    {item.label}
-                  </span>
+                          }`} />
+                      </div>
+                      <span className="font-medium flex-1">
+                        {item.label}
+                      </span>
                   {isItemActive && (
-                    <div className="w-2 h-2 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 shadow-sm"></div>
-                  )}
-                </>
+                        <div className="w-2 h-2 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 shadow-sm"></div>
+                      )}
+                    </>
               </NavLink>
             );
           })}

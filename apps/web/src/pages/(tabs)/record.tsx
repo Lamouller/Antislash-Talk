@@ -843,11 +843,12 @@ export default function RecordingScreen() {
 
       console.log('✅ Meeting created successfully:', meetingData);
 
-      // Trigger async transcription if needed (non-local providers)
+      // Trigger transcription and WAIT for completion (non-local providers)
       if (!transcriptionResult && userPreferences.transcription_provider !== 'local') {
-        console.log('🚀 Triggering async transcription with provider:', userPreferences.transcription_provider);
+        console.log('🚀 Triggering transcription with provider:', userPreferences.transcription_provider);
         try {
           setPageState('processing');
+          toast.loading('🔄 Transcription en cours... Veuillez patienter.', { duration: Infinity, id: 'transcription-progress' });
 
           // Call start-transcription function
           const { data: { session } } = await supabase.auth.getSession();
@@ -868,11 +869,55 @@ export default function RecordingScreen() {
           }
 
           const result = await response.json();
-          console.log('✅ Async transcription started:', result);
-          toast.success('Transcription started! Processing in background... 🔄');
+          console.log('✅ Transcription started:', result);
+
+          // Poll the meeting status until transcription is complete
+          console.log('⏳ Waiting for transcription to complete...');
+          let attempts = 0;
+          const maxAttempts = 120; // 120 * 5s = 10 minutes max
+          let isCompleted = false;
+
+          while (!isCompleted && attempts < maxAttempts) {
+            await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
+            attempts++;
+
+            // Check meeting status
+            const { data: meeting, error: fetchError } = await supabase
+              .from('meetings')
+              .select('status, transcript, summary')
+              .eq('id', meetingData.id)
+              .single();
+
+            if (fetchError) {
+              console.error('❌ Error fetching meeting status:', fetchError);
+              break;
+            }
+
+            console.log(`🔍 Polling attempt ${attempts}/${maxAttempts} - Status:`, meeting?.status);
+
+            if (meeting?.transcript && Array.isArray(meeting.transcript) && meeting.transcript.length > 0) {
+              console.log('✅ Transcription completed!');
+              isCompleted = true;
+              toast.success('✅ Transcription terminée avec succès !', { id: 'transcription-progress' });
+              break;
+            }
+
+            // Update progress message
+            if (attempts % 3 === 0) {
+              toast.loading(`🔄 Transcription en cours... (${Math.round(attempts * 100 / maxAttempts)}%)`, { id: 'transcription-progress' });
+            }
+          }
+
+          if (!isCompleted) {
+            console.warn('⚠️ Transcription timeout - navigating anyway');
+            toast.dismiss('transcription-progress');
+            toast('⏱️ Transcription prend plus de temps que prévu. Vous pouvez vérifier plus tard.', { duration: 5000 });
+          }
+
         } catch (error) {
-          console.error('❌ Failed to start async transcription:', error);
-          toast.error('Transcription will be processed automatically');
+          console.error('❌ Failed to start transcription:', error);
+          toast.dismiss('transcription-progress');
+          toast.error('❌ Erreur lors de la transcription');
         }
       }
 
