@@ -55,8 +55,37 @@ RETURNS TABLE (
 ) AS $$
 BEGIN
   RETURN QUERY
-  WITH RECURSIVE meeting_chain AS (
-    -- Start from the given meeting
+  WITH RECURSIVE ancestors AS (
+    -- Start from the given meeting and go up (parents)
+    SELECT 
+      m.id,
+      m.title,
+      m.created_at,
+      m.meeting_status,
+      m.parent_meeting_id,
+      m.series_name,
+      0 as depth,
+      CASE WHEN m.id = meeting_id_param THEN TRUE ELSE FALSE END as is_current
+    FROM meetings m
+    WHERE m.id = meeting_id_param
+    
+    UNION ALL
+    
+    -- Recursive step: get parents
+    SELECT 
+      m.id,
+      m.title,
+      m.created_at,
+      m.meeting_status,
+      m.parent_meeting_id,
+      m.series_name,
+      a.depth - 1,
+      FALSE
+    FROM meetings m
+    INNER JOIN ancestors a ON m.id = a.parent_meeting_id
+  ),
+  descendants AS (
+    -- Start from children of the given meeting
     SELECT 
       m.id,
       m.title,
@@ -65,13 +94,13 @@ BEGIN
       m.parent_meeting_id,
       m.series_name,
       1 as depth,
-      CASE WHEN m.id = meeting_id_param THEN TRUE ELSE FALSE END as is_current
+      FALSE as is_current
     FROM meetings m
-    WHERE m.id = meeting_id_param
+    WHERE m.parent_meeting_id = meeting_id_param
     
     UNION ALL
     
-    -- Get parent meetings (going backwards)
+    -- Recursive step: get children of children
     SELECT 
       m.id,
       m.title,
@@ -79,35 +108,25 @@ BEGIN
       m.meeting_status,
       m.parent_meeting_id,
       m.series_name,
-      mc.depth - 1,
+      d.depth + 1,
       FALSE
     FROM meetings m
-    INNER JOIN meeting_chain mc ON m.id = mc.parent_meeting_id
-    
+    INNER JOIN descendants d ON m.parent_meeting_id = d.id
+  ),
+  all_meetings AS (
+    SELECT * FROM ancestors
     UNION ALL
-    
-    -- Get child meetings (going forwards)
-    SELECT 
-      m.id,
-      m.title,
-      m.created_at,
-      m.meeting_status,
-      m.parent_meeting_id,
-      m.series_name,
-      mc.depth + 1,
-      FALSE
-    FROM meetings m
-    INNER JOIN meeting_chain mc ON m.parent_meeting_id = mc.id
+    SELECT * FROM descendants
   )
   SELECT 
-    mc.id,
-    mc.title,
-    mc.created_at,
-    mc.meeting_status,
-    mc.is_current,
-    ROW_NUMBER() OVER (ORDER BY mc.created_at) as position_in_series
-  FROM meeting_chain mc
-  ORDER BY mc.created_at;
+    am.id,
+    am.title,
+    am.created_at,
+    am.meeting_status,
+    am.is_current,
+    ROW_NUMBER() OVER (ORDER BY am.created_at)::INTEGER as position_in_series
+  FROM all_meetings am
+  ORDER BY am.created_at;
 END;
 $$ LANGUAGE plpgsql;
 

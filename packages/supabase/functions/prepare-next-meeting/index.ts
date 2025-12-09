@@ -59,7 +59,7 @@ Format the output in clear, professional Markdown suitable for distribution to m
 Use bullet points, checkboxes, and formatting to make it scannable.
 `;
 
-Deno.serve(async (req) => {
+export const handler = async (req: Request) => {
     if (req.method === 'OPTIONS') {
         return new Response('ok', { headers: corsHeaders })
     }
@@ -271,4 +271,9 @@ Transcript: ${JSON.stringify(previousMeeting.transcript || [])}
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
     }
-});
+};
+
+// Start server if this file is the main entry point
+if (import.meta.main) {
+    Deno.serve(handler);
+}

@@ -316,7 +316,7 @@ _Note: Résumé basique généré localement. Pour une analyse IA avancée, util
 }
 
 // --- Main Function ---
-Deno.serve(async (req) => {
+export const handler = async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
@@ -444,4 +444,9 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
-}); 
+};
+
+// Start server if this file is the main entry point
+if (import.meta.main) {
+  Deno.serve(handler);
+} 

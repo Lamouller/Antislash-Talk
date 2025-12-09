@@ -814,81 +814,80 @@ export default function MeetingDetail() {
               </div>
             </div>
 
-            <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-3xl border border-gray-200/50 dark:border-gray-700/50 shadow-xl p-8 hover:shadow-2xl transition-all duration-300">
-              <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-8">
-                <div className="flex-1">
-                  <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-purple-800 dark:from-white dark:via-blue-200 dark:to-purple-200 bg-clip-text text-transparent mb-6">
-                    {meeting.title}
-                  </h1>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
-                    <div className="flex items-center gap-3 p-4 bg-gray-50/50 dark:bg-gray-700/30 rounded-2xl border border-gray-200/30 dark:border-gray-600/30">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg">
-                        <Calendar className="w-5 h-5 text-white" />
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">{t('meetingDetail.dateLabel')}</p>
-                        <p className="text-sm font-medium text-gray-900 dark:text-white">{formatDate(meeting.created_at, i18n.language)}</p>
-                      </div>
-                    </div>
-
-                    {meeting.duration && (
-                      <div className="flex items-center gap-3 p-4 bg-gray-50/50 dark:bg-gray-700/30 rounded-2xl border border-gray-200/30 dark:border-gray-600/30">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 flex items-center justify-center shadow-lg">
-                          <Clock className="w-5 h-5 text-white" />
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">{t('meetingDetail.durationLabel')}</p>
-                          <p className="text-sm font-medium text-gray-900 dark:text-white">{formatDuration(meeting.duration)}</p>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="flex items-center gap-3 p-4 bg-gray-50/50 dark:bg-gray-700/30 rounded-2xl border border-gray-200/30 dark:border-gray-600/30">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-500 to-pink-600 flex items-center justify-center shadow-lg">
-                        <Users className="w-5 h-5 text-white" />
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">{t('meetingDetail.participantsLabel')}</p>
-                        <p className="text-sm font-medium text-gray-900 dark:text-white">{t('meetingDetail.participantCount', { count: meeting.participant_count || 1 })}</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex flex-col items-end space-y-4">
-                  <div className={`inline-flex items-center px-6 py-3 rounded-full ${statusConfig.bgColor} border ${statusConfig.borderColor} shadow-lg`}>
-                    <StatusIcon className={`w-5 h-5 mr-3 ${statusConfig.iconColor}`} />
-                    <span className={`text-sm font-semibold ${statusConfig.textColor}`}>
+            <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-md rounded-3xl border border-gray-200/50 dark:border-gray-700/50 shadow-xl overflow-hidden hover:shadow-2xl transition-all duration-300">
+              {/* Cover Gradient/Image Area */}
+              <div className="h-32 bg-gradient-to-r from-blue-600/20 via-purple-600/20 to-pink-600/20 relative">
+                <div className="absolute top-4 right-4">
+                  <div className={`inline-flex items-center px-4 py-2 rounded-full ${statusConfig.bgColor} border ${statusConfig.borderColor} shadow-sm backdrop-blur-sm`}>
+                    <StatusIcon className={`w-4 h-4 mr-2 ${statusConfig.iconColor}`} />
+                    <span className={`text-sm font-bold ${statusConfig.textColor}`}>
                       {statusConfig.text}
                     </span>
                   </div>
+                </div>
+              </div>
 
-                  {/* Prepare Next Meeting Button */}
-                  {meeting.status === 'completed' && (
-                    <PrepareMeetingButton
-                      meetingId={id!}
-                      meetingTitle={meeting.title}
-                      seriesName={meeting.series_name}
-                      variant="secondary"
-                      size="small"
-                    />
-                  )}
+              <div className="px-8 pb-8 -mt-12 relative">
+                <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
+                  {/* Title and Metadata */}
+                  <div className="flex-1 min-w-0">
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-100 dark:border-gray-700 inline-block w-full mb-6">
+                      <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 dark:text-white leading-tight mb-4">
+                        {meeting.title}
+                      </h1>
+                      
+                      <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 dark:text-gray-300">
+                        <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
+                          <Calendar className="w-4 h-4 text-blue-500" />
+                          <span>{formatDate(meeting.created_at, i18n.language)}</span>
+                        </div>
+                        
+                        {meeting.duration && (
+                          <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
+                            <Clock className="w-4 h-4 text-green-500" />
+                            <span>{formatDuration(meeting.duration)}</span>
+                          </div>
+                        )}
+                        
+                        <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
+                          <Users className="w-4 h-4 text-purple-500" />
+                          <span>{t('meetingDetail.participantCount', { count: meeting.participant_count || 1 })}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
 
-                  {audioUrl && (
-                    <Button
-                      onClick={() => {
-                        const audioSection = document.getElementById('audio-player-section');
-                        if (audioSection) {
-                          audioSection.scrollIntoView({ behavior: 'smooth' });
-                        }
-                      }}
-                      className="bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5"
-                    >
-                      <Play className="w-4 h-4 mr-2" />
-                      {t('meetingDetail.listenToRecording')}
-                    </Button>
-                  )}
+                  {/* Actions Toolbar */}
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 lg:mb-6">
+                    {/* Prepare Next Meeting Button */}
+                    {meeting.status === 'completed' && (
+                      <div className="flex-1 sm:flex-none">
+                        <PrepareMeetingButton
+                          meetingId={id!}
+                          meetingTitle={meeting.title}
+                          seriesName={meeting.series_name}
+                          variant="primary"
+                          size="medium"
+                          className="w-full justify-center shadow-md"
+                        />
+                      </div>
+                    )}
+
+                    {audioUrl && (
+                      <Button
+                        onClick={() => {
+                          const audioSection = document.getElementById('audio-player-section');
+                          if (audioSection) {
+                            audioSection.scrollIntoView({ behavior: 'smooth' });
+                          }
+                        }}
+                        className="flex-1 sm:flex-none bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 shadow-md transition-all hover:-translate-y-0.5"
+                      >
+                        <Play className="w-4 h-4 mr-2 text-purple-600" />
+                        {t('meetingDetail.listenToRecording')}
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
