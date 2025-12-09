@@ -33,6 +33,9 @@ type MeetingData = {
   preparation_notes?: string | null;
   scheduled_date?: string | null;
   meeting_status?: 'draft' | 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
+  // Prompt IDs used for generation
+  title_prompt_id?: string | null;
+  summary_prompt_id?: string | null;
 };
 
 type Participant = {
