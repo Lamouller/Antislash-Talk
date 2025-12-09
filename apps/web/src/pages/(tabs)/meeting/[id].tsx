@@ -1159,7 +1159,7 @@ export default function MeetingDetail() {
               </div>
             ) : meeting.transcript && hasUtterancesFormat(meeting.transcript) && meeting.transcript.utterances.length > 0 ? (
               // Fallback pour l'ancien format
-              <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-3xl border border-gray-200/50 dark:border-gray-700/50 shadow-xl p-8 hover:shadow-2xl transition-all duration-300">
+              <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-3xl border border-gray-200/50 dark:border-gray-700/50 shadow-xl p-8 hover:shadow-2xl transition-all duration-300 mb-8">
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-8 flex items-center">
                   <div className="w-8 h-8 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 flex items-center justify-center mr-3 shadow-lg">
                     <FileText className="w-4 h-4 text-white" />
@@ -1233,7 +1233,7 @@ export default function MeetingDetail() {
               </div>
             ) : (
               // Affichage par défaut quand il n'y a pas de transcript
-              <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-3xl border border-gray-200/50 dark:border-gray-700/50 shadow-xl p-8 hover:shadow-2xl transition-all duration-300">
+              <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-3xl border border-gray-200/50 dark:border-gray-700/50 shadow-xl p-8 hover:shadow-2xl transition-all duration-300 mb-8">
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-8 flex items-center">
                   <div className="w-8 h-8 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 flex items-center justify-center mr-3 shadow-lg">
                     <FileText className="w-4 h-4 text-white" />
