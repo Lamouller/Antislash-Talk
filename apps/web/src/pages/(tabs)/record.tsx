@@ -746,7 +746,7 @@ export default function RecordingScreen() {
       }
 
       // Insert meeting record with user preferences AND selected prompts
-      const meetingPayload = {
+      const meetingPayload: any = {
         user_id: user.id,
         title: meetingTitle || title || `Meeting ${new Date().toLocaleDateString()}`,
         duration: Math.round(duration),
@@ -754,17 +754,25 @@ export default function RecordingScreen() {
         transcript: transcript,
         summary: summary,
         status: transcriptionResult ? 'completed' : 'pending',
-        meeting_status: transcriptionResult ? 'completed' : 'in_progress',
         transcription_provider: transcriptionResult ? 'local' : userPreferences.transcription_provider,
         transcription_model: userPreferences.transcription_model,
         participant_count: 1,
         // Save selected prompts for async transcription (verified: columns exist in DB)
         prompt_title: userPrompts.title || null,
         prompt_summary: userPrompts.summary || null,
-        prompt_transcript: userPrompts.transcript || null,
-        // Save context notes for enriching the summary generation
-        context_notes: contextNotes || null
+        prompt_transcript: userPrompts.transcript || null
       };
+
+      // Only add new columns if they're available (after migration)
+      // This prevents 400 errors if migrations haven't been run yet
+      if (contextNotes) {
+        meetingPayload.context_notes = contextNotes;
+      }
+      
+      // Set meeting_status if it's a draft meeting being updated
+      if (existingMeetingId) {
+        meetingPayload.meeting_status = transcriptionResult ? 'completed' : 'in_progress';
+      }
 
       console.log('💾 Inserting meeting with payload:', meetingPayload);
       console.log('📝 User prompts being saved:', {
