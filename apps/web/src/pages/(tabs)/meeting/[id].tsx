@@ -890,6 +890,13 @@ export default function MeetingDetail() {
                         const audioSection = document.getElementById('audio-player-section');
                         if (audioSection) {
                           audioSection.scrollIntoView({ behavior: 'smooth' });
+                          // Attendre que le scroll soit terminé puis lancer l'audio
+                          setTimeout(() => {
+                            const audioElement = audioSection.querySelector('audio');
+                            if (audioElement) {
+                              audioElement.play().catch(err => console.log('Audio autoplay prevented:', err));
+                            }
+                          }, 500);
                         }
                       }}
                         className="flex-1 sm:flex-none bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 shadow-md transition-all hover:-translate-y-0.5"
@@ -898,6 +905,73 @@ export default function MeetingDetail() {
                       {t('meetingDetail.listenToRecording')}
                     </Button>
                   )}
+                  </div>
+
+                  {/* Quick Navigation Toolbar */}
+                  <div className="bg-gradient-to-r from-purple-50/50 to-pink-50/50 dark:from-purple-900/20 dark:to-pink-900/20 backdrop-blur-sm rounded-2xl border border-purple-200/50 dark:border-purple-700/50 p-4 mb-6">
+                    <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center">
+                      <Sparkles className="w-4 h-4 mr-2 text-purple-600" />
+                      🧭 Navigation rapide
+                    </h4>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                      {/* Notes de préparation */}
+                      {meeting.preparation_notes && (
+                        <button
+                          onClick={() => {
+                            const section = document.querySelector('[data-section="preparation-notes"]');
+                            if (section) section.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                          }}
+                          className="flex items-center gap-2 px-3 py-2 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 hover:border-blue-500/50 rounded-xl transition-all text-sm font-medium text-blue-700 dark:text-blue-300 hover:shadow-md"
+                        >
+                          <Sparkles className="w-4 h-4" />
+                          <span className="hidden sm:inline">Notes</span>
+                          <span className="sm:hidden">📝</span>
+                        </button>
+                      )}
+                      
+                      {/* Résumé */}
+                      {summary && (
+                        <button
+                          onClick={() => {
+                            const section = document.querySelector('[data-section="summary"]');
+                            if (section) section.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                          }}
+                          className="flex items-center gap-2 px-3 py-2 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 hover:border-purple-500/50 rounded-xl transition-all text-sm font-medium text-purple-700 dark:text-purple-300 hover:shadow-md"
+                        >
+                          <MessageSquare className="w-4 h-4" />
+                          <span className="hidden sm:inline">Résumé</span>
+                          <span className="sm:hidden">📋</span>
+                        </button>
+                      )}
+                      
+                      {/* Transcript */}
+                      {meeting.transcript && (Array.isArray(meeting.transcript) && meeting.transcript.length > 0 || hasUtterancesFormat(meeting.transcript)) && (
+                        <button
+                          onClick={() => {
+                            const section = document.querySelector('[data-section="transcript"]');
+                            if (section) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                          }}
+                          className="flex items-center gap-2 px-3 py-2 bg-green-500/10 hover:bg-green-500/20 border border-green-500/30 hover:border-green-500/50 rounded-xl transition-all text-sm font-medium text-green-700 dark:text-green-300 hover:shadow-md"
+                        >
+                          <FileText className="w-4 h-4" />
+                          <span className="hidden sm:inline">Transcript</span>
+                          <span className="sm:hidden">📄</span>
+                        </button>
+                      )}
+                      
+                      {/* Timeline */}
+                      <button
+                        onClick={() => {
+                          const section = document.querySelector('[data-section="timeline"]');
+                          if (section) section.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }}
+                        className="flex items-center gap-2 px-3 py-2 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 hover:border-indigo-500/50 rounded-xl transition-all text-sm font-medium text-indigo-700 dark:text-indigo-300 hover:shadow-md"
+                      >
+                        <Calendar className="w-4 h-4" />
+                        <span className="hidden sm:inline">Historique</span>
+                        <span className="sm:hidden">📅</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -925,7 +999,7 @@ export default function MeetingDetail() {
 
               {/* Preparation Notes Section (for draft/scheduled meetings) */}
               {meeting.preparation_notes && (
-                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 backdrop-blur-sm rounded-3xl border border-blue-200/50 dark:border-blue-700/50 shadow-xl p-8 hover:shadow-2xl transition-all duration-300">
+                <div data-section="preparation-notes" className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 backdrop-blur-sm rounded-3xl border border-blue-200/50 dark:border-blue-700/50 shadow-xl p-8 hover:shadow-2xl transition-all duration-300">
                   <h3 className="text-xl font-bold flex items-center gap-2 mb-6 text-blue-900 dark:text-blue-100">
                     <Sparkles className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                     {t('preparationNotes.title')}
@@ -938,7 +1012,7 @@ export default function MeetingDetail() {
 
               {/* Summary Section */}
               {/* Summary Section */}
-              <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-3xl border border-gray-200/50 dark:border-gray-700/50 shadow-xl p-8 hover:shadow-2xl transition-all duration-300">
+              <div data-section="summary" className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-3xl border border-gray-200/50 dark:border-gray-700/50 shadow-xl p-8 hover:shadow-2xl transition-all duration-300">
                 <div className="flex flex-col gap-4 mb-4">
                   <h3 className="text-xl font-bold flex items-center gap-2">
                     <Sparkles className="w-5 h-5 text-purple-500" />
@@ -1070,7 +1144,7 @@ export default function MeetingDetail() {
 
             {/* Transcript Section */}
             {(Array.isArray(meeting.transcript) && meeting.transcript.length > 0) ? (
-              <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-3xl border border-gray-200/50 dark:border-gray-700/50 shadow-xl p-8 hover:shadow-2xl transition-all duration-300 mb-8">
+              <div data-section="transcript" className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-3xl border border-gray-200/50 dark:border-gray-700/50 shadow-xl p-8 hover:shadow-2xl transition-all duration-300 mb-8">
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-8 flex items-center">
                   <div className="w-8 h-8 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 flex items-center justify-center mr-3 shadow-lg">
                     <FileText className="w-4 h-4 text-white" />
@@ -1170,7 +1244,7 @@ export default function MeetingDetail() {
               </div>
             ) : meeting.transcript && hasUtterancesFormat(meeting.transcript) && meeting.transcript.utterances.length > 0 ? (
               // Fallback pour l'ancien format
-              <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-3xl border border-gray-200/50 dark:border-gray-700/50 shadow-xl p-8 hover:shadow-2xl transition-all duration-300 mb-8">
+              <div data-section="transcript" className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-3xl border border-gray-200/50 dark:border-gray-700/50 shadow-xl p-8 hover:shadow-2xl transition-all duration-300 mb-8">
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-8 flex items-center">
                   <div className="w-8 h-8 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 flex items-center justify-center mr-3 shadow-lg">
                     <FileText className="w-4 h-4 text-white" />
@@ -1315,7 +1389,9 @@ export default function MeetingDetail() {
           {/* Sidebar */}
           <div className="space-y-6">
             {/* Meeting Series Timeline */}
-            <MeetingTimeline currentMeetingId={id!} />
+            <div data-section="timeline">
+              <MeetingTimeline currentMeetingId={id!} />
+            </div>
 
             {/* Meeting Info */}
             <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-3xl border border-gray-200/50 dark:border-gray-700/50 shadow-xl p-6 hover:shadow-2xl transition-all duration-300">
