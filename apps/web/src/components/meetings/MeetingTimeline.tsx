@@ -132,7 +132,7 @@ export function MeetingTimeline({ currentMeetingId, className = '' }: MeetingTim
 
                 {/* Timeline items */}
                 <div className="space-y-4">
-                    {timeline.map((meeting, index) => {
+                    {timeline.map((meeting) => {
                         const config = statusConfig[meeting.meeting_status];
                         const StatusIcon = config.icon;
 
