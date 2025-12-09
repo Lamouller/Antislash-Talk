@@ -790,6 +790,7 @@ export default function RecordingScreen() {
       if (existingMeetingId) {
         // 🔄 Update existing meeting (when recording from a draft)
         console.log('🔄 Updating existing meeting:', existingMeetingId);
+        console.log('📦 Update payload:', meetingPayload);
         
         const result = await supabase
           .from('meetings')
@@ -800,8 +801,15 @@ export default function RecordingScreen() {
         
         meetingData = result.data;
         meetingError = result.error;
+        
+        if (meetingError) {
+          console.error('❌ Update error:', meetingError);
+          console.error('📦 Failed payload:', JSON.stringify(meetingPayload, null, 2));
+        }
       } else {
         // ✨ Create new meeting
+        console.log('📦 Insert payload:', meetingPayload);
+        
         const result = await supabase
           .from('meetings')
           .insert(meetingPayload)
@@ -810,6 +818,11 @@ export default function RecordingScreen() {
         
         meetingData = result.data;
         meetingError = result.error;
+        
+        if (meetingError) {
+          console.error('❌ Insert error:', meetingError);
+          console.error('📦 Failed payload:', JSON.stringify(meetingPayload, null, 2));
+        }
       }
 
       console.log('💾 Saved meeting with preferences:', {
