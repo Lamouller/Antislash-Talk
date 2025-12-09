@@ -1042,13 +1042,9 @@ export default function MeetingDetail() {
                   <p className="text-sm mt-2">{t('meetingDetail.generateInsight')}</p>
                 </div>
               )}
-            </div>
-
-            {/* Meeting Series Timeline */}
-            <MeetingTimeline currentMeetingId={id!} className="mb-8" />
-
-            {/* Transcript Section */}
-            {(Array.isArray(meeting.transcript) && meeting.transcript.length > 0) ? (
+              
+              {/* Transcript Section */}
+              {(Array.isArray(meeting.transcript) && meeting.transcript.length > 0) ? (
               <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-3xl border border-gray-200/50 dark:border-gray-700/50 shadow-xl p-8 hover:shadow-2xl transition-all duration-300 mb-8">
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-8 flex items-center">
                   <div className="w-8 h-8 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 flex items-center justify-center mr-3 shadow-lg">
@@ -1293,6 +1289,8 @@ export default function MeetingDetail() {
 
           {/* Sidebar */}
           <div className="space-y-6">
+            {/* Meeting Series Timeline */}
+            <MeetingTimeline currentMeetingId={id!} />
 
             {/* Meeting Info */}
             <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-3xl border border-gray-200/50 dark:border-gray-700/50 shadow-xl p-6 hover:shadow-2xl transition-all duration-300">
