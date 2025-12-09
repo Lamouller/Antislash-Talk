@@ -898,7 +898,7 @@ export default function RecordingScreen() {
             if (meeting?.transcript && Array.isArray(meeting.transcript) && meeting.transcript.length > 0) {
               console.log('✅ Transcription completed!');
               isCompleted = true;
-              toast.success('✅ Transcription terminée avec succès !', { id: 'transcription-progress' });
+              toast.success('✅ Transcription terminée avec succès !', { id: 'transcription-progress', duration: 3000 });
               break;
             }
 
@@ -911,7 +911,7 @@ export default function RecordingScreen() {
           if (!isCompleted) {
             console.warn('⚠️ Transcription timeout - navigating anyway');
             toast.dismiss('transcription-progress');
-            toast('⏱️ Transcription prend plus de temps que prévu. Vous pouvez vérifier plus tard.', { duration: 5000 });
+            toast.warning('⏱️ Transcription prend plus de temps que prévu. Vous pouvez vérifier plus tard.', { duration: 5000 });
           }
 
         } catch (error) {
