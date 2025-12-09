@@ -230,6 +230,7 @@ Transcript: ${JSON.stringify(previousMeeting.transcript || [])}
             preparation_notes: preparationNotes,
             scheduled_date: scheduled_date || null,
             meeting_status: 'draft',
+            status: 'pending', // For backwards compatibility with old status column
             participant_count: 1
         };
 
