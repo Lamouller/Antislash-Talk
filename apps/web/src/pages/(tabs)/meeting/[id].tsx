@@ -1112,22 +1112,77 @@ export default function MeetingDetail() {
               </div>
 
               {summary ? (
-                <div className="bg-gradient-to-r from-blue-50/50 to-indigo-50/50 dark:from-blue-900/10 dark:to-indigo-900/10 rounded-2xl p-6 border border-blue-200/30 dark:border-blue-700/30 relative group">
-                  <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button
-                      variant="ghost"
-                      size="small"
-                      onClick={() => setSummary(null)}
-                      className="bg-white/50 hover:bg-white dark:bg-black/20 dark:hover:bg-black/40"
-                      title={t('meetingDetail.regenerate')}
-                    >
-                      <Wand2 className="w-4 h-4 text-purple-600" />
-                    </Button>
+                <div className="space-y-4">
+                  {/* Summary Content */}
+                  <div className="bg-gradient-to-r from-blue-50/50 to-indigo-50/50 dark:from-blue-900/10 dark:to-indigo-900/10 rounded-2xl p-6 border border-blue-200/30 dark:border-blue-700/30">
+                    <MarkdownRenderer
+                      content={summary}
+                      className="text-lg"
+                    />
                   </div>
-                  <MarkdownRenderer
-                    content={summary}
-                    className="text-lg"
-                  />
+
+                  {/* Action Bar - Always visible */}
+                  <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl border border-gray-200/50 dark:border-gray-700/50 p-4">
+                    <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+                      {/* Prompts Used */}
+                      <div className="flex-1 space-y-2">
+                        <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                          ✨ Prompts utilisés
+                        </span>
+                        <div className="flex flex-wrap gap-2">
+                          {meeting.title_prompt_id ? (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg text-xs font-medium text-purple-700 dark:text-purple-300">
+                              <FileType className="w-3 h-3" />
+                              <span>Titre: {promptTemplates.find(p => p.id === meeting.title_prompt_id)?.name || 'Custom'}</span>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 dark:bg-gray-900/20 border border-gray-200 dark:border-gray-800 rounded-lg text-xs font-medium text-gray-600 dark:text-gray-400">
+                              <FileType className="w-3 h-3" />
+                              <span>Titre: Défaut</span>
+                            </span>
+                          )}
+                          
+                          {meeting.summary_prompt_id ? (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg text-xs font-medium text-indigo-700 dark:text-indigo-300">
+                              <FileText className="w-3 h-3" />
+                              <span>Résumé: {promptTemplates.find(p => p.id === meeting.summary_prompt_id)?.name || 'Custom'}</span>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 dark:bg-gray-900/20 border border-gray-200 dark:border-gray-800 rounded-lg text-xs font-medium text-gray-600 dark:text-gray-400">
+                              <FileText className="w-3 h-3" />
+                              <span>Résumé: Défaut</span>
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          variant="outline"
+                          size="small"
+                          onClick={() => {
+                            navigator.clipboard.writeText(summary);
+                            toast.success('Résumé copié !');
+                          }}
+                          className="inline-flex items-center gap-2 border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
+                        >
+                          <Copy className="w-3.5 h-3.5" />
+                          <span>Copier</span>
+                        </Button>
+                        
+                        <Button
+                          variant="outline"
+                          size="small"
+                          onClick={() => setSummary(null)}
+                          className="inline-flex items-center gap-2 border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-900/20"
+                        >
+                          <Wand2 className="w-3.5 h-3.5" />
+                          <span>Régénérer</span>
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               ) : (
                 <div className="text-center py-12 text-gray-500 dark:text-gray-400">
