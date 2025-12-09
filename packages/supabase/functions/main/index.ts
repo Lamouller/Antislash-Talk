@@ -1,5 +1,6 @@
 import { handler as prepareNextMeeting } from '../prepare-next-meeting/index.ts';
 import { handler as transcribeWithGemini } from '../transcribe-with-gemini/index.ts';
+import { handler as startTranscription } from '../start-transcription/index.ts';
 import { corsHeaders } from '../_shared/cors.ts';
 
 console.log("🚀 Edge Function Router started");
@@ -24,6 +25,11 @@ Deno.serve(async (req) => {
     // Route to transcribe-with-gemini
     if (path.endsWith('/transcribe-with-gemini')) {
       return await transcribeWithGemini(req);
+    }
+
+    // Route to start-transcription
+    if (path.endsWith('/start-transcription')) {
+      return await startTranscription(req);
     }
 
     // Default route or 404

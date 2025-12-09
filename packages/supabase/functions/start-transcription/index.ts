@@ -10,7 +10,7 @@ if (!NETLIFY_WEBHOOK_URL) {
   console.error("CRITICAL: NETLIFY_WEBHOOK_URL environment variable is not set.");
 }
 
-Deno.serve(async (req) => {
+export const handler = async (req: Request) => {
   console.log("start-transcription function invoked at", new Date().toISOString());
   console.log("Request method:", req.method);
   console.log("Request URL:", req.url);
@@ -195,4 +195,7 @@ Deno.serve(async (req) => {
       status: 500,
     });
   }
-}); 
+};
+
+// Serve the function when run standalone
+Deno.serve(handler); 
