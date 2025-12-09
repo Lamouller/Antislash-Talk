@@ -283,7 +283,7 @@ services:
       - --port
       - "9000"
       - --main-service
-      - /home/deno/functions/transcribe-with-gemini
+      - /home/deno/functions/main
     volumes:
       - ./packages/supabase/functions:/home/deno/functions:ro
     networks:
