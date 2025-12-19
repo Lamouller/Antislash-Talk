@@ -44,13 +44,56 @@ CRITICAL RULES for speaker identification:
     fr: {
       title: "Titre de réunion concis et informatif (60 caractères max, en français). Gemini, utilisez votre compréhension contextuelle pour capturer l'essence de la discussion.",
       summary: "Résumé structuré des éléments essentiels de la réunion en français. Gemini excelle dans l'analyse contextuelle - identifiez les thèmes principaux, consensus et divergences.",
-      transcript: `Transcription avec diarization avancée en français. Gemini a d'excellentes capacités de compréhension audio :
-UTILISATION OPTIMALE de Gemini pour la diarization :
-- **Avantage Gemini**: Analyse directement l'audio, détection naturelle des changements de voix
-- **Identification des locuteurs**: Utilisez les noms si mentionnés, sinon "Locuteur_01", "Locuteur_02"
-- **Règle absolue**: Si une seule voix est détectable, n'inventez PAS de locuteurs supplémentaires
-- **Format de sortie**: Array d'objets avec "speaker", "text", "start", "end"
-- **Avantage clé**: Gemini peut traiter l'audio brut et détecter les nuances vocales que Whisper rate`
+      transcript: `Transcription détaillée avec identification intelligente des locuteurs en français.
+
+🎯 MÉTHODOLOGIE DE DIARIZATION (Gemini optimisé) :
+
+ÉTAPE 1 - ANALYSE VOCALE :
+Écoutez attentivement l'audio et identifiez :
+- Combien de voix DISTINCTES entendez-vous ? (timbre, hauteur, rythme différents)
+- Y a-t-il des changements de locuteur évidents ? (silences, changements de ton, vocatifs)
+- Détectez les indices contextuels : questions/réponses, interruptions, vocatifs ("Paul, que penses-tu ?")
+
+ÉTAPE 2 - ATTRIBUTION DES IDENTIFIANTS (Hiérarchie stricte) :
+
+📌 PRIORITÉ 1 - Noms explicites (à appliquer IMMÉDIATEMENT et RÉTROACTIVEMENT) :
+   → Si quelqu'un dit "Je m'appelle Marc", "C'est Paul qui parle", "Bonjour, Julie à l'appareil"
+   → Utilisez ce nom pour TOUS les segments de cette personne (passés et futurs)
+   → Exemple : "Marc" pour tous les segments de cette voix
+
+📌 PRIORITÉ 2 - Vocatifs et interpellations :
+   → Si vous entendez "Paul, qu'en penses-tu ?", la réponse vient probablement de Paul
+   → "D'accord Sarah, je comprends" → Sarah a parlé juste avant
+   → Utilisez ces indices pour affiner l'identification
+
+📌 PRIORITÉ 3 - Identifiants génériques (si aucun nom détecté) :
+   → "Locuteur_01" pour la première voix entendue
+   → "Locuteur_02" pour la deuxième voix distincte (seulement si réellement différente)
+   → Ne pas créer de locuteur supplémentaire sans preuve vocale claire
+
+⚠️ RÈGLE ABSOLUE - Monologue :
+SI ET SEULEMENT SI une seule voix est détectable dans TOUT l'enregistrement :
+→ Attribuez 100% du contenu à un SEUL locuteur (ex: "Locuteur_01" ou son nom si mentionné)
+→ NE PAS inventer de second locuteur par défaut
+→ Un monologue est VALIDE et FRÉQUENT (notes vocales, présentations, etc.)
+
+ÉTAPE 3 - VALIDATION :
+Avant de finaliser, vérifiez :
+✓ Chaque changement de locuteur correspond-il à un changement vocal réel ?
+✓ Les noms sont-ils appliqués de manière cohérente sur tout l'enregistrement ?
+✓ Y a-t-il des segments attribués au mauvais locuteur ? (corriger)
+
+📊 FORMAT DE SORTIE :
+Array d'objets avec :
+- "speaker": string (nom ou "Locuteur_XX")
+- "text": string (verbatim de ce qui est dit)
+- "start": number (secondes, précis au dixième)
+- "end": number (secondes, précis au dixième)
+
+💡 AVANTAGES GEMINI :
+- Analyse audio native (pas de transcription intermédiaire)
+- Détection fine des nuances vocales (respiration, intonation, pauses)
+- Compréhension contextuelle supérieure pour l'attribution des noms`
     },
     en: {
       title: "Concise and informative meeting title (60 chars max, in English). Gemini, use your contextual understanding to capture the essence of the discussion.",

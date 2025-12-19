@@ -113,6 +113,25 @@ export default function RecordingScreen() {
   const { isSupported: wakeLockSupported, isActive: wakeLockActive, requestLock: requestWakeLock, releaseLock: releaseWakeLock } = useWakeLock();
   const silentAudioRef = useRef<HTMLAudioElement | null>(null);
 
+  // 🎵 Cleanup: Stop silent audio and release wake lock when component unmounts
+  useEffect(() => {
+    return () => {
+      // Stop silent audio
+      if (silentAudioRef.current) {
+        silentAudioRef.current.pause();
+        silentAudioRef.current.currentTime = 0;
+        console.log('[record] 🧹 Cleanup: Silent audio stopped on unmount');
+      }
+      
+      // Release wake lock
+      if (wakeLockActive) {
+        releaseWakeLock().then(() => {
+          console.log('[record] 🧹 Cleanup: Wake lock released on unmount');
+        });
+      }
+    };
+  }, [wakeLockActive, releaseWakeLock]);
+
   useEffect(() => {
     setIsPaused(recorderIsPaused);
   }, [recorderIsPaused]);
