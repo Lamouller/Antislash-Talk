@@ -114,6 +114,7 @@ export default function RecordingScreen() {
   const silentAudioRef = useRef<HTMLAudioElement | null>(null);
 
   // 🎵 Cleanup: Stop silent audio, release wake lock, and free all media resources
+  // IMPORTANT: Empty dependency array [] to run ONLY on unmount, not during normal usage
   useEffect(() => {
     return () => {
       console.log('[record] 🧹 Component unmounting - cleaning up all audio resources...');
@@ -127,24 +128,10 @@ export default function RecordingScreen() {
         console.log('[record] 🧹 Cleanup: Silent audio stopped and resources freed');
       }
       
-      // Stop any active recording
-      if (isRecording) {
-        console.log('[record] 🧹 Cleanup: Stopping active recording');
-        stopRecording();
-      }
-      
-      // Release wake lock
-      if (wakeLockActive) {
-        releaseWakeLock().then(() => {
-          console.log('[record] 🧹 Cleanup: Wake lock released');
-        }).catch(err => {
-          console.warn('[record] ⚠️ Could not release wake lock:', err);
-        });
-      }
-      
-      console.log('[record] ✅ Cleanup complete - all audio resources freed');
+      console.log('[record] ✅ Cleanup complete - all audio resources freed for next page');
     };
-  }, [wakeLockActive, releaseWakeLock, isRecording, stopRecording]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty deps = run only on mount/unmount
 
   useEffect(() => {
     setIsPaused(recorderIsPaused);
