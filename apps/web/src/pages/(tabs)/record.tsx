@@ -318,21 +318,22 @@ export default function RecordingScreen() {
       console.log('='.repeat(60));
       console.log('');
 
-      // 🔒 Request Wake Lock to prevent screen sleep
-      if (wakeLockSupported) {
-        await requestWakeLock();
-        console.log('[record] 🔒 Wake Lock requested');
-      }
-
-      // 🎵 Play silent audio for iOS background persistence
-      if (silentAudioRef.current) {
-        try {
-          await silentAudioRef.current.play();
-          console.log('[record] 🎵 Silent audio started for iOS persistence');
-        } catch (err) {
-          console.warn('[record] ⚠️ Could not start silent audio:', err);
-        }
-      }
+      // 🔒 Request Wake Lock and 🎵 Silent Audio in parallel (NON-BLOCKING)
+      // These are optimizations that should not delay the actual recording start
+      Promise.allSettled([
+        wakeLockSupported ? requestWakeLock() : Promise.resolve(),
+        silentAudioRef.current?.play() ?? Promise.resolve()
+      ]).then(results => {
+        results.forEach((result, index) => {
+          if (result.status === 'fulfilled') {
+            const label = index === 0 ? 'Wake Lock' : 'Silent audio';
+            console.log(`[record] ✅ ${label} ${index === 0 ? 'requested' : 'started for iOS persistence'}`);
+          } else {
+            const label = index === 0 ? 'Wake Lock' : 'Silent audio';
+            console.warn(`[record] ⚠️ ${label} failed:`, result.reason);
+          }
+        });
+      });
 
       // Réinitialiser les segments live et le mapping de speakers
       setLiveTranscriptionSegments([]);
