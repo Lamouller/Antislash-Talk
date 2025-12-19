@@ -20,10 +20,24 @@ const Waveform: React.FC<WaveformProps> = ({
   useEffect(() => {
     if (!waveformRef.current || !audioUrl) return;
     
-    // Initialize AudioContext on the client side
-    if (!audioContextRef.current) {
-      audioContextRef.current = new AudioContext();
+    // 🔧 Cleanup any existing wavesurfer instance first
+    if (wavesurfer.current) {
+      wavesurfer.current.destroy();
+      wavesurfer.current = null;
     }
+
+    // 🔧 Close any existing AudioContext to free resources on mobile
+    if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+      audioContextRef.current.close().then(() => {
+        console.log('[Waveform] 🧹 Previous AudioContext closed');
+      }).catch(err => {
+        console.warn('[Waveform] ⚠️ Could not close AudioContext:', err);
+      });
+    }
+
+    // Initialize fresh AudioContext
+    audioContextRef.current = new AudioContext();
+    console.log('[Waveform] 🎵 New AudioContext created:', audioContextRef.current.state);
 
     wavesurfer.current = WaveSurfer.create({
       container: waveformRef.current,
@@ -41,32 +55,67 @@ const Waveform: React.FC<WaveformProps> = ({
     wavesurfer.current.on('ready', () => {
       if (wavesurfer.current) {
         setDuration(wavesurfer.current.getDuration());
+        console.log('[Waveform] ✅ Audio ready, duration:', wavesurfer.current.getDuration());
       }
     });
 
     wavesurfer.current.on('play', () => {
         setIsPlaying(true);
+        console.log('[Waveform] ▶️ Playback started');
     });
 
     wavesurfer.current.on('pause', () => {
         setIsPlaying(false);
+        console.log('[Waveform] ⏸️ Playback paused');
     });
 
     wavesurfer.current.on('audioprocess', (time) => {
         setCurrentTime(time);
     });
 
+    wavesurfer.current.on('error', (err) => {
+      console.error('[Waveform] ❌ Error loading audio:', err);
+    });
+
     return () => {
+      console.log('[Waveform] 🧹 Cleanup: destroying wavesurfer and closing AudioContext');
       wavesurfer.current?.destroy();
+      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+        audioContextRef.current.close();
+      }
     };
   }, [audioUrl]);
 
   const handlePlay = async () => {
-    if (wavesurfer.current && audioContextRef.current) {
-      if (audioContextRef.current.state === 'suspended') {
+    if (!wavesurfer.current) {
+      console.warn('[Waveform] ⚠️ Cannot play: wavesurfer not initialized');
+      return;
+    }
+
+    try {
+      // 🔧 Resume AudioContext if suspended (common on mobile)
+      if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
+        console.log('[Waveform] 🔄 Resuming suspended AudioContext...');
         await audioContextRef.current.resume();
+        console.log('[Waveform] ✅ AudioContext resumed:', audioContextRef.current.state);
       }
+
+      // 🎵 Start playback
       await wavesurfer.current.play();
+      console.log('[Waveform] ▶️ Playback started successfully');
+    } catch (error) {
+      console.error('[Waveform] ❌ Failed to start playback:', error);
+      
+      // 🔧 Try recreating AudioContext on mobile if it failed
+      if (audioContextRef.current && audioContextRef.current.state === 'closed') {
+        console.log('[Waveform] 🔄 Recreating AudioContext after failure...');
+        audioContextRef.current = new AudioContext();
+        try {
+          await wavesurfer.current.play();
+        } catch (retryError) {
+          console.error('[Waveform] ❌ Retry failed:', retryError);
+        }
+      }
     }
   };
 

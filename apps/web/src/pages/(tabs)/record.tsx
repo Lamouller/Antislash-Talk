@@ -113,24 +113,38 @@ export default function RecordingScreen() {
   const { isSupported: wakeLockSupported, isActive: wakeLockActive, requestLock: requestWakeLock, releaseLock: releaseWakeLock } = useWakeLock();
   const silentAudioRef = useRef<HTMLAudioElement | null>(null);
 
-  // 🎵 Cleanup: Stop silent audio and release wake lock when component unmounts
+  // 🎵 Cleanup: Stop silent audio, release wake lock, and free all media resources
   useEffect(() => {
     return () => {
-      // Stop silent audio
+      console.log('[record] 🧹 Component unmounting - cleaning up all audio resources...');
+      
+      // Stop and remove silent audio element
       if (silentAudioRef.current) {
         silentAudioRef.current.pause();
         silentAudioRef.current.currentTime = 0;
-        console.log('[record] 🧹 Cleanup: Silent audio stopped on unmount');
+        silentAudioRef.current.src = ''; // Clear source to release resources
+        silentAudioRef.current.load(); // Force reload to release media
+        console.log('[record] 🧹 Cleanup: Silent audio stopped and resources freed');
+      }
+      
+      // Stop any active recording
+      if (isRecording) {
+        console.log('[record] 🧹 Cleanup: Stopping active recording');
+        stopRecording();
       }
       
       // Release wake lock
       if (wakeLockActive) {
         releaseWakeLock().then(() => {
-          console.log('[record] 🧹 Cleanup: Wake lock released on unmount');
+          console.log('[record] 🧹 Cleanup: Wake lock released');
+        }).catch(err => {
+          console.warn('[record] ⚠️ Could not release wake lock:', err);
         });
       }
+      
+      console.log('[record] ✅ Cleanup complete - all audio resources freed');
     };
-  }, [wakeLockActive, releaseWakeLock]);
+  }, [wakeLockActive, releaseWakeLock, isRecording, stopRecording]);
 
   useEffect(() => {
     setIsPaused(recorderIsPaused);
