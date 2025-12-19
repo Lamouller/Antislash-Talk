@@ -695,14 +695,27 @@ export default function RecordingScreen() {
           audioBlobType: audioBlob.type
         });
         setPageState('uploading');
+        
+        // 🔧 Determine file extension based on blob type (iOS compatibility)
         const timestamp = Date.now();
-        const fileName = `${user.id}/${timestamp}.webm`;
-        console.log('📁 Upload path:', fileName);
+        let fileExtension = 'webm';
+        let contentType = audioBlob.type || 'audio/webm';
+        
+        if (contentType.includes('mp4') || contentType.includes('m4a')) {
+          fileExtension = 'mp4';
+          console.log('🍎 Using .mp4 extension for iOS recording');
+        } else if (contentType.includes('webm')) {
+          fileExtension = 'webm';
+          console.log('🎵 Using .webm extension for standard recording');
+        }
+        
+        const fileName = `${user.id}/${timestamp}.${fileExtension}`;
+        console.log('📁 Upload path:', fileName, '| Content-Type:', contentType);
 
         const { error: uploadError } = await supabase.storage
           .from('meetingrecordings')
           .upload(fileName, audioBlob, {
-            contentType: 'audio/webm',
+            contentType: contentType,
             upsert: false
           });
 

@@ -101,6 +101,22 @@ const Waveform: React.FC<WaveformProps> = ({
   return (
     <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
       <div ref={waveformRef} className="mb-4" />
+      
+      {/* 🔧 Fallback HTML5 audio player for iOS/Safari (WebM not supported) */}
+      {audioUrl && (
+        <audio 
+          controls 
+          className="w-full mb-4"
+          preload="metadata"
+          style={{ display: 'block' }}
+        >
+          <source src={audioUrl} type="audio/webm" />
+          <source src={audioUrl} type="audio/mp4" />
+          <source src={audioUrl} type="audio/mpeg" />
+          Your browser does not support the audio element.
+        </audio>
+      )}
+      
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2">
           {!isPlaying ? (
@@ -123,6 +139,11 @@ const Waveform: React.FC<WaveformProps> = ({
           {formatTime(currentTime)} / {formatTime(duration)}
         </div>
       </div>
+      
+      {/* Info message for iOS users */}
+      <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+        📱 iOS users: Use the HTML5 player above if waveform doesn't work
+      </p>
     </div>
   );
 };

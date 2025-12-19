@@ -15,6 +15,8 @@ export function useWebAudioRecorder() {
   // 🆕 Callback pour le streaming live
   const onChunkReadyCallbackRef = useRef<OnChunkReadyCallback | null>(null);
   const chunkIndexRef = useRef<number>(0);
+  // 🔧 Store the actual mimeType used for recording
+  const mimeTypeRef = useRef<string>('audio/webm');
 
   useEffect(() => {
     // Clean up audio blob URL
@@ -31,7 +33,30 @@ export function useWebAudioRecorder() {
       console.log(`[useWebAudioRecorder] Live streaming: ${onChunkReady ? '✅ ENABLED (chunks every 10s)' : '❌ DISABLED (single blob)'}`);
       
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorderRef.current = new MediaRecorder(stream);
+      
+      // 🔧 Detect best audio format for current browser
+      // iOS Safari: audio/mp4, Chrome/Android: audio/webm
+      let mimeType = 'audio/webm';
+      const options: MediaRecorderOptions = {};
+      
+      if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+        mimeType = 'audio/webm;codecs=opus';
+        options.mimeType = mimeType;
+        console.log('[useWebAudioRecorder] 🎵 Using WebM with Opus codec');
+      } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+        mimeType = 'audio/mp4';
+        options.mimeType = mimeType;
+        console.log('[useWebAudioRecorder] 🍎 Using MP4 for iOS compatibility');
+      } else if (MediaRecorder.isTypeSupported('audio/webm')) {
+        mimeType = 'audio/webm';
+        options.mimeType = mimeType;
+        console.log('[useWebAudioRecorder] 🎵 Using WebM (basic)');
+      } else {
+        console.warn('[useWebAudioRecorder] ⚠️ No preferred format supported, using browser default');
+      }
+      
+      mediaRecorderRef.current = new MediaRecorder(stream, options);
+      mimeTypeRef.current = mimeType; // Store for later use
       
       // 🆕 Stocker le callback pour le streaming live
       onChunkReadyCallbackRef.current = onChunkReady || null;
@@ -55,8 +80,9 @@ export function useWebAudioRecorder() {
       };
       
       mediaRecorderRef.current.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
-        console.log(`[useWebAudioRecorder] ⏹️ Recording stopped. Final blob: ${(blob.size / 1024).toFixed(2)} KB`);
+        // 🔧 Use the actual mimeType that was used for recording
+        const blob = new Blob(chunksRef.current, { type: mimeTypeRef.current });
+        console.log(`[useWebAudioRecorder] ⏹️ Recording stopped. Final blob: ${(blob.size / 1024).toFixed(2)} KB (${mimeTypeRef.current})`);
         setAudioBlob(blob);
         chunksRef.current = [];
         chunkIndexRef.current = 0;
