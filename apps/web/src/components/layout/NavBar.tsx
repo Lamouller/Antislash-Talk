@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { Home, ListMusic, FilePlus, Settings, Menu, X, Mic } from 'lucide-react';
+import { Home, ListMusic, FilePlus, Settings, Menu, X, Mic, Upload, Sparkles } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 export default function NavBar() {
@@ -11,6 +11,8 @@ export default function NavBar() {
     { href: '/tabs', label: t('nav.home'), icon: Home, color: 'from-blue-500 to-indigo-600' },
     { href: '/tabs/meetings', label: t('nav.meetings'), icon: ListMusic, color: 'from-green-500 to-emerald-600' },
     { href: '/tabs/record', label: t('nav.record'), icon: FilePlus, color: 'from-purple-500 to-pink-600' },
+    { href: '/tabs/upload', label: t('nav.upload'), icon: Upload, color: 'from-pink-500 to-rose-600' },
+    { href: '/tabs/prompts', label: t('nav.prompts') || 'Atelier Prompts', icon: Sparkles, color: 'from-yellow-500 to-orange-600' },
     { href: '/tabs/settings', label: t('nav.settings'), icon: Settings, color: 'from-orange-500 to-red-600' },
   ];
 
