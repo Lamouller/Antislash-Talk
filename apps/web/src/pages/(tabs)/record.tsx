@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { Mic, Square, Pause as PauseIcon, RefreshCw, Play, Radio, Waves, Sparkles, Clock, FileAudio, Settings, Plus } from 'lucide-react';
@@ -7,12 +7,91 @@ import { useWebAudioRecorder } from '../../hooks/useWebAudioRecorder';
 import { useLocalTranscription, LocalTranscriptionResult } from '../../hooks/useLocalTranscription';
 import { useOllama } from '../../hooks/useOllama';
 import { useWakeLock } from '../../hooks/useWakeLock';
+import { useDisplayMode } from '../../hooks/useDisplayMode';
 import { getAdaptivePrompts, getWhisperOptimizedPrompts, requiresSpecialPrompts } from '../../lib/adaptive-prompts';
 import { processStreamingSegment, SpeakerMapping, SpeakerSegment } from '../../lib/speaker-name-detector';
 import toast from 'react-hot-toast';
 import { Button } from '../../components/ui/Button';
 import { MarkdownRenderer } from '../../components/ui/MarkdownRenderer';
 import { useTranslation, Trans } from 'react-i18next';
+
+// IndexedDB helper for emergency recording backup
+const EMERGENCY_DB_NAME = 'antislash-talk-emergency';
+const EMERGENCY_STORE_NAME = 'recordings';
+
+async function openEmergencyDB(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(EMERGENCY_DB_NAME, 1);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve(request.result);
+    request.onupgradeneeded = (event) => {
+      const db = (event.target as IDBOpenDBRequest).result;
+      if (!db.objectStoreNames.contains(EMERGENCY_STORE_NAME)) {
+        db.createObjectStore(EMERGENCY_STORE_NAME, { keyPath: 'id' });
+      }
+    };
+  });
+}
+
+async function saveEmergencyRecording(data: {
+  id: string;
+  audioChunks: ArrayBuffer[];
+  duration: number;
+  title: string;
+  timestamp: number;
+  liveSegments: SpeakerSegment[];
+}): Promise<void> {
+  try {
+    const db = await openEmergencyDB();
+    const transaction = db.transaction(EMERGENCY_STORE_NAME, 'readwrite');
+    const store = transaction.objectStore(EMERGENCY_STORE_NAME);
+    await new Promise<void>((resolve, reject) => {
+      const request = store.put(data);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+    db.close();
+    console.log('[Emergency Save] ✅ Recording saved to IndexedDB');
+  } catch (err) {
+    console.error('[Emergency Save] ❌ Failed to save:', err);
+  }
+}
+
+async function getEmergencyRecording(): Promise<any | null> {
+  try {
+    const db = await openEmergencyDB();
+    const transaction = db.transaction(EMERGENCY_STORE_NAME, 'readonly');
+    const store = transaction.objectStore(EMERGENCY_STORE_NAME);
+    const recordings = await new Promise<any[]>((resolve, reject) => {
+      const request = store.getAll();
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    db.close();
+    // Return most recent recording
+    return recordings.sort((a, b) => b.timestamp - a.timestamp)[0] || null;
+  } catch (err) {
+    console.error('[Emergency Save] ❌ Failed to get:', err);
+    return null;
+  }
+}
+
+async function clearEmergencyRecording(): Promise<void> {
+  try {
+    const db = await openEmergencyDB();
+    const transaction = db.transaction(EMERGENCY_STORE_NAME, 'readwrite');
+    const store = transaction.objectStore(EMERGENCY_STORE_NAME);
+    await new Promise<void>((resolve, reject) => {
+      const request = store.clear();
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+    db.close();
+    console.log('[Emergency Save] 🗑️ Emergency recordings cleared');
+  } catch (err) {
+    console.error('[Emergency Save] ❌ Failed to clear:', err);
+  }
+}
 
 // PromptTemplate interface
 interface PromptTemplate {
@@ -109,29 +188,131 @@ export default function RecordingScreen() {
   const generateTitle = ollama.generateTitle;
   const generateSummary = ollama.generateSummary;
 
-  // 🔒 Wake Lock for preventing screen sleep on mobile
-  const { isSupported: wakeLockSupported, isActive: wakeLockActive, requestLock: requestWakeLock, releaseLock: releaseWakeLock } = useWakeLock();
-  const silentAudioRef = useRef<HTMLAudioElement | null>(null);
+  // 🔒 Wake Lock for preventing screen sleep on mobile (with iOS fallback)
+  const { isSupported: wakeLockSupported, isActive: wakeLockActive, usingFallback: wakeLockUsingFallback, requestLock: requestWakeLock, releaseLock: releaseWakeLock } = useWakeLock();
+  
+  // 📱 Detect display mode (browser vs standalone PWA)
+  const { isIOSStandalone } = useDisplayMode();
 
-  // 🎵 Cleanup: Stop silent audio, release wake lock, and free all media resources
-  // IMPORTANT: Empty dependency array [] to run ONLY on unmount, not during normal usage
+  // 🆘 Emergency save: store audio chunks for recovery if app is suspended
+  const audioChunksForEmergencyRef = useRef<ArrayBuffer[]>([]);
+  const emergencySaveIdRef = useRef<string>(`recording-${Date.now()}`);
+
+  // 🆘 Emergency save function - called when app might be suspended
+  const performEmergencySave = useCallback(async () => {
+    if (!isRecording || audioChunksForEmergencyRef.current.length === 0) return;
+
+    console.log('[record] 🆘 Performing emergency save...');
+    
+    await saveEmergencyRecording({
+      id: emergencySaveIdRef.current,
+      audioChunks: audioChunksForEmergencyRef.current,
+      duration: duration,
+      title: title || 'Untitled Recording',
+      timestamp: Date.now(),
+      liveSegments: liveTranscriptionSegments
+    });
+
+    toast('Recording saved for recovery', { icon: '💾' });
+  }, [isRecording, duration, title, liveTranscriptionSegments]);
+
+  // 🆘 Check for emergency recording on mount (recovery)
+  useEffect(() => {
+    const checkForEmergencyRecording = async () => {
+      const emergencyData = await getEmergencyRecording();
+      if (emergencyData && emergencyData.audioChunks?.length > 0) {
+        const timeSinceSave = Date.now() - emergencyData.timestamp;
+        const minutesAgo = Math.round(timeSinceSave / 60000);
+        
+        // Only offer recovery if saved within last 30 minutes
+        if (timeSinceSave < 30 * 60 * 1000) {
+          toast(
+            (t) => (
+              <div className="flex flex-col gap-2">
+                <span>🆘 Found interrupted recording ({minutesAgo}min ago)</span>
+                <div className="flex gap-2">
+                  <button
+                    className="px-3 py-1 bg-purple-600 text-white rounded text-sm"
+                    onClick={() => {
+                      // TODO: Implement recovery logic
+                      toast.dismiss(t.id);
+                      toast.success('Recovery feature coming soon');
+                    }}
+                  >
+                    Recover
+                  </button>
+                  <button
+                    className="px-3 py-1 bg-gray-300 rounded text-sm"
+                    onClick={() => {
+                      clearEmergencyRecording();
+                      toast.dismiss(t.id);
+                    }}
+                  >
+                    Discard
+                  </button>
+                </div>
+              </div>
+            ),
+            { duration: 10000 }
+          );
+        } else {
+          // Too old, clear it
+          await clearEmergencyRecording();
+        }
+      }
+    };
+
+    checkForEmergencyRecording();
+  }, []);
+
+  // 🆘 Set up emergency save listeners for iOS standalone mode
+  useEffect(() => {
+    if (!isIOSStandalone) return;
+
+    console.log('[record] 📱 iOS Standalone mode - setting up emergency save listeners');
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden' && isRecording) {
+        console.log('[record] 👁️ Page hidden while recording - emergency save');
+        performEmergencySave();
+      }
+    };
+
+    const handlePageHide = () => {
+      if (isRecording) {
+        console.log('[record] 📴 Page hide event while recording - emergency save');
+        performEmergencySave();
+      }
+    };
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isRecording) {
+        console.log('[record] ⚠️ Before unload while recording - emergency save');
+        performEmergencySave();
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('pagehide', handlePageHide);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('pagehide', handlePageHide);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [isIOSStandalone, isRecording, performEmergencySave]);
+
+  // 🎵 Cleanup on unmount
   useEffect(() => {
     return () => {
-      console.log('[record] 🧹 Component unmounting - cleaning up all audio resources...');
-      
-      // Stop and remove silent audio element
-      if (silentAudioRef.current) {
-        silentAudioRef.current.pause();
-        silentAudioRef.current.currentTime = 0;
-        silentAudioRef.current.src = ''; // Clear source to release resources
-        silentAudioRef.current.load(); // Force reload to release media
-        console.log('[record] 🧹 Cleanup: Silent audio stopped and resources freed');
-      }
-      
-      console.log('[record] ✅ Cleanup complete - all audio resources freed for next page');
+      console.log('[record] 🧹 Component unmounting - cleaning up...');
+      // Wake lock cleanup is handled by the useWakeLock hook
+      console.log('[record] ✅ Cleanup complete');
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Empty deps = run only on mount/unmount
+  }, []);
 
   useEffect(() => {
     setIsPaused(recorderIsPaused);
@@ -338,22 +519,24 @@ export default function RecordingScreen() {
       console.log('='.repeat(60));
       console.log('');
 
-      // 🔒 Request Wake Lock and 🎵 Silent Audio in parallel (NON-BLOCKING)
-      // These are optimizations that should not delay the actual recording start
-      Promise.allSettled([
-        wakeLockSupported ? requestWakeLock() : Promise.resolve(),
-        silentAudioRef.current?.play() ?? Promise.resolve()
-      ]).then(results => {
-        results.forEach((result, index) => {
-          if (result.status === 'fulfilled') {
-            const label = index === 0 ? 'Wake Lock' : 'Silent audio';
-            console.log(`[record] ✅ ${label} ${index === 0 ? 'requested' : 'started for iOS persistence'}`);
+      // 🔒 Request Wake Lock (with automatic iOS fallback)
+      // This is non-blocking and handles both native Wake Lock and iOS NoSleep pattern
+      if (wakeLockSupported) {
+        requestWakeLock().then(success => {
+          if (success) {
+            console.log(`[record] ✅ Wake Lock activated ${wakeLockUsingFallback ? '(iOS fallback)' : '(native)'}`);
+            if (isIOSStandalone) {
+              console.log('[record] 📱 iOS Standalone mode - extra wake lock measures active');
+            }
           } else {
-            const label = index === 0 ? 'Wake Lock' : 'Silent audio';
-            console.warn(`[record] ⚠️ ${label} failed:`, result.reason);
+            console.warn('[record] ⚠️ Wake Lock request failed');
           }
         });
-      });
+      }
+
+      // 🆘 Reset emergency save state
+      audioChunksForEmergencyRef.current = [];
+      emergencySaveIdRef.current = `recording-${Date.now()}`;
 
       // Réinitialiser les segments live et le mapping de speakers
       setLiveTranscriptionSegments([]);
@@ -434,18 +617,15 @@ export default function RecordingScreen() {
     console.log('%c[record] ⏹️ STOPPING RECORDING', 'color: #dc2626; font-weight: bold');
     stopRecording();
 
-    // 🔓 Release Wake Lock
+    // 🔓 Release Wake Lock (handles both native and iOS fallback)
     if (wakeLockActive) {
       await releaseWakeLock();
       console.log('[record] 🔓 Wake Lock released');
     }
 
-    // 🎵 Stop silent audio
-    if (silentAudioRef.current) {
-      silentAudioRef.current.pause();
-      silentAudioRef.current.currentTime = 0;
-      console.log('[record] 🎵 Silent audio stopped');
-    }
+    // 🆘 Clear emergency recording data (successful stop = no need for recovery)
+    audioChunksForEmergencyRef.current = [];
+    await clearEmergencyRecording();
 
     // Désactiver le mode streaming live (la transcription continue pour les derniers chunks)
     setIsStreamingActive(false);
@@ -1050,20 +1230,12 @@ export default function RecordingScreen() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-pink-100 dark:from-gray-900 dark:via-purple-900/20 dark:to-pink-900/20">
-      {/* Hidden Silent Audio for iOS Background Recording */}
-      <audio
-        ref={silentAudioRef}
-        loop
-        playsInline
-        style={{ display: 'none' }}
-        aria-hidden="true"
-      >
-        {/* 1 second of silence as data URI (WAV format) */}
-        <source
-          src="data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA"
-          type="audio/wav"
-        />
-      </audio>
+      {/* iOS Standalone mode indicator (for debugging) */}
+      {isIOSStandalone && (
+        <div className="fixed top-0 left-0 right-0 bg-purple-600 text-white text-xs text-center py-1 z-50">
+          📱 PWA Mode {wakeLockActive ? '• Wake Lock Active' : ''}
+        </div>
+      )}
 
       <div className="relative overflow-hidden pt-8 pb-16">
         <div className="absolute inset-0 bg-gradient-to-r from-purple-600/10 via-pink-600/10 to-red-600/10"></div>
