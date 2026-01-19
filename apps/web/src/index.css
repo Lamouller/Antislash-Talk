@@ -30,6 +30,22 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  /* iOS Safe Areas - pour le notch et Dynamic Island */
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* Capacitor iOS app specific styles */
+.capacitor-ios {
+  padding-top: env(safe-area-inset-top);
+}
+
+/* Fix for iOS status bar overlap */
+html {
+  --safe-area-inset-top: env(safe-area-inset-top);
+  --safe-area-inset-bottom: env(safe-area-inset-bottom);
 }
 
 h1 {
