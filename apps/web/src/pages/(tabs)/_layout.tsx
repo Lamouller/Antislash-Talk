@@ -10,8 +10,14 @@ export default function TabsLayout() {
       
       {/* Main content area */}
       <div className="md:ml-64 flex flex-col min-h-screen">
-        {/* Mobile Navigation with Safe Area */}
+        {/* Mobile Navigation with Safe Area - Fixed position */}
         <NavBar />
+        
+        {/* Spacer for fixed navbar on mobile */}
+        <div 
+          className="md:hidden flex-shrink-0"
+          style={{ height: 'calc(env(safe-area-inset-top, 0px) + 4rem)' }}
+        />
         
         {/* Main content with safe area margins */}
         <main className="flex-1 px-safe">
