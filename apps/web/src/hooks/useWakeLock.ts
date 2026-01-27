@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 
+// #region agent log - localStorage based for mobile debugging
+const debugLog = (loc: string, msg: string, data: any, hyp: string) => { try { const logs = JSON.parse(localStorage.getItem('__debug_logs__') || '[]'); logs.push({location:loc,message:msg,data,timestamp:Date.now(),hypothesisId:hyp}); if(logs.length > 100) logs.shift(); localStorage.setItem('__debug_logs__', JSON.stringify(logs)); console.log(`[DEBUG:${hyp}] ${loc}: ${msg}`, data); } catch(e){} };
+// #endregion
+
 /**
  * Hook to manage Screen Wake Lock API with aggressive iOS PWA fallback
  * 
@@ -415,6 +419,9 @@ export function useWakeLock() {
   useEffect(() => {
     const handleVisibilityChange = async () => {
       console.log(`[Wake Lock] 👁️ Visibility changed: ${document.visibilityState}`);
+      // #region agent log - Hypothesis C,D: Monitor visibility and AudioContext state
+      debugLog('useWakeLock.ts:visibilityChange', 'Visibility changed', { visibilityState: document.visibilityState, isActive, usingFallback, audioContextState: audioContextRef.current?.state }, 'C');
+      // #endregion
       
       if (document.visibilityState === 'visible' && isActive) {
         console.log('[Wake Lock] 🔄 Page visible again, ensuring wake lock is active...');

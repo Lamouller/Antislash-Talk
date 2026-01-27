@@ -3,6 +3,10 @@ import { useState, useRef, useEffect } from 'react';
 // 🆕 Type pour le callback de chunk live
 export type OnChunkReadyCallback = (chunk: Blob, chunkIndex: number) => void;
 
+// #region agent log - localStorage based for mobile debugging
+const debugLog = (loc: string, msg: string, data: any, hyp: string) => { try { const logs = JSON.parse(localStorage.getItem('__debug_logs__') || '[]'); logs.push({location:loc,message:msg,data,timestamp:Date.now(),hypothesisId:hyp}); if(logs.length > 100) logs.shift(); localStorage.setItem('__debug_logs__', JSON.stringify(logs)); console.log(`[DEBUG:${hyp}] ${loc}: ${msg}`, data); } catch(e){} };
+// #endregion
+
 export function useWebAudioRecorder() {
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
@@ -57,6 +61,30 @@ export function useWebAudioRecorder() {
       
       mediaRecorderRef.current = new MediaRecorder(stream, options);
       mimeTypeRef.current = mimeType; // Store for later use
+      
+      // #region agent log - Hypothesis A,B,E: Monitor MediaRecorder state changes and track status
+      mediaRecorderRef.current.onpause = () => {
+        debugLog('useWebAudioRecorder.ts:onpause', 'MediaRecorder PAUSED by system', { state: mediaRecorderRef.current?.state, tracksState: stream.getTracks().map(t => ({ kind: t.kind, enabled: t.enabled, readyState: t.readyState, muted: t.muted })) }, 'A');
+      };
+      mediaRecorderRef.current.onresume = () => {
+        debugLog('useWebAudioRecorder.ts:onresume', 'MediaRecorder RESUMED', { state: mediaRecorderRef.current?.state }, 'A');
+      };
+      mediaRecorderRef.current.onerror = (e: any) => {
+        debugLog('useWebAudioRecorder.ts:onerror', 'MediaRecorder ERROR', { error: e?.error?.name || e?.message || 'unknown', state: mediaRecorderRef.current?.state }, 'E');
+      };
+      // Monitor track ended events (Hypothesis B)
+      stream.getTracks().forEach((track, idx) => {
+        track.onended = () => {
+          debugLog('useWebAudioRecorder.ts:track.onended', `Track ${idx} ENDED`, { kind: track.kind, readyState: track.readyState }, 'B');
+        };
+        track.onmute = () => {
+          debugLog('useWebAudioRecorder.ts:track.onmute', `Track ${idx} MUTED`, { kind: track.kind, enabled: track.enabled, muted: track.muted }, 'B');
+        };
+        track.onunmute = () => {
+          debugLog('useWebAudioRecorder.ts:track.onunmute', `Track ${idx} UNMUTED`, { kind: track.kind, enabled: track.enabled, muted: track.muted }, 'B');
+        };
+      });
+      // #endregion
       
       // 🆕 Stocker le callback pour le streaming live
       onChunkReadyCallbackRef.current = onChunkReady || null;

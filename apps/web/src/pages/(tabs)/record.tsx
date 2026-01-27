@@ -3,6 +3,10 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { Mic, Square, Pause as PauseIcon, RefreshCw, Play, Radio, Waves, Sparkles, Clock, FileAudio, Settings, Plus } from 'lucide-react';
+
+// #region agent log - localStorage based for mobile debugging
+const debugLog = (loc: string, msg: string, data: any, hyp: string) => { try { const logs = JSON.parse(localStorage.getItem('__debug_logs__') || '[]'); logs.push({location:loc,message:msg,data,timestamp:Date.now(),hypothesisId:hyp}); if(logs.length > 100) logs.shift(); localStorage.setItem('__debug_logs__', JSON.stringify(logs)); console.log(`[DEBUG:${hyp}] ${loc}: ${msg}`, data); } catch(e){} };
+// #endregion
 import { useWebAudioRecorder } from '../../hooks/useWebAudioRecorder';
 import { useLocalTranscription, LocalTranscriptionResult } from '../../hooks/useLocalTranscription';
 import { useOllama } from '../../hooks/useOllama';
@@ -118,6 +122,49 @@ const formatTime = (seconds: number): string => {
 };
 
 type PageState = 'ready' | 'recording' | 'saving' | 'uploading' | 'processing' | 'error' | 'local-transcribing';
+
+// #region agent log - Debug Logs Panel Component
+function DebugLogsPanel() {
+  const [logs, setLogs] = useState<any[]>([]);
+  const [isOpen, setIsOpen] = useState(false);
+  
+  const refreshLogs = () => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('__debug_logs__') || '[]');
+      setLogs(stored);
+    } catch { setLogs([]); }
+  };
+  
+  const clearLogs = () => {
+    localStorage.setItem('__debug_logs__', '[]');
+    setLogs([]);
+  };
+  
+  useEffect(() => {
+    if (isOpen) {
+      refreshLogs();
+      const interval = setInterval(refreshLogs, 2000); // Auto-refresh every 2s
+      return () => clearInterval(interval);
+    }
+  }, [isOpen]);
+  
+  return (
+    <details className="mt-6 bg-gray-900 rounded-xl p-4 text-xs" open={isOpen} onToggle={(e) => setIsOpen((e.target as HTMLDetailsElement).open)}>
+      <summary className="cursor-pointer text-yellow-400 font-mono">🔍 Debug Logs ({logs.length}) - tap to expand</summary>
+      <div className="mt-2 max-h-64 overflow-y-auto">
+        <div className="flex gap-2 mb-2">
+          <button onClick={refreshLogs} className="px-2 py-1 bg-blue-600 text-white rounded text-xs">Refresh</button>
+          <button onClick={clearLogs} className="px-2 py-1 bg-red-600 text-white rounded text-xs">Clear</button>
+        </div>
+        <pre className="text-green-400 whitespace-pre-wrap font-mono text-[10px]">
+          {logs.length === 0 ? 'No logs yet. Start recording, receive a call, then check here.' : 
+            logs.map((l: any) => `[${l.hypothesisId}] ${new Date(l.timestamp).toLocaleTimeString()} ${l.location}\n  ${l.message}: ${JSON.stringify(l.data)}`).join('\n\n')}
+        </pre>
+      </div>
+    </details>
+  );
+}
+// #endregion
 
 export default function RecordingScreen() {
   const navigate = useNavigate();
@@ -272,10 +319,18 @@ export default function RecordingScreen() {
     console.log('[record] 📱 iOS Standalone mode - setting up emergency save listeners');
 
     const handleVisibilityChange = () => {
+      // #region agent log - Hypothesis D: Monitor visibility change and recording state
+      debugLog('record.tsx:visibilityChange', 'Page visibility changed', { visibilityState: document.visibilityState, isRecording, isPaused, pageState }, 'D');
+      // #endregion
       if (document.visibilityState === 'hidden' && isRecording) {
         console.log('[record] 👁️ Page hidden while recording - emergency save');
         performEmergencySave();
       }
+      // #region agent log - Hypothesis D: Check if we return visible while recording
+      if (document.visibilityState === 'visible' && isRecording) {
+        debugLog('record.tsx:visibilityChange:visible', 'Returned visible while recording', { isRecording, isPaused }, 'D');
+      }
+      // #endregion
     };
 
     const handlePageHide = () => {
@@ -304,6 +359,16 @@ export default function RecordingScreen() {
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
   }, [isIOSStandalone, isRecording, performEmergencySave]);
+
+  // #region agent log - Hypothesis A,B,D: Add global visibility listener (not just iOS standalone)
+  useEffect(() => {
+    const globalVisibilityHandler = () => {
+      debugLog('record.tsx:globalVisibility', 'Global visibility change', { visibilityState: document.visibilityState, isRecording, isPaused, pageState }, 'D');
+    };
+    document.addEventListener('visibilitychange', globalVisibilityHandler);
+    return () => document.removeEventListener('visibilitychange', globalVisibilityHandler);
+  }, [isRecording, isPaused, pageState]);
+  // #endregion
 
   // 🎵 Cleanup on unmount
   useEffect(() => {
@@ -1712,6 +1777,10 @@ export default function RecordingScreen() {
                   {t('record.startOver')}
                 </Button>
               )}
+
+              {/* #region agent log - Debug Logs Panel */}
+              <DebugLogsPanel />
+              {/* #endregion */}
             </div>
 
             {/* Success Message */}
