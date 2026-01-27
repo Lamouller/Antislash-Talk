@@ -1,0 +1,23 @@
+# Antislash Talk - Fastlane App Configuration
+# Documentation: https://docs.fastlane.tools/advanced/#appfile
+
+# Identifiant de l'app (Bundle ID)
+app_identifier("com.antislashstudioprod.talk")
+
+# Votre Apple ID (email)
+# Décommentez et remplissez avec votre email Apple Developer
+apple_id("trysta.lamouller@gmail.com")
+
+# Team ID (si vous avez plusieurs équipes)
+# Trouvez-le sur https://developer.apple.com/account/#/membership
+team_id("NXEHG66BV7")
+
+# ID de l'équipe App Store Connect (peut être différent du team_id)
+# itc_team_id("XXXXXXXXXX")
+
+# Pour App Store Connect API (recommandé - plus sécurisé)
+# Créez une clé sur https://appstoreconnect.apple.com/access/integrations/api
+# Puis créez un fichier .env ou utilisez les variables:
+# ENV["APP_STORE_CONNECT_API_KEY_ID"] = "XXXXXXXXXX"
+# ENV["APP_STORE_CONNECT_API_KEY_ISSUER_ID"] = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+# ENV["APP_STORE_CONNECT_API_KEY_KEY_FILEPATH"] = "./fastlane/AuthKey_XXXXXXXXXX.p8"

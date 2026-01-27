@@ -1,0 +1,113 @@
+# Antislash Talk - Fastlane Configuration
+# Documentation: https://docs.fastlane.tools
+
+default_platform(:ios)
+
+platform :ios do
+  
+  # ===== CONFIGURATION =====
+  APP_IDENTIFIER = "com.antislashstudioprod.talk"
+  XCODEPROJ = "Antislash Talk.xcodeproj"
+  SCHEME = "App"
+  
+  # App Store Connect API Key
+  # Remplissez ISSUER_ID depuis App Store Connect > Users and Access > Integrations > Team Key
+  API_KEY_ID = "TUFL3MXKA6"
+  API_KEY_ISSUER_ID = "69a6de74-45d2-47e3-e053-5b8c7c11a4d1"
+  API_KEY_PATH = "./fastlane/Auth Key App Store Connect.p8"
+  
+  # ===== LANES =====
+  
+  desc "Build l'app pour le développement"
+  lane :build do
+    build_app(
+      project: XCODEPROJ,
+      scheme: SCHEME,
+      configuration: "Debug",
+      skip_archive: true,
+      skip_codesigning: true
+    )
+  end
+
+  desc "Build et installe sur un appareil connecté"
+  lane :device do
+    build_app(
+      project: XCODEPROJ,
+      scheme: SCHEME,
+      configuration: "Debug",
+      export_method: "development"
+    )
+    install_on_device
+  end
+
+  desc "Archive et envoie sur TestFlight (beta)"
+  lane :beta do
+    # Configure l'API Key
+    api_key = app_store_connect_api_key(
+      key_id: API_KEY_ID,
+      issuer_id: API_KEY_ISSUER_ID,
+      key_filepath: API_KEY_PATH
+    )
+    
+    # Incrémente le numéro de build
+    increment_build_number(
+      xcodeproj: XCODEPROJ
+    )
+    
+    # Build l'app
+    build_app(
+      project: XCODEPROJ,
+      scheme: SCHEME,
+      configuration: "Release",
+      export_method: "app-store"
+    )
+    
+    # Upload sur TestFlight
+    upload_to_testflight(
+      api_key: api_key,
+      skip_waiting_for_build_processing: true
+    )
+  end
+
+  desc "Archive et publie sur l'App Store"
+  lane :release do
+    # Configure l'API Key
+    api_key = app_store_connect_api_key(
+      key_id: API_KEY_ID,
+      issuer_id: API_KEY_ISSUER_ID,
+      key_filepath: API_KEY_PATH
+    )
+    
+    # Incrémente le numéro de build
+    increment_build_number(
+      xcodeproj: XCODEPROJ
+    )
+    
+    # Build l'app
+    build_app(
+      project: XCODEPROJ,
+      scheme: SCHEME,
+      configuration: "Release",
+      export_method: "app-store"
+    )
+    
+    # Upload sur l'App Store
+    upload_to_app_store(
+      api_key: api_key,
+      skip_screenshots: true,
+      skip_metadata: true,
+      submit_for_review: false
+    )
+  end
+
+  desc "Génère les screenshots pour l'App Store"
+  lane :screenshots do
+    capture_screenshots
+  end
+
+  desc "Nettoie le projet"
+  lane :clean do
+    clear_derived_data
+  end
+
+end
