@@ -14,7 +14,8 @@ const config: CapacitorConfig = {
   ios: {
     // Configuration iOS spécifique pour Dynamic Island et Safe Areas
     contentInset: 'automatic',
-    backgroundColor: '#ffffff',
+    // Couleur de fond qui correspond au gradient de l'app (slate-50)
+    backgroundColor: '#f8fafc',
     allowsLinkPreview: false,
     // Permet le rendu edge-to-edge sous la status bar
     preferredContentMode: 'mobile',
