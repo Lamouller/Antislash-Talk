@@ -103,7 +103,7 @@ const llmModels: Record<LlmProvider, Model[]> = {
       description: 'Latest frontier-class model. Fast performance rivaling larger models at fraction of cost.',
     },
     {
-      id: 'gemini-3-pro',
+      id: 'gemini-3-pro-preview',
       name: 'Gemini 3 Pro 🧠',
       description: 'State-of-the-art reasoning across text, images, audio, and video.',
     },
@@ -135,14 +135,14 @@ const llmModels: Record<LlmProvider, Model[]> = {
   ],
   mistral: [
     {
-      id: 'mistral-large-2512',
+      id: 'mistral-large-latest',
       name: 'Mistral Large 3 🚀 NEW',
-      description: 'Open-weight state-of-the-art multimodal model (Dec 2025).',
+      description: 'Open-weight state-of-the-art multimodal model.',
     },
     {
-      id: 'mistral-medium-2508',
+      id: 'mistral-medium-latest',
       name: 'Mistral Medium 3.1 🧠',
-      description: 'Frontier-class multimodal model (Aug 2025).',
+      description: 'Frontier-class multimodal model.',
     },
     {
       id: 'mistral-small-latest',
@@ -150,29 +150,24 @@ const llmModels: Record<LlmProvider, Model[]> = {
       description: 'Cost-efficient frontier model for everyday tasks.',
     },
     {
-      id: 'codestral-2508',
+      id: 'codestral-latest',
       name: 'Codestral 💻',
       description: 'Specialized for code completion & fill-in-the-middle. 128k context.',
     },
     {
-      id: 'devstral-2512',
-      name: 'Devstral 2 🛠️',
+      id: 'devstral-small-latest',
+      name: 'Devstral 🛠️',
       description: 'Frontier code agents model for software engineering tasks.',
     },
     {
-      id: 'pixtral-large-2411',
+      id: 'pixtral-large-latest',
       name: 'Pixtral Large 📸',
       description: 'Frontier multimodal model with excellent vision capabilities.',
     },
     {
-      id: 'magistral-medium-2509',
+      id: 'magistral-medium-latest',
       name: 'Magistral Medium',
       description: 'Specialized reasoning model.',
-    },
-    {
-      id: 'mistral-large-latest',
-      name: 'Mistral Large (Latest alias)',
-      description: 'Always points to the latest Mistral Large version.',
     },
   ],
 };
@@ -219,14 +214,9 @@ const transcriptionModels: Record<SttTtsProvider, Model[]> = {
   ],
   mistral: [
     {
-      id: 'voxtral-small',
-      name: 'Voxtral Small 24B 🎯 ⚡',
-      description: 'Revolutionary multimodal model with superior transcription, Q&A, and semantic understanding. Best quality.',
-    },
-    {
-      id: 'voxtral-mini',
-      name: 'Voxtral Mini 3B 💨',
-      description: 'Lightweight Voxtral with fast transcription and built-in understanding capabilities.',
+      id: 'voxtral-mini-latest',
+      name: 'Voxtral Mini 🎯',
+      description: 'Optimized transcription model. Up to 30min audio. $0.002/min.',
     },
   ],
   local: [
