@@ -252,7 +252,10 @@ export default function UploadAudioPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
-      <div className="container mx-auto px-4 py-8">
+      <div 
+        className="container mx-auto px-4"
+        style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 2rem)', paddingBottom: '2rem' }}
+      >
         {/* Header */}
         <div className="mb-8">
           <Button

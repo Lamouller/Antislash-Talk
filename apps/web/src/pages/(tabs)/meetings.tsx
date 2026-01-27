@@ -81,7 +81,10 @@ export default function MeetingsScreen() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-gray-900 dark:via-slate-800 dark:to-gray-900 flex items-center justify-center">
+      <div 
+        className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-gray-900 dark:via-slate-800 dark:to-gray-900 flex items-center justify-center"
+        style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
+      >
         <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm rounded-2xl border border-red-200/50 dark:border-red-700/50 shadow-lg p-8 max-w-md mx-auto">
           <div className="text-center">
             <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-red-500 to-pink-600 flex items-center justify-center">
@@ -99,7 +102,10 @@ export default function MeetingsScreen() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-gray-900 dark:via-slate-800 dark:to-gray-900">
-      <div className="relative overflow-hidden pt-8 pb-16">
+      <div 
+        className="relative overflow-hidden pb-16"
+        style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 2rem)' }}
+      >
         <div className="absolute inset-0 bg-gradient-to-r from-blue-600/10 via-purple-600/10 to-pink-600/10"></div>
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header */}

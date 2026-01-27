@@ -36,8 +36,11 @@ function SimplifiedLoginForm() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-blue-900 dark:to-indigo-900">
-      {/* Navigation */}
-      <nav className="absolute top-0 left-0 right-0 z-50 px-4 lg:px-8 py-4">
+      {/* Navigation with safe area for Dynamic Island */}
+      <nav 
+        className="absolute left-0 right-0 z-50 px-4 lg:px-8 py-4"
+        style={{ top: 'env(safe-area-inset-top, 0px)' }}
+      >
         <div className="w-full flex items-center justify-between">
           <Link to="/" className="flex items-center space-x-3 group">
             <div className="bg-gradient-to-r from-blue-500 to-indigo-600 p-2 rounded-xl shadow-lg group-hover:shadow-xl transition-shadow">
@@ -209,8 +212,11 @@ function FullLoginForm() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-blue-900 dark:to-indigo-900">
-      {/* Navigation */}
-      <nav className="absolute top-0 left-0 right-0 z-50 px-4 lg:px-8 py-4">
+      {/* Navigation with safe area for Dynamic Island */}
+      <nav 
+        className="absolute left-0 right-0 z-50 px-4 lg:px-8 py-4"
+        style={{ top: 'env(safe-area-inset-top, 0px)' }}
+      >
         <div className="w-full flex items-center justify-between">
           <Link to="/" className="flex items-center space-x-3 group">
             <div className="bg-gradient-to-r from-blue-500 to-indigo-600 p-2 rounded-xl shadow-lg group-hover:shadow-xl transition-shadow">

@@ -937,7 +937,10 @@ export default function SettingsScreen() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-gray-900 dark:via-slate-800 dark:to-gray-900">
-      <div className="relative overflow-hidden pt-8 pb-16">
+      <div 
+        className="relative overflow-hidden pb-16"
+        style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 2rem)' }}
+      >
         <div className="absolute inset-0 bg-gradient-to-r from-blue-600/10 via-purple-600/10 to-indigo-600/10"></div>
         <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
 

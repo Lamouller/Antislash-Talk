@@ -123,8 +123,11 @@ export default function TabsIndex() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-gray-900 dark:via-slate-800 dark:to-gray-900">
-      {/* Hero Section */}
-      <div className="relative overflow-hidden pt-8 pb-16">
+      {/* Hero Section with safe area for Dynamic Island */}
+      <div 
+        className="relative overflow-hidden pb-16"
+        style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 2rem)' }}
+      >
         <div className="absolute inset-0 bg-gradient-to-r from-blue-600/10 via-purple-600/10 to-pink-600/10"></div>
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">

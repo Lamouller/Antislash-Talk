@@ -1295,14 +1295,20 @@ export default function RecordingScreen() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-pink-100 dark:from-gray-900 dark:via-purple-900/20 dark:to-pink-900/20">
-      {/* iOS Standalone mode indicator (for debugging) */}
+      {/* iOS Standalone mode indicator (for debugging) - positioned below safe area */}
       {isIOSStandalone && (
-        <div className="fixed top-0 left-0 right-0 bg-purple-600 text-white text-xs text-center py-1 z-50">
+        <div 
+          className="fixed left-0 right-0 bg-purple-600 text-white text-xs text-center py-1 z-50"
+          style={{ top: 'env(safe-area-inset-top, 0px)' }}
+        >
           📱 PWA Mode {wakeLockActive ? '• Wake Lock Active' : ''}
         </div>
       )}
 
-      <div className="relative overflow-hidden pt-8 pb-16">
+      <div 
+        className="relative overflow-hidden pb-16"
+        style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 2rem)' }}
+      >
         <div className="absolute inset-0 bg-gradient-to-r from-purple-600/10 via-pink-600/10 to-red-600/10"></div>
         <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
 

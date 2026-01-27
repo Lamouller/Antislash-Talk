@@ -69,7 +69,10 @@ function FunctionalRegisterForm() {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 dark:from-gray-900 dark:via-green-900 dark:to-emerald-900 flex items-center justify-center px-4">
+      <div 
+        className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 dark:from-gray-900 dark:via-green-900 dark:to-emerald-900 flex items-center justify-center px-4"
+        style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
+      >
         <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-3xl shadow-2xl p-8 border border-gray-200 dark:border-gray-700">
           <div className="text-center">
             <div className="w-20 h-20 bg-gradient-to-r from-green-500 to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -90,8 +93,11 @@ function FunctionalRegisterForm() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 dark:from-gray-900 dark:via-green-900 dark:to-emerald-900">
-      {/* Navigation */}
-      <nav className="absolute top-0 left-0 right-0 z-50 px-4 lg:px-8 py-4">
+      {/* Navigation with safe area for Dynamic Island */}
+      <nav 
+        className="absolute left-0 right-0 z-50 px-4 lg:px-8 py-4"
+        style={{ top: 'env(safe-area-inset-top, 0px)' }}
+      >
         <div className="w-full flex items-center justify-between">
           <Link to="/" className="flex items-center space-x-3 group">
             <div className="bg-gradient-to-r from-green-500 to-emerald-600 p-2 rounded-xl shadow-lg group-hover:shadow-xl transition-shadow">

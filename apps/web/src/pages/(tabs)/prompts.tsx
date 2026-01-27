@@ -180,8 +180,11 @@ Règles:
 
     return (
         <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900 overflow-hidden">
-            {/* Header */}
-            <header className="flex-none bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-8 py-6">
+            {/* Header with safe area for Dynamic Island */}
+            <header 
+                className="flex-none bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-8 pb-6"
+                style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 1.5rem)' }}
+            >
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 max-w-6xl mx-auto w-full">
                     <div>
                         <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
