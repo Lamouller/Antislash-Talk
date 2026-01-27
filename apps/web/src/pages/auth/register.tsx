@@ -93,10 +93,10 @@ function FunctionalRegisterForm() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 dark:from-gray-900 dark:via-green-900 dark:to-emerald-900">
-      {/* Navigation with safe area for Dynamic Island */}
+      {/* Navigation with safe area for Dynamic Island - Fixed to prevent scroll bounce */}
       <nav 
-        className="absolute left-0 right-0 z-50 px-4 lg:px-8 py-4"
-        style={{ top: 'env(safe-area-inset-top, 0px)' }}
+        className="fixed left-0 right-0 z-50 px-4 lg:px-8 py-4 bg-gradient-to-b from-green-50/80 to-transparent dark:from-gray-900/80 backdrop-blur-sm"
+        style={{ top: 0, paddingTop: 'env(safe-area-inset-top, 0px)' }}
       >
         <div className="w-full flex items-center justify-between">
           <Link to="/" className="flex items-center space-x-3 group">
@@ -278,8 +278,11 @@ function ComingSoonRegister() {
   const { t } = useTranslation();
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-600 via-emerald-600 to-teal-600">
-      {/* Navigation */}
-      <nav className="absolute top-0 left-0 right-0 z-50 px-4 lg:px-8 py-4">
+      {/* Navigation - Fixed to prevent scroll bounce */}
+      <nav 
+        className="fixed left-0 right-0 z-50 px-4 lg:px-8 py-4 bg-gradient-to-b from-green-600/80 to-transparent backdrop-blur-sm"
+        style={{ top: 0, paddingTop: 'env(safe-area-inset-top, 0px)' }}
+      >
         <div className="w-full flex items-center justify-between">
           <Link to="/" className="flex items-center space-x-3 group">
             <div className="bg-gradient-to-r from-green-500 to-emerald-600 p-2 rounded-xl shadow-lg group-hover:shadow-xl transition-shadow">
