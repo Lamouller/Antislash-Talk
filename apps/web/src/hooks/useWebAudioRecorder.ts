@@ -21,6 +21,8 @@ export function useWebAudioRecorder() {
   const chunkIndexRef = useRef<number>(0);
   // 🔧 Store the actual mimeType used for recording
   const mimeTypeRef = useRef<string>('audio/webm');
+  // 📞 Track if pause was caused by system interruption (like phone call)
+  const wasInterruptedRef = useRef<boolean>(false);
 
   useEffect(() => {
     // Clean up audio blob URL
@@ -65,9 +67,24 @@ export function useWebAudioRecorder() {
       // #region agent log - Hypothesis A,B,E: Monitor MediaRecorder state changes and track status
       mediaRecorderRef.current.onpause = () => {
         debugLog('useWebAudioRecorder.ts:onpause', 'MediaRecorder PAUSED by system', { state: mediaRecorderRef.current?.state, tracksState: stream.getTracks().map(t => ({ kind: t.kind, enabled: t.enabled, readyState: t.readyState, muted: t.muted })) }, 'A');
+        // 📞 Mark as interrupted for auto-resume
+        wasInterruptedRef.current = true;
+        setIsPaused(true);
+        if (timerRef.current) clearInterval(timerRef.current);
+        console.log('[useWebAudioRecorder] 📞 Recording interrupted (likely phone call) - will auto-resume');
       };
       mediaRecorderRef.current.onresume = () => {
         debugLog('useWebAudioRecorder.ts:onresume', 'MediaRecorder RESUMED', { state: mediaRecorderRef.current?.state }, 'A');
+        // 📞 Clear interruption flag
+        wasInterruptedRef.current = false;
+        setIsPaused(false);
+        // Restart timer
+        if (!timerRef.current) {
+          timerRef.current = setInterval(() => {
+            setDuration(prev => prev + 1);
+          }, 1000);
+        }
+        console.log('[useWebAudioRecorder] ▶️ Recording resumed after interruption');
       };
       mediaRecorderRef.current.onerror = (e: any) => {
         debugLog('useWebAudioRecorder.ts:onerror', 'MediaRecorder ERROR', { error: e?.error?.name || e?.message || 'unknown', state: mediaRecorderRef.current?.state }, 'E');
@@ -146,6 +163,7 @@ export function useWebAudioRecorder() {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
       setIsPaused(false);
+      wasInterruptedRef.current = false;
       if (timerRef.current) clearInterval(timerRef.current);
     }
   };
@@ -155,6 +173,8 @@ export function useWebAudioRecorder() {
       mediaRecorderRef.current.pause();
       setIsPaused(true);
       if (timerRef.current) clearInterval(timerRef.current);
+      // Manual pause, not interruption
+      wasInterruptedRef.current = false;
     }
   };
 
@@ -165,6 +185,8 @@ export function useWebAudioRecorder() {
       timerRef.current = setInterval(() => {
         setDuration(prev => prev + 1);
       }, 1000);
+      // Manual resume, clear interruption flag
+      wasInterruptedRef.current = false;
     }
   };
 
@@ -180,12 +202,36 @@ export function useWebAudioRecorder() {
     setIsRecording(false);
     setIsPaused(false);
     setDuration(0);
+    wasInterruptedRef.current = false;
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
   };
 
+
+  // 📞 Auto-resume after interruptions (phone calls, WhatsApp, etc.)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && wasInterruptedRef.current) {
+        console.log('[useWebAudioRecorder] 👁️ Page visible again after interruption - attempting auto-resume');
+        
+        // Small delay to ensure system has released audio
+        setTimeout(() => {
+          if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'paused') {
+            console.log('[useWebAudioRecorder] ▶️ Auto-resuming recording after interruption');
+            mediaRecorderRef.current.resume();
+          }
+        }, 500);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
 
   useEffect(() => {
     // Cleanup on unmount
