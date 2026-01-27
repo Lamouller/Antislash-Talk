@@ -40,6 +40,14 @@ html {
   /* Ensure full height on mobile browsers */
   height: 100%;
   height: -webkit-fill-available;
+  /* Prevent white band on iOS overscroll */
+  background: linear-gradient(to bottom right, #f8fafc, #eff6ff, #eef2ff);
+}
+
+@media (prefers-color-scheme: dark) {
+  html {
+    background: linear-gradient(to bottom right, #111827, #1e293b, #111827);
+  }
 }
 
 body {
@@ -47,7 +55,14 @@ body {
   min-width: 320px;
   min-height: 100vh;
   min-height: -webkit-fill-available;
-  /* Remove body padding - we'll handle it in components */
+  /* Match app gradient background for overscroll */
+  background: linear-gradient(to bottom right, #f8fafc, #eff6ff, #eef2ff);
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    background: linear-gradient(to bottom right, #111827, #1e293b, #111827);
+  }
 }
 
 /* ===========================================
@@ -208,7 +223,8 @@ button:focus-visible {
 @media (prefers-color-scheme: light) {
   :root {
     color: #213547;
-    background-color: #ffffff;
+    /* Use gradient instead of white to match app */
+    background: linear-gradient(to bottom right, #f8fafc, #eff6ff, #eef2ff);
   }
   a:hover {
     color: #747bff;
