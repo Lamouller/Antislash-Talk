@@ -98,12 +98,12 @@ const llmModels: Record<LlmProvider, Model[]> = {
   ],
   google: [
     {
-      id: 'gemini-3.0-flash-preview',
+      id: 'gemini-3-flash-preview',
       name: 'Gemini 3 Flash 🚀 NEW',
       description: 'Latest frontier-class model. Fast performance rivaling larger models at fraction of cost.',
     },
     {
-      id: 'gemini-3.0-pro',
+      id: 'gemini-3-pro',
       name: 'Gemini 3 Pro 🧠',
       description: 'State-of-the-art reasoning across text, images, audio, and video.',
     },
@@ -118,18 +118,18 @@ const llmModels: Record<LlmProvider, Model[]> = {
       description: 'Hybrid reasoning model with configurable thinking budgets.',
     },
     {
-      id: 'gemini-2.0-flash-exp',
-      name: 'Gemini 2.0 Flash (Experimental)',
-      description: 'Previous experimental model with multimodal capabilities.',
+      id: 'gemini-2.0-flash',
+      name: 'Gemini 2.0 Flash',
+      description: 'Previous model with multimodal capabilities.',
     },
     {
-      id: 'gemini-1.5-pro-002',
-      name: 'Gemini 1.5 Pro-002 (Legacy)',
+      id: 'gemini-1.5-pro',
+      name: 'Gemini 1.5 Pro (Legacy)',
       description: 'Legacy stable production model.',
     },
     {
-      id: 'gemini-1.5-flash-002',
-      name: 'Gemini 1.5 Flash-002 (Legacy)',
+      id: 'gemini-1.5-flash',
+      name: 'Gemini 1.5 Flash (Legacy)',
       description: 'Legacy fast model for diverse tasks.',
     },
   ],
@@ -192,13 +192,8 @@ const transcriptionModels: Record<SttTtsProvider, Model[]> = {
   ],
   google: [
     {
-      id: 'gemini-2.5-flash-native-audio',
-      name: 'Gemini 2.5 Flash Native Audio 🚀 NEW',
-      description: '30 HD voices in 24 languages. Optimized for Live API with enhanced multimodal responses.',
-    },
-    {
-      id: 'gemini-3.0-flash-preview',
-      name: 'Gemini 3 Flash 🧠',
+      id: 'gemini-3-flash-preview',
+      name: 'Gemini 3 Flash 🚀 NEW',
       description: 'Latest frontier model with upgraded audio understanding.',
     },
     {
@@ -207,9 +202,9 @@ const transcriptionModels: Record<SttTtsProvider, Model[]> = {
       description: 'Best price/performance. 1M context with native audio capabilities.',
     },
     {
-      id: 'gemini-2.0-flash-exp',
-      name: 'Gemini 2.0 Flash (Experimental)',
-      description: 'Previous experimental model with native audio understanding.',
+      id: 'gemini-2.0-flash',
+      name: 'Gemini 2.0 Flash',
+      description: 'Previous model with native audio understanding.',
     },
     {
       id: 'gemini-1.5-pro',
