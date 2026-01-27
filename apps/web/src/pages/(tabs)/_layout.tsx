@@ -5,9 +5,6 @@ import SideBar from '../../components/layout/SideBar';
 export default function TabsLayout() {
   return (
     <div className="min-h-screen min-h-screen-safe bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-gray-900 dark:via-slate-800 dark:to-gray-900">
-      {/* Overscroll background fix for iOS - prevents white band on pull down */}
-      <div className="md:hidden fixed top-0 left-0 right-0 h-[200px] -translate-y-full bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-gray-900 dark:via-slate-800 dark:to-gray-900 z-40" />
-      
       {/* Desktop Sidebar */}
       <SideBar />
       
