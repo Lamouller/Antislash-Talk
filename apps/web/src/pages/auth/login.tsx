@@ -38,7 +38,7 @@ function SimplifiedLoginForm() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-blue-900 dark:to-indigo-900">
       {/* Navigation with safe area for Dynamic Island - Fixed to prevent scroll bounce */}
       <nav 
-        className="fixed left-0 right-0 z-50 px-4 lg:px-8 py-4 bg-gradient-to-b from-blue-50/80 to-transparent dark:from-gray-900/80 backdrop-blur-sm"
+        className="fixed left-0 right-0 z-50 px-4 lg:px-8 py-4 bg-white/20 dark:bg-gray-900/20 backdrop-blur-xl backdrop-saturate-150 border-b border-white/10 dark:border-gray-700/20"
         style={{ top: 0, paddingTop: 'env(safe-area-inset-top, 0px)' }}
       >
         <div className="w-full flex items-center justify-between">
@@ -214,7 +214,7 @@ function FullLoginForm() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-blue-900 dark:to-indigo-900">
       {/* Navigation with safe area for Dynamic Island - Fixed to prevent scroll bounce */}
       <nav 
-        className="fixed left-0 right-0 z-50 px-4 lg:px-8 py-4 bg-gradient-to-b from-blue-50/80 to-transparent dark:from-gray-900/80 backdrop-blur-sm"
+        className="fixed left-0 right-0 z-50 px-4 lg:px-8 py-4 bg-white/20 dark:bg-gray-900/20 backdrop-blur-xl backdrop-saturate-150 border-b border-white/10 dark:border-gray-700/20"
         style={{ top: 0, paddingTop: 'env(safe-area-inset-top, 0px)' }}
       >
         <div className="w-full flex items-center justify-between">

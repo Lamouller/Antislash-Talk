@@ -95,7 +95,7 @@ function FunctionalRegisterForm() {
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 dark:from-gray-900 dark:via-green-900 dark:to-emerald-900">
       {/* Navigation with safe area for Dynamic Island - Fixed to prevent scroll bounce */}
       <nav 
-        className="fixed left-0 right-0 z-50 px-4 lg:px-8 py-4 bg-gradient-to-b from-green-50/80 to-transparent dark:from-gray-900/80 backdrop-blur-sm"
+        className="fixed left-0 right-0 z-50 px-4 lg:px-8 py-4 bg-white/20 dark:bg-gray-900/20 backdrop-blur-xl backdrop-saturate-150 border-b border-white/10 dark:border-gray-700/20"
         style={{ top: 0, paddingTop: 'env(safe-area-inset-top, 0px)' }}
       >
         <div className="w-full flex items-center justify-between">
@@ -280,7 +280,7 @@ function ComingSoonRegister() {
     <div className="min-h-screen bg-gradient-to-br from-green-600 via-emerald-600 to-teal-600">
       {/* Navigation - Fixed to prevent scroll bounce */}
       <nav 
-        className="fixed left-0 right-0 z-50 px-4 lg:px-8 py-4 bg-gradient-to-b from-green-600/80 to-transparent backdrop-blur-sm"
+        className="fixed left-0 right-0 z-50 px-4 lg:px-8 py-4 bg-white/10 dark:bg-gray-900/20 backdrop-blur-xl backdrop-saturate-150 border-b border-white/10"
         style={{ top: 0, paddingTop: 'env(safe-area-inset-top, 0px)' }}
       >
         <div className="w-full flex items-center justify-between">
