@@ -82,3 +82,4 @@ apps/web/ios/App/Pods/
 apps/web/ios/App/build/
 apps/web/ios/App/*.xcworkspace/xcuserdata/
 apps/web/ios/App/*.xcodeproj/xcuserdata/
+apps/web/ios/App/vendor/

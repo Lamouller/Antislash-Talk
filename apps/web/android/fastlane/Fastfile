@@ -1,0 +1,60 @@
+default_platform(:android)
+
+platform :android do
+  desc "Build and upload to Google Play Internal Testing"
+  lane :beta do
+    # Increment version code
+    android_set_version_code(
+      gradle_file: "app/build.gradle"
+    )
+
+    # Build the release APK/AAB
+    gradle(
+      task: "bundle",
+      build_type: "Release",
+      properties: {
+        "android.injected.signing.store.file" => ENV["KEYSTORE_PATH"] || "fastlane/release.keystore",
+        "android.injected.signing.store.password" => ENV["KEYSTORE_PASSWORD"] || "antislash2024",
+        "android.injected.signing.key.alias" => ENV["KEY_ALIAS"] || "antislash-talk",
+        "android.injected.signing.key.password" => ENV["KEY_PASSWORD"] || "antislash2024"
+      }
+    )
+
+    # Upload to Google Play Internal Testing
+    upload_to_play_store(
+      track: "internal",
+      aab: "app/build/outputs/bundle/release/app-release.aab",
+      skip_upload_metadata: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true
+    )
+  end
+
+  desc "Build release APK only (no upload)"
+  lane :build do
+    gradle(
+      task: "assemble",
+      build_type: "Release",
+      properties: {
+        "android.injected.signing.store.file" => ENV["KEYSTORE_PATH"] || "fastlane/release.keystore",
+        "android.injected.signing.store.password" => ENV["KEYSTORE_PASSWORD"] || "antislash2024",
+        "android.injected.signing.key.alias" => ENV["KEY_ALIAS"] || "antislash-talk",
+        "android.injected.signing.key.password" => ENV["KEY_PASSWORD"] || "antislash2024"
+      }
+    )
+  end
+
+  desc "Build release AAB only (no upload)"
+  lane :build_aab do
+    gradle(
+      task: "bundle",
+      build_type: "Release",
+      properties: {
+        "android.injected.signing.store.file" => ENV["KEYSTORE_PATH"] || "fastlane/release.keystore",
+        "android.injected.signing.store.password" => ENV["KEYSTORE_PASSWORD"] || "antislash2024",
+        "android.injected.signing.key.alias" => ENV["KEY_ALIAS"] || "antislash-talk",
+        "android.injected.signing.key.password" => ENV["KEY_PASSWORD"] || "antislash2024"
+      }
+    )
+  end
+end
