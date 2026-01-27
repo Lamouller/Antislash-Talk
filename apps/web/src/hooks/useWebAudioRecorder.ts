@@ -212,26 +212,56 @@ export function useWebAudioRecorder() {
 
   // 📞 Auto-resume after interruptions (phone calls, WhatsApp, etc.)
   useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && wasInterruptedRef.current) {
-        console.log('[useWebAudioRecorder] 👁️ Page visible again after interruption - attempting auto-resume');
-        
-        // Small delay to ensure system has released audio
-        setTimeout(() => {
-          if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'paused') {
-            console.log('[useWebAudioRecorder] ▶️ Auto-resuming recording after interruption');
-            mediaRecorderRef.current.resume();
-          }
-        }, 500);
+    const attemptAutoResume = () => {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'paused' && wasInterruptedRef.current) {
+        console.log('[useWebAudioRecorder] ▶️ Auto-resuming recording after interruption');
+        try {
+          mediaRecorderRef.current.resume();
+        } catch (error) {
+          console.error('[useWebAudioRecorder] ❌ Failed to auto-resume:', error);
+        }
       }
     };
 
+    const handleVisibilityChange = () => {
+      console.log('[useWebAudioRecorder] 👁️ Visibility changed:', document.visibilityState);
+      if (document.visibilityState === 'visible') {
+        console.log('[useWebAudioRecorder] Was interrupted?', wasInterruptedRef.current);
+        console.log('[useWebAudioRecorder] MediaRecorder state:', mediaRecorderRef.current?.state);
+        
+        if (wasInterruptedRef.current) {
+          console.log('[useWebAudioRecorder] 👁️ Page visible again after interruption - attempting auto-resume');
+          // Small delay to ensure system has released audio
+          setTimeout(attemptAutoResume, 500);
+        }
+      }
+    };
+
+    const handleFocus = () => {
+      console.log('[useWebAudioRecorder] 🔍 Window focused');
+      if (wasInterruptedRef.current) {
+        console.log('[useWebAudioRecorder] 🔍 Focus detected after interruption - attempting auto-resume');
+        setTimeout(attemptAutoResume, 500);
+      }
+    };
+
+    // 🔄 Polling fallback: check every 2 seconds if we should auto-resume
+    const pollingInterval = setInterval(() => {
+      if (isRecording && wasInterruptedRef.current && mediaRecorderRef.current?.state === 'paused') {
+        console.log('[useWebAudioRecorder] 🔄 Polling detected paused state after interruption - auto-resuming');
+        attemptAutoResume();
+      }
+    }, 2000);
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
     
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+      clearInterval(pollingInterval);
     };
-  }, []);
+  }, [isRecording]);
 
   useEffect(() => {
     // Cleanup on unmount
