@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- Viewport with viewport-fit=cover for iOS Dynamic Island and Android cutouts -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>🎙️ Antislash Talk</title>
     
@@ -11,15 +12,20 @@
     
     <!-- iOS PWA Meta Tags -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <!-- black-translucent permet le rendu sous le Dynamic Island/Notch -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Antislash Talk" />
     <link rel="apple-touch-icon" href="/favicon.svg" />
     
-    <!-- Theme Color -->
-    <meta name="theme-color" content="#7c3aed" />
+    <!-- Theme Color - matches app background -->
+    <meta name="theme-color" content="#f8fafc" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#111827" media="(prefers-color-scheme: dark)" />
     
     <!-- Prevent telephone number detection -->
     <meta name="format-detection" content="telephone=no" />
+    
+    <!-- Android Chrome theme -->
+    <meta name="mobile-web-app-capable" content="yes" />
   </head>
   <body>
     <div id="root"></div>

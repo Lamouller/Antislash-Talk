@@ -34,9 +34,9 @@ export default function SideBar() {
   };
 
   return (
-    <div className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0">
-      <div className="flex flex-col flex-grow bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-r border-gray-200/50 dark:border-gray-700/50 shadow-xl overflow-y-auto">
-        {/* Logo Section */}
+    <div className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 pl-safe">
+      <div className="flex flex-col flex-grow bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-r border-gray-200/50 dark:border-gray-700/50 shadow-xl overflow-y-auto pt-safe pb-safe">
+        {/* Logo Section with safe area */}
         <div className="flex items-center flex-shrink-0 px-6 py-6 border-b border-gray-200/50 dark:border-gray-700/50">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-600 flex items-center justify-center mr-3 shadow-lg">
             <Mic className="w-6 h-6 text-white" />

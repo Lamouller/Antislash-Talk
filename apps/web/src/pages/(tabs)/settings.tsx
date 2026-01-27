@@ -29,9 +29,34 @@ interface Model {
 const llmModels: Record<LlmProvider, Model[]> = {
   openai: [
     {
+      id: 'gpt-5',
+      name: 'GPT-5 🚀 NEW',
+      description: 'Latest flagship model. Superior math, science, finance & law capabilities with built-in thinking.',
+    },
+    {
+      id: 'gpt-5-mini',
+      name: 'GPT-5 mini',
+      description: 'Cost-effective GPT-5 variant for everyday tasks.',
+    },
+    {
+      id: 'gpt-4.5',
+      name: 'GPT-4.5 🧠',
+      description: 'Largest GPT model. Most natural interactions with reduced hallucinations.',
+    },
+    {
+      id: 'o3',
+      name: 'o3 (Reasoning) 🔬 EXPERIMENTAL',
+      description: 'Advanced reasoning model. Thinks through complex problems step-by-step.',
+    },
+    {
+      id: 'o1',
+      name: 'o1 (Reasoning)',
+      description: 'Reasoning-focused model for complex problem solving.',
+    },
+    {
       id: 'gpt-4o',
       name: 'GPT-4o',
-      description: 'Latest flagship model from OpenAI.',
+      description: 'Previous flagship model. Still excellent for most tasks.',
     },
     {
       id: 'gpt-4o-mini',
@@ -41,58 +66,113 @@ const llmModels: Record<LlmProvider, Model[]> = {
   ],
   anthropic: [
     {
+      id: 'claude-sonnet-4-5-20251120',
+      name: 'Claude Sonnet 4.5 🚀 NEW',
+      description: 'Best model for agents, coding & computer use. State-of-the-art on SWE-bench.',
+    },
+    {
+      id: 'claude-opus-4-5-20251120',
+      name: 'Claude Opus 4.5 🧠',
+      description: 'Most intelligent Anthropic model. Maximum capability with improved vision & coding.',
+    },
+    {
+      id: 'claude-sonnet-4-20250514',
+      name: 'Claude Sonnet 4',
+      description: 'Superior coding (72.7% SWE-bench) and reasoning capabilities.',
+    },
+    {
+      id: 'claude-opus-4-20250514',
+      name: 'Claude Opus 4',
+      description: 'World\'s best coding model. Excels at complex reasoning and agent workflows.',
+    },
+    {
       id: 'claude-3-5-sonnet-20241022',
-      name: 'Claude 3.5 Sonnet',
-      description: 'Most intelligent model.',
+      name: 'Claude 3.5 Sonnet (Legacy)',
+      description: 'Previous generation intelligent model.',
     },
     {
       id: 'claude-3-5-haiku-20241022',
-      name: 'Claude 3.5 Haiku',
-      description: 'Fastest model.',
+      name: 'Claude 3.5 Haiku (Legacy)',
+      description: 'Previous generation fast model.',
     },
   ],
   google: [
     {
+      id: 'gemini-3.0-flash-preview',
+      name: 'Gemini 3 Flash 🚀 NEW',
+      description: 'Latest frontier-class model. Fast performance rivaling larger models at fraction of cost.',
+    },
+    {
+      id: 'gemini-3.0-pro',
+      name: 'Gemini 3 Pro 🧠',
+      description: 'State-of-the-art reasoning across text, images, audio, and video.',
+    },
+    {
+      id: 'gemini-2.5-flash',
+      name: 'Gemini 2.5 Flash ⚡',
+      description: 'Best price/performance. 1M context with thinking capabilities.',
+    },
+    {
+      id: 'gemini-2.5-pro',
+      name: 'Gemini 2.5 Pro',
+      description: 'Hybrid reasoning model with configurable thinking budgets.',
+    },
+    {
       id: 'gemini-2.0-flash-exp',
-      name: 'Gemini 2.0 Flash ⚡ NEW',
-      description: 'Latest experimental model. Fastest with multimodal capabilities.',
+      name: 'Gemini 2.0 Flash (Experimental)',
+      description: 'Previous experimental model with multimodal capabilities.',
     },
     {
       id: 'gemini-1.5-pro-002',
-      name: 'Gemini 1.5 Pro-002',
-      description: 'Latest stable production model. Improved reasoning and coding.',
+      name: 'Gemini 1.5 Pro-002 (Legacy)',
+      description: 'Legacy stable production model.',
     },
     {
       id: 'gemini-1.5-flash-002',
-      name: 'Gemini 1.5 Flash-002',
-      description: 'Latest stable fast model. Improvements in speed and latency.',
-    },
-    {
-      id: 'gemini-1.5-pro',
-      name: 'Gemini 1.5 Pro',
-      description: 'Legacy capable model for complex reasoning tasks.',
-    },
-    {
-      id: 'gemini-1.5-flash',
-      name: 'Gemini 1.5 Flash',
+      name: 'Gemini 1.5 Flash-002 (Legacy)',
       description: 'Legacy fast model for diverse tasks.',
-    },
-    {
-      id: 'gemini-1.5-flash-8b',
-      name: 'Gemini 1.5 Flash-8B',
-      description: 'Smallest, fastest model for simple tasks.',
     },
   ],
   mistral: [
     {
-      id: 'mistral-large-latest',
-      name: 'Mistral Large',
-      description: 'Top-tier reasoning for high-complexity tasks.',
+      id: 'mistral-large-2512',
+      name: 'Mistral Large 3 🚀 NEW',
+      description: 'Open-weight state-of-the-art multimodal model (Dec 2025).',
+    },
+    {
+      id: 'mistral-medium-2508',
+      name: 'Mistral Medium 3.1 🧠',
+      description: 'Frontier-class multimodal model (Aug 2025).',
     },
     {
       id: 'mistral-small-latest',
-      name: 'Mistral Small',
-      description: 'Cost-efficient reasoning for simple tasks.',
+      name: 'Mistral Small 3.2',
+      description: 'Cost-efficient frontier model for everyday tasks.',
+    },
+    {
+      id: 'codestral-2508',
+      name: 'Codestral 💻',
+      description: 'Specialized for code completion & fill-in-the-middle. 128k context.',
+    },
+    {
+      id: 'devstral-2512',
+      name: 'Devstral 2 🛠️',
+      description: 'Frontier code agents model for software engineering tasks.',
+    },
+    {
+      id: 'pixtral-large-2411',
+      name: 'Pixtral Large 📸',
+      description: 'Frontier multimodal model with excellent vision capabilities.',
+    },
+    {
+      id: 'magistral-medium-2509',
+      name: 'Magistral Medium',
+      description: 'Specialized reasoning model.',
+    },
+    {
+      id: 'mistral-large-latest',
+      name: 'Mistral Large (Latest alias)',
+      description: 'Always points to the latest Mistral Large version.',
     },
   ],
 };
@@ -100,43 +180,58 @@ const llmModels: Record<LlmProvider, Model[]> = {
 const transcriptionModels: Record<SttTtsProvider, Model[]> = {
   openai: [
     {
+      id: 'gpt-4o-transcribe',
+      name: 'GPT-4o Transcribe 🚀 NEW',
+      description: 'Latest transcription model based on GPT-4o. Superior accuracy with diarization support.',
+    },
+    {
       id: 'whisper-1',
       name: 'Whisper',
-      description: 'Powerful speech-to-text model.',
+      description: 'Reliable speech-to-text model. No streaming support.',
     },
   ],
   google: [
     {
+      id: 'gemini-2.5-flash-native-audio',
+      name: 'Gemini 2.5 Flash Native Audio 🚀 NEW',
+      description: '30 HD voices in 24 languages. Optimized for Live API with enhanced multimodal responses.',
+    },
+    {
+      id: 'gemini-3.0-flash-preview',
+      name: 'Gemini 3 Flash 🧠',
+      description: 'Latest frontier model with upgraded audio understanding.',
+    },
+    {
+      id: 'gemini-2.5-flash',
+      name: 'Gemini 2.5 Flash ⚡',
+      description: 'Best price/performance. 1M context with native audio capabilities.',
+    },
+    {
       id: 'gemini-2.0-flash-exp',
-      name: 'Gemini 2.0 Flash ⚡ NEW',
-      description: 'Latest model with native audio understanding.',
+      name: 'Gemini 2.0 Flash (Experimental)',
+      description: 'Previous experimental model with native audio understanding.',
     },
     {
       id: 'gemini-1.5-pro',
-      name: 'Gemini 1.5 Pro',
-      description: 'High-quality transcription with best accuracy.',
+      name: 'Gemini 1.5 Pro (Legacy)',
+      description: 'High-quality transcription with good accuracy.',
     },
     {
       id: 'gemini-1.5-flash',
-      name: 'Gemini 1.5 Flash',
+      name: 'Gemini 1.5 Flash (Legacy)',
       description: 'Fast transcription with good balance.',
-    },
-    {
-      id: 'gemini-1.5-flash-8b',
-      name: 'Gemini 1.5 Flash-8B',
-      description: 'Fastest, most cost-effective option.',
     },
   ],
   mistral: [
     {
       id: 'voxtral-small',
-      name: 'Voxtral Small 🎯 ⚡',
-      description: 'Revolutionary multimodal model with superior transcription, Q&A, and semantic understanding. Best quality option.',
+      name: 'Voxtral Small 24B 🎯 ⚡',
+      description: 'Revolutionary multimodal model with superior transcription, Q&A, and semantic understanding. Best quality.',
     },
     {
       id: 'voxtral-mini',
-      name: 'Voxtral Mini 💨',
-      description: 'Lightweight version of Voxtral with fast transcription and built-in understanding capabilities.',
+      name: 'Voxtral Mini 3B 💨',
+      description: 'Lightweight Voxtral with fast transcription and built-in understanding capabilities.',
     },
   ],
   local: [
@@ -256,18 +351,25 @@ const transcriptionModels: Record<SttTtsProvider, Model[]> = {
 
 const ttsModels: Record<SttTtsProvider, Model[]> = {
   openai: [
-    { id: 'tts-1', name: 'TTS-1', description: 'Optimized for real-time.' },
-    { id: 'tts-1-hd', name: 'TTS-1-HD', description: 'Optimized for quality.' },
+    { id: 'tts-1', name: 'TTS-1', description: 'Optimized for real-time streaming.' },
+    { id: 'tts-1-hd', name: 'TTS-1-HD', description: 'Optimized for quality. Best for pre-generated audio.' },
   ],
   google: [
+    { id: 'gemini-2.5-flash-native-audio', name: 'Gemini 2.5 Flash Native Audio 🚀 NEW', description: '30 HD voices in 24 languages. Enhanced audio quality.' },
+    { id: 'gemini-3.0-flash-preview', name: 'Gemini 3 Flash TTS', description: 'Latest frontier model with audio generation capabilities.' },
     { id: 'gemini-2.0-flash-exp', name: 'Gemini 2.0 Flash TTS', description: 'Native multimodal audio generation.' },
-    { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash TTS', description: 'Reliable text-to-speech generation.' },
+    { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash TTS (Legacy)', description: 'Reliable text-to-speech generation.' },
   ],
   mistral: [
     {
+      id: 'voxtral-small',
+      name: 'Voxtral Small TTS 🎯',
+      description: 'Voxtral can generate audio responses. Superior quality with semantic understanding.'
+    },
+    {
       id: 'mistral-tts',
       name: 'Mistral TTS (Coming Soon)',
-      description: 'Advanced text-to-speech from Mistral AI. Currently not available.'
+      description: 'Dedicated TTS from Mistral AI. Currently not available.'
     }
   ],
   local: [
@@ -292,60 +394,74 @@ const ollamaModels: Model[] = [
     languages: 'All languages'
   },
   {
-    id: 'phi3:mini',
-    name: 'Phi-3 Mini ⚡ RECOMMENDED',
-    description: 'Ultra-fast lightweight model from Microsoft. Best for low-RAM systems. Good French support.',
-    size: '2.3 GB',
-    languages: 'English, French'
-  },
-  {
-    id: 'gemma2:2b',
-    name: 'Gemma 2 2B 🪶 ULTRA-LIGHT',
-    description: 'Smallest model from Google. Perfect for very limited RAM (< 3 GB available).',
+    id: 'gemma3:2b',
+    name: 'Gemma 3 2B 🪶 ULTRA-LIGHT',
+    description: 'Latest lightweight model from Google. Perfect for limited RAM.',
     size: '1.6 GB',
     languages: 'Multilingual'
   },
   {
-    id: 'llama3.2:latest',
-    name: 'Llama 3.2 🦙 NEW',
-    description: 'Latest Llama model from Meta. Balanced performance and quality. Good for general use.',
-    size: '2 GB',
-    languages: 'Multilingual, excellent French support'
-  },
-  {
-    id: 'qwen2.5:3b',
-    name: 'Qwen 2.5 3B 🚀 FAST',
-    description: 'Fast Chinese model with good multilingual support. Excellent speed/quality ratio.',
+    id: 'qwen3:3b',
+    name: 'Qwen 3 3B 🚀 FAST',
+    description: 'Latest Qwen model. Excellent speed/quality ratio with strong multilingual support.',
     size: '2 GB',
     languages: 'Multilingual (Chinese, English, French)'
   },
   {
-    id: 'mistral',
-    name: 'Mistral 7B 🇫🇷',
-    description: 'Excellent for French. Requires ~5 GB RAM. Best quality for systems with enough memory.',
+    id: 'phi4:mini',
+    name: 'Phi-4 Mini ⚡ NEW',
+    description: 'Latest lightweight model from Microsoft. Improved reasoning capabilities.',
+    size: '2.5 GB',
+    languages: 'English, French'
+  },
+  {
+    id: 'llama3.3:latest',
+    name: 'Llama 3.3 🦙 🏆 RECOMMENDED',
+    description: 'State-of-the-art from Meta. Same performance as 405B in smaller package. 8 languages.',
+    size: '4 GB',
+    languages: 'English, French, German, Italian, Portuguese, Hindi, Spanish, Thai'
+  },
+  {
+    id: 'deepseek-r1:8b',
+    name: 'DeepSeek-R1 8B 🧠 NEW',
+    description: 'Advanced reasoning model. Excellent for complex analysis tasks.',
+    size: '5 GB',
+    languages: 'Multilingual'
+  },
+  {
+    id: 'mistral-small:latest',
+    name: 'Mistral Small 3.1 🇫🇷',
+    description: 'Latest Mistral small model. Excellent for French with improved capabilities.',
     size: '4 GB',
     languages: 'French, English, multilingual'
   },
   {
-    id: 'llama3.1:8b',
-    name: 'Llama 3.1 8B 🏆',
-    description: 'State-of-the-art model from Meta. Requires ~5-6 GB RAM. Top quality for powerful systems.',
-    size: '5 GB',
-    languages: 'Multilingual, excellent French support'
+    id: 'qwen3:7b',
+    name: 'Qwen 3 7B 🎯 QUALITY',
+    description: 'Larger Qwen 3 model with excellent quality. Great for detailed analysis.',
+    size: '4.7 GB',
+    languages: 'Multilingual (Chinese, English, French)'
   },
   {
-    id: 'gemma2:9b',
-    name: 'Gemma 2 9B 🇫🇷',
-    description: 'Excellent French support. Requires ~6 GB RAM. Great for detailed analysis.',
+    id: 'gemma3:9b',
+    name: 'Gemma 3 9B 🇫🇷',
+    description: 'Latest Google model with excellent French support. Great for detailed analysis.',
     size: '5.5 GB',
     languages: 'Multilingual, strong French performance'
   },
   {
-    id: 'qwen2.5:7b',
-    name: 'Qwen 2.5 7B 🎯 QUALITY',
-    description: 'Larger Qwen model with excellent quality. Good balance between speed and accuracy.',
-    size: '4.7 GB',
-    languages: 'Multilingual (Chinese, English, French)'
+    id: 'llama3.2:latest',
+    name: 'Llama 3.2 (Legacy)',
+    description: 'Previous Llama model. Still good for general use.',
+    size: '2 GB',
+    languages: 'Multilingual'
+  },
+  {
+    id: 'mistral',
+    name: 'Mistral 7B (Legacy)',
+    description: 'Previous Mistral model. Still excellent for French.',
+    size: '4 GB',
+    languages: 'French, English, multilingual'
   }
 ];
 

@@ -15,6 +15,16 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  /* Safe Area CSS Variables - pour iOS Dynamic Island et Android notches */
+  --safe-area-inset-top: env(safe-area-inset-top, 0px);
+  --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-inset-left: env(safe-area-inset-left, 0px);
+  --safe-area-inset-right: env(safe-area-inset-right, 0px);
+  
+  /* Minimum padding for status bar (fallback if env not supported) */
+  --min-status-bar-height: 44px;
+  --min-bottom-bar-height: 34px;
 }
 
 a {
@@ -26,26 +36,150 @@ a:hover {
   color: #535bf2;
 }
 
+html {
+  /* Ensure full height on mobile browsers */
+  height: 100%;
+  height: -webkit-fill-available;
+}
+
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  /* iOS Safe Areas - pour le notch et Dynamic Island */
-  padding-top: env(safe-area-inset-top);
-  padding-bottom: env(safe-area-inset-bottom);
-  padding-left: env(safe-area-inset-left);
-  padding-right: env(safe-area-inset-right);
+  min-height: -webkit-fill-available;
+  /* Remove body padding - we'll handle it in components */
 }
 
-/* Capacitor iOS app specific styles */
+/* ===========================================
+   iOS Safe Areas - Dynamic Island & Notch
+   =========================================== */
+
+/* iOS Capacitor app - Full edge-to-edge support */
+html.ios,
 .capacitor-ios {
-  padding-top: env(safe-area-inset-top);
+  /* Enable safe area environment variables */
+  padding: 0;
 }
 
-/* Fix for iOS status bar overlap */
-html {
-  --safe-area-inset-top: env(safe-area-inset-top);
-  --safe-area-inset-bottom: env(safe-area-inset-bottom);
+/* iOS status bar area - pour NavBar et headers */
+.safe-area-top {
+  padding-top: var(--safe-area-inset-top);
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* iOS home indicator area - pour bottom navigation */
+.safe-area-bottom {
+  padding-bottom: var(--safe-area-inset-bottom);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Full safe area padding */
+.safe-area-all {
+  padding-top: var(--safe-area-inset-top);
+  padding-bottom: var(--safe-area-inset-bottom);
+  padding-left: var(--safe-area-inset-left);
+  padding-right: var(--safe-area-inset-right);
+}
+
+/* ===========================================
+   Android Safe Areas - Notches & Cutouts
+   =========================================== */
+
+/* Android with display cutouts */
+@supports (padding-top: env(safe-area-inset-top)) {
+  .android-cutout-safe {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+}
+
+/* ===========================================
+   Mobile Navigation Components
+   =========================================== */
+
+/* Top navigation bar with safe area */
+.mobile-nav-top {
+  padding-top: max(var(--safe-area-inset-top), 0px);
+  padding-top: max(env(safe-area-inset-top, 0px), 0px);
+}
+
+/* Bottom navigation bar with safe area */
+.mobile-nav-bottom {
+  padding-bottom: max(var(--safe-area-inset-bottom), 0px);
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), 0px);
+}
+
+/* Fixed header that respects Dynamic Island */
+.fixed-header-safe {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding-top: env(safe-area-inset-top, 0px);
+  z-index: 50;
+}
+
+/* Fixed bottom bar that respects home indicator */
+.fixed-bottom-safe {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  z-index: 50;
+}
+
+/* ===========================================
+   Capacitor Platform Specific
+   =========================================== */
+
+/* iOS specific adjustments */
+.capacitor-ios .app-content {
+  /* Add padding for content to not overlap with fixed nav */
+  padding-top: calc(64px + env(safe-area-inset-top, 0px));
+}
+
+/* Android specific adjustments */
+.capacitor-android .app-content {
+  padding-top: calc(64px + env(safe-area-inset-top, 0px));
+}
+
+/* Standalone PWA mode (iOS Add to Home Screen) */
+@media all and (display-mode: standalone) {
+  .standalone-safe {
+    padding-top: env(safe-area-inset-top, 20px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
+
+/* ===========================================
+   Utility Classes for Safe Areas
+   =========================================== */
+
+/* Margin utilities for safe areas */
+.mt-safe { margin-top: env(safe-area-inset-top, 0px); }
+.mb-safe { margin-bottom: env(safe-area-inset-bottom, 0px); }
+.ml-safe { margin-left: env(safe-area-inset-left, 0px); }
+.mr-safe { margin-right: env(safe-area-inset-right, 0px); }
+
+/* Padding utilities for safe areas */
+.pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+.pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
+.pl-safe { padding-left: env(safe-area-inset-left, 0px); }
+.pr-safe { padding-right: env(safe-area-inset-right, 0px); }
+
+/* Combined padding */
+.px-safe { 
+  padding-left: env(safe-area-inset-left, 0px); 
+  padding-right: env(safe-area-inset-right, 0px); 
+}
+.py-safe { 
+  padding-top: env(safe-area-inset-top, 0px); 
+  padding-bottom: env(safe-area-inset-bottom, 0px); 
+}
+
+/* Min-height accounting for safe areas */
+.min-h-screen-safe {
+  min-height: calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
 }
 
 h1 {

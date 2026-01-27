@@ -44,20 +44,34 @@ export function useAI() {
     };
 
     const generateOpenAI = async (apiKey: string, model: string, system: string, user: string) => {
+        const modelId = model || 'gpt-5';
+        const isReasoningModel = modelId.startsWith('o1') || modelId.startsWith('o3');
+        
+        // Reasoning models (o1, o3) don't support system messages or temperature
+        const messages = isReasoningModel 
+            ? [{ role: 'user', content: `${system}\n\n${user}` }]
+            : [
+                { role: 'system', content: system },
+                { role: 'user', content: user }
+            ];
+        
+        const body: Record<string, unknown> = {
+            model: modelId,
+            messages
+        };
+        
+        // Only add temperature for non-reasoning models
+        if (!isReasoningModel) {
+            body.temperature = 0.7;
+        }
+        
         const response = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${apiKey}`
             },
-            body: JSON.stringify({
-                model: model || 'gpt-4o',
-                messages: [
-                    { role: 'system', content: system },
-                    { role: 'user', content: user }
-                ],
-                temperature: 0.7
-            })
+            body: JSON.stringify(body)
         });
 
         if (!response.ok) {
@@ -70,6 +84,8 @@ export function useAI() {
     };
 
     const generateMistral = async (apiKey: string, model: string, system: string, user: string) => {
+        const modelId = model || 'mistral-large-2512';
+        
         const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
             method: 'POST',
             headers: {
@@ -77,11 +93,12 @@ export function useAI() {
                 'Authorization': `Bearer ${apiKey}`
             },
             body: JSON.stringify({
-                model: model || 'mistral-small-latest',
+                model: modelId,
                 messages: [
                     { role: 'system', content: system },
                     { role: 'user', content: user }
-                ]
+                ],
+                temperature: 0.7
             })
         });
 
@@ -97,12 +114,17 @@ export function useAI() {
     const generateGoogle = async (apiKey: string, model: string, system: string, user: string) => {
         // Simple implementation for Google Gemini via REST API
         // Always strip 'models/' prefix just in case it crept in
-        // Default to the stable generic alias 'gemini-1.5-flash' (points to latest stable)
-        const cleanModel = (model || 'gemini-1.5-flash').replace(/^models\//, '');
+        // Default to the latest stable model
+        const cleanModel = (model || 'gemini-2.5-flash').replace(/^models\//, '');
 
-        // Use v1 for stable models (flash, pro, etc.) which is most reliable.
-        // ONLY use v1beta for experimental models (like 2.0-flash-exp)
-        const apiVersion = cleanModel.includes('exp') ? 'v1beta' : 'v1';
+        // Use v1beta for experimental/preview models (exp, preview, 3.x, 2.5.x with native-audio)
+        // Use v1 for stable models (1.5.x, 2.0.x non-exp)
+        const needsBeta = cleanModel.includes('exp') || 
+                          cleanModel.includes('preview') || 
+                          cleanModel.includes('native-audio') ||
+                          cleanModel.startsWith('gemini-3') ||
+                          cleanModel.startsWith('gemini-2.5');
+        const apiVersion = needsBeta ? 'v1beta' : 'v1';
 
         const url = `https://generativelanguage.googleapis.com/${apiVersion}/models/${cleanModel}:generateContent?key=${apiKey}`;
 

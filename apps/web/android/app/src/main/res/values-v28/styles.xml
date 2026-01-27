@@ -1,14 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-
-    <!-- Base application theme. -->
-    <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
-        <!-- Customize your theme here. -->
-        <item name="colorPrimary">@color/colorPrimary</item>
-        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
-        <item name="colorAccent">@color/colorAccent</item>
-    </style>
-
+    <!-- Android P (API 28+) specific styles for display cutouts -->
+    
     <style name="AppTheme.NoActionBar" parent="Theme.AppCompat.DayNight.NoActionBar">
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
@@ -19,21 +12,20 @@
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
         
-        <!-- Support for display cutouts (notches) -->
+        <!-- Display cutout mode for Android P+ -->
+        <!-- shortEdges: Content renders into cutout area in portrait and landscape -->
         <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
         
-        <!-- Light status bar icons on dark backgrounds -->
+        <!-- Light status bar icons -->
         <item name="android:windowLightStatusBar">true</item>
         <item name="android:windowLightNavigationBar">true</item>
         
-        <!-- Full screen content under system bars -->
+        <!-- Allow content to extend under system bars -->
         <item name="android:fitsSystemWindows">false</item>
     </style>
 
-
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
         <item name="android:background">@drawable/splash</item>
-        <!-- Support cutouts in splash screen too -->
         <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
     </style>
 </resources>

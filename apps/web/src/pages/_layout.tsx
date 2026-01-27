@@ -92,8 +92,13 @@ export default function RootLayout() {
   }
 
   return (
-    <div>
-      <Toaster />
+    <div className="min-h-screen">
+      <Toaster 
+        position="top-center"
+        containerStyle={{
+          top: 'max(env(safe-area-inset-top, 0px), 20px)',
+        }}
+      />
       <Outlet />
     </div>
   );

@@ -12,13 +12,50 @@ const config: CapacitorConfig = {
     // cleartext: true
   },
   ios: {
-    // Configuration iOS spécifique
+    // Configuration iOS spécifique pour Dynamic Island et Safe Areas
     contentInset: 'automatic',
     backgroundColor: '#ffffff',
-    allowsLinkPreview: false
+    allowsLinkPreview: false,
+    // Permet le rendu edge-to-edge sous la status bar
+    preferredContentMode: 'mobile',
+    // Scroll behavior
+    scrollEnabled: true,
+  },
+  android: {
+    // Configuration Android pour encoches et cutouts
+    backgroundColor: '#ffffff',
+    // Permet le rendu edge-to-edge
+    allowMixedContent: true,
+    // WebView settings
+    webContentsDebuggingEnabled: false,
   },
   plugins: {
-    // Configuration des plugins si nécessaire
+    // Status Bar Configuration
+    StatusBar: {
+      // iOS: Style de la status bar (dark content sur fond clair)
+      style: 'DARK',
+      // Android: Couleur de la status bar
+      backgroundColor: '#ffffff',
+      // Overlay WebView sous la status bar
+      overlaysWebView: true,
+    },
+    // Keyboard configuration pour éviter les problèmes de layout
+    Keyboard: {
+      resize: 'body',
+      style: 'DARK',
+      resizeOnFullScreen: true,
+    },
+    // Splash Screen
+    SplashScreen: {
+      launchShowDuration: 2000,
+      launchAutoHide: true,
+      backgroundColor: '#ffffff',
+      androidSplashResourceName: 'splash',
+      androidScaleType: 'CENTER_CROP',
+      showSpinner: false,
+      splashFullScreen: true,
+      splashImmersive: true,
+    },
   }
 };
 

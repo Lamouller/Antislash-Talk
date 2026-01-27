@@ -48,7 +48,7 @@ ${request.chunks.map((chunk, i) => `[${i}] ${chunk.speaker}: ${chunk.text.substr
       'Authorization': `Bearer ${apiKey}`
     },
     body: JSON.stringify({
-      model: 'gpt-4o-mini', // Cost-effective model for post-processing
+      model: 'gpt-5-mini', // Latest cost-effective model for post-processing
       messages: [{ role: 'user', content: analysisPrompt }],
       response_format: { type: 'json_object' },
       temperature: 0.3, // Low temperature for consistent results

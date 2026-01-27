@@ -12,14 +12,14 @@ interface Prompts {
 }
 
 // --- Helper for Google Gemini ---
-async function handleGoogleTranscription(apiKey: string, model: string, audioBlob: Blob, prompts: Prompts) {
+async function handleGoogleTranscription(apiKey: string, model: string, audioBlob: Blob, prompts: Prompts, language: string = 'fr') {
   const audioBase64 = btoa(
     new Uint8Array(await audioBlob.arrayBuffer())
       .reduce((data, byte) => data + String.fromCharCode(byte), '')
   );
 
-  // Language will be determined by the caller, use 'fr' as default
-  const isEnglish = false; // Will be updated by caller
+  // Language determined by the caller
+  const isEnglish = language === 'en';
 
   const defaultPrompts = {
     title: isEnglish
@@ -160,13 +160,16 @@ REMINDER: Respond with ONLY the JSON object. No markdown formatting (no \`\`\`js
 }
 
 // --- Helper for OpenAI ---
-async function handleOpenAITranscription(apiKey: string, model: string, audioBlob: Blob, prompts: Prompts) {
-  // Step 1: Transcribe with Whisper
+async function handleOpenAITranscription(apiKey: string, model: string, audioBlob: Blob, prompts: Prompts, language: string = 'fr') {
+  // Determine which transcription endpoint to use based on model
+  const isGPT4oTranscribe = model === 'gpt-4o-transcribe';
+  
+  // Step 1: Transcribe with Whisper or GPT-4o Transcribe
   const formData = new FormData();
   formData.append('file', audioBlob, 'meeting.webm');
-  formData.append('model', model);
+  formData.append('model', isGPT4oTranscribe ? 'gpt-4o-transcribe' : 'whisper-1');
   formData.append('response_format', 'verbose_json');
-  formData.append('language', 'fr');
+  formData.append('language', language);
 
   const whisperResponse = await fetch(`${OPENAI_API_BASE_URL}/audio/transcriptions`, {
     method: 'POST',
@@ -212,7 +215,7 @@ async function handleOpenAITranscription(apiKey: string, model: string, audioBlo
       'Authorization': `Bearer ${apiKey}`
     },
     body: JSON.stringify({
-      model: 'gpt-4o', // Or another powerful model
+      model: 'gpt-5', // Latest flagship model for analysis
       messages: [{ role: 'user', content: analysisPrompt }],
       response_format: { type: 'json_object' }
     })
@@ -356,7 +359,7 @@ export const handler = async (req: Request) => {
       .single();
 
     const provider = profile?.preferred_transcription_provider || 'google';
-    const model = profile?.preferred_transcription_model || (provider === 'google' ? 'gemini-1.5-pro-latest' : 'whisper-1');
+    const model = profile?.preferred_transcription_model || (provider === 'google' ? 'gemini-2.5-flash' : 'gpt-4o-transcribe');
 
     console.log(`Using provider: ${provider}, model: ${model}`);
 
