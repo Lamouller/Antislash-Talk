@@ -67,3 +67,18 @@ docs/
 .old/
 _archive_scripts/
 _backup_cleanup_*/
+
+# Android
+*.keystore
+keystore.properties
+apps/web/android/app/build/
+apps/web/android/app/release/
+apps/web/android/.gradle/
+apps/web/android/local.properties
+apps/web/android/gradlew.bat
+
+# iOS
+apps/web/ios/App/Pods/
+apps/web/ios/App/build/
+apps/web/ios/App/*.xcworkspace/xcuserdata/
+apps/web/ios/App/*.xcodeproj/xcuserdata/
