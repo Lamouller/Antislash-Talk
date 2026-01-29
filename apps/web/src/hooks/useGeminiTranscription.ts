@@ -305,7 +305,10 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                             // 🎯 Lightweight name detection from self-introductions
                             // Patterns for self-introduction (detect speaker name)
                             const selfIntroPatterns = [
-                                /c'est\s+([A-Z][a-zà-ÿ]{2,})\s+(?:qui\s+parle|ici|à l'appareil)/i,
+                                // "c'est [toujours/encore/...] Tristan qui parle" - allow optional filler words
+                                /c'est\s+(?:toujours\s+|encore\s+|aussi\s+|bien\s+|vraiment\s+)?([A-Z][a-zà-ÿ]{2,})\s+(?:qui\s+parle|ici|à l'appareil)/i,
+                                // "là c'est Tristan" / "donc c'est Tristan"
+                                /(?:là|donc)\s+c'est\s+(?:toujours\s+)?([A-Z][a-zà-ÿ]{2,})/i,
                                 /(?:je\s+suis|je\s+m'appelle|moi\s+c'est)\s+([A-Z][a-zà-ÿ]{2,})/i,
                                 /(?:ici|bonjour)\s+([A-Z][a-zà-ÿ]{2,})(?:\s+ici)?/i,
                                 /([A-Z][a-zà-ÿ]{2,})\s+(?:à l'appareil|au micro)/i,

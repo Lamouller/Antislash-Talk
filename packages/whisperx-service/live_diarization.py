@@ -89,7 +89,7 @@ class LiveDiarizationSession:
             self.speaker_count = 1
             self.speakers[speaker_id] = SpeakerProfile(id=speaker_id)
             self.speakers[speaker_id].add_embedding(embedding)
-            self.current_speaker = speaker_id
+            # NOTE: Don't set current_speaker here - let WebSocket handler do it after sending
             return speaker_id, 1.0, True
         
         # Compare with existing speakers
