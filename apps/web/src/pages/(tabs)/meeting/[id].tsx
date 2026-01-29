@@ -213,14 +213,23 @@ export default function MeetingDetail() {
 
   // Track previous status to detect completion
   const [previousStatus, setPreviousStatus] = useState<string | null>(null);
+  // Track if we're waiting for summary after completion
+  const [waitingForSummary, setWaitingForSummary] = useState(false);
+  const summaryPollCountRef = useRef(0);
 
   // 🔄 Auto-refresh when meeting is processing (background upload/transcription)
   useEffect(() => {
     if (!meeting) return;
 
-    // Detect transition to completed - show success toast
+    // Detect transition to completed - show success toast and start summary polling
     if (previousStatus && previousStatus !== 'completed' && meeting.status === 'completed') {
       toast.success('✅ Traitement terminé ! La transcription est prête.', { duration: 4000 });
+      // Start waiting for summary if it's not already present
+      if (!meeting.summary) {
+        console.log('[Meeting] 🔄 Status completed but no summary yet - starting summary polling...');
+        setWaitingForSummary(true);
+        summaryPollCountRef.current = 0;
+      }
     }
     setPreviousStatus(meeting.status);
 
@@ -234,7 +243,35 @@ export default function MeetingDetail() {
 
       return () => clearInterval(pollInterval);
     }
-  }, [meeting?.status, fetchMeeting, previousStatus]);
+  }, [meeting?.status, fetchMeeting, previousStatus, meeting?.summary]);
+
+  // 🤖 Additional polling for auto-generated summary (runs after status becomes 'completed')
+  useEffect(() => {
+    if (!waitingForSummary || !meeting) return;
+
+    // Stop if summary arrived
+    if (meeting.summary) {
+      console.log('[Meeting] ✅ Summary received! Stopping summary polling.');
+      toast.success('🤖 Résumé généré automatiquement !', { duration: 3000 });
+      setWaitingForSummary(false);
+      return;
+    }
+
+    // Stop after 10 attempts (30 seconds)
+    if (summaryPollCountRef.current >= 10) {
+      console.log('[Meeting] ⏹️ Summary polling timeout - stopping.');
+      setWaitingForSummary(false);
+      return;
+    }
+
+    console.log('[Meeting] 🤖 Polling for summary...', summaryPollCountRef.current + 1);
+    const pollInterval = setInterval(() => {
+      summaryPollCountRef.current++;
+      fetchMeeting();
+    }, 3000);
+
+    return () => clearInterval(pollInterval);
+  }, [waitingForSummary, meeting?.summary, fetchMeeting, meeting]);
 
   const handleGenerateSummary = async () => {
     // Check if transcript exists in either format
