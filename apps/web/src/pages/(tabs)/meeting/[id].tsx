@@ -884,6 +884,12 @@ export default function MeetingDetail() {
 
   // 🔄 Handler for re-running enhancement on existing transcript
   const handleRetryEnhancement = useCallback(async () => {
+    debugLog('meeting:handleRetryEnhancement', '🔘 BUTTON CLICKED', {
+      hasMeeting: !!meeting,
+      hasAudioUrl: !!audioUrl,
+      audioUrl: audioUrl?.substring(0, 100)
+    }, 'ENHANCE');
+
     if (!meeting || !audioUrl) {
       toast.error('Audio non disponible pour l\'amélioration');
       return;
@@ -895,15 +901,24 @@ export default function MeetingDetail() {
     try {
       // Fetch the audio blob from the URL
       toast('🔄 Chargement de l\'audio...', { duration: 2000 });
+      debugLog('meeting:handleRetryEnhancement', '📥 FETCHING AUDIO', { url: audioUrl.substring(0, 100) }, 'ENHANCE');
+      
       const response = await fetch(audioUrl);
+      debugLog('meeting:handleRetryEnhancement', '📥 FETCH RESPONSE', {
+        ok: response.ok,
+        status: response.status,
+        contentType: response.headers.get('content-type')
+      }, 'ENHANCE');
+      
       if (!response.ok) {
-        throw new Error('Impossible de charger l\'audio');
+        throw new Error(`Impossible de charger l\'audio: ${response.status}`);
       }
       const audioBlob = await response.blob();
 
       debugLog('meeting:handleRetryEnhancement', '🔄 STARTING ENHANCEMENT', {
         meetingId: meeting.id,
         audioBlobSize: audioBlob.size,
+        audioBlobType: audioBlob.type,
         existingSegmentsCount: Array.isArray(meeting.transcript) ? meeting.transcript.length : 0
       }, 'ENHANCE');
 
@@ -919,6 +934,12 @@ export default function MeetingDetail() {
           }))
         : [];
 
+      debugLog('meeting:handleRetryEnhancement', '🤖 CALLING enhanceTranscription', {
+        blobSize: audioBlob.size,
+        blobType: audioBlob.type,
+        existingSegmentsCount: existingSegments.length
+      }, 'ENHANCE');
+
       // Call enhancement
       const enhancedResult = await enhanceTranscription(
         audioBlob,
@@ -927,8 +948,10 @@ export default function MeetingDetail() {
       );
 
       debugLog('meeting:handleRetryEnhancement', '✅ ENHANCEMENT COMPLETE', {
-        segmentsCount: enhancedResult.segments.length,
-        language: enhancedResult.language
+        hasResult: !!enhancedResult,
+        segmentsCount: enhancedResult?.segments?.length,
+        language: enhancedResult?.language,
+        textLength: enhancedResult?.text?.length
       }, 'ENHANCE');
 
       if (enhancedResult && enhancedResult.segments.length > 0) {
@@ -941,7 +964,10 @@ export default function MeetingDetail() {
           })
           .eq('id', meeting.id);
 
-        if (updateError) throw updateError;
+        if (updateError) {
+          debugLog('meeting:handleRetryEnhancement', '❌ DB UPDATE ERROR', { error: updateError.message }, 'ENHANCE');
+          throw updateError;
+        }
 
         // Update local state
         setMeeting(prev => prev ? {
@@ -954,12 +980,14 @@ export default function MeetingDetail() {
           meetingId: meeting.id
         }, 'ENHANCE');
       } else {
+        debugLog('meeting:handleRetryEnhancement', '⚠️ NO SEGMENTS RETURNED', { enhancedResult }, 'ENHANCE');
         toast.error('L\'amélioration n\'a pas retourné de résultats');
       }
     } catch (error) {
       console.error('Enhancement error:', error);
       debugLog('meeting:handleRetryEnhancement', '❌ ERROR', {
-        error: (error as Error).message
+        error: (error as Error).message,
+        stack: (error as Error).stack?.substring(0, 500)
       }, 'ENHANCE');
       toast.error((error as Error).message || 'Erreur lors de l\'amélioration');
     } finally {
