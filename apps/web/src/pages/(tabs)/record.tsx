@@ -1002,9 +1002,11 @@ export default function RecordingScreen() {
         // 🔄 BACKGROUND PROCESSING: Upload audio, enhance transcription, update meeting
         // This runs AFTER navigation, user sees meeting page with loading state
         (async () => {
-          // #region agent log
-          fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'record.tsx:bg:start',message:'Background task STARTED',data:{meetingId:meetingData.id,hasAudioBlob:!!audioBlob,provider:userPreferences.transcription_provider},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
-          // #endregion
+          console.log('%c[BG] 🚀 BACKGROUND TASK STARTED', 'color: #f97316; font-weight: bold', {
+            meetingId: meetingData.id,
+            hasAudioBlob: !!audioBlob,
+            provider: userPreferences.transcription_provider
+          });
           try {
             console.log('🔄 Starting background processing for meeting:', meetingData.id);
             
@@ -1017,15 +1019,10 @@ export default function RecordingScreen() {
               attempts++;
             }
 
-            // #region agent log
-            fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'record.tsx:bg:blobCheck',message:'Blob check complete',data:{hasBlob:!!blob,attempts,blobSize:blob?.size},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'})}).catch(()=>{});
-            // #endregion
+            console.log('%c[BG] 📦 BLOB CHECK', 'color: #f97316', { hasBlob: !!blob, attempts, blobSize: blob?.size });
 
             if (!blob) {
-              console.error('❌ AudioBlob not ready after waiting');
-              // #region agent log
-              fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'record.tsx:bg:noBlob',message:'NO BLOB - aborting',data:{attempts},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'})}).catch(()=>{});
-              // #endregion
+              console.error('%c[BG] ❌ NO BLOB - aborting', 'color: #ef4444; font-weight: bold', { attempts });
               await supabase.from('meetings').update({ status: 'completed' }).eq('id', meetingData.id);
               return;
             }
@@ -1061,11 +1058,10 @@ export default function RecordingScreen() {
             console.log('✅ Audio uploaded');
 
             // 🎯 ENHANCEMENT: Run post-processing with Gemini if using Google provider
+            console.log('%c[BG] 🔍 PROVIDER CHECK', 'color: #f97316', { provider: userPreferences.transcription_provider, isGoogle: userPreferences.transcription_provider === 'google' });
+            
             if (userPreferences.transcription_provider === 'google') {
-              console.log('🔄 Starting Gemini enhancement phase...');
-              // #region agent log
-              fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'record.tsx:enhancement:start',message:'Enhancement phase STARTING',data:{provider:'google',liveSegmentsCount:liveSegments.length,blobSize:blob.size},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4'})}).catch(()=>{});
-              // #endregion
+              console.log('%c[BG] 🔄 STARTING ENHANCEMENT', 'color: #10b981; font-weight: bold', { liveSegmentsCount: liveSegments.length, blobSize: blob.size });
               
               try {
                 // Convert SpeakerSegment[] to TranscriptSegment[] (ensure speaker is always string)
