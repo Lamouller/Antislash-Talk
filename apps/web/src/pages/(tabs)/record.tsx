@@ -996,6 +996,17 @@ export default function RecordingScreen() {
         setTitle('');
         setPageState('ready');
 
+        // 🔴 CRITICAL: Capture audioBlob BEFORE navigation (state becomes stale after unmount)
+        const capturedAudioBlob = audioBlob;
+        const capturedLiveSegments = [...liveSegments]; // Deep copy
+        
+        console.log('%c[BG] 🔍 PRE-NAVIGATION STATE', 'color: #f97316; font-weight: bold', {
+          hasAudioBlob: !!capturedAudioBlob,
+          audioBlobSize: capturedAudioBlob?.size,
+          liveSegmentsCount: capturedLiveSegments.length,
+          meetingId: meetingData.id
+        });
+
         // Navigate IMMEDIATELY to meeting page
         navigate(`/tabs/meeting/${meetingData.id}`);
 
@@ -1004,22 +1015,18 @@ export default function RecordingScreen() {
         (async () => {
           console.log('%c[BG] 🚀 BACKGROUND TASK STARTED', 'color: #f97316; font-weight: bold', {
             meetingId: meetingData.id,
-            hasAudioBlob: !!audioBlob,
+            hasAudioBlob: !!capturedAudioBlob,
+            capturedBlobSize: capturedAudioBlob?.size,
             provider: userPreferences.transcription_provider
           });
           try {
             console.log('🔄 Starting background processing for meeting:', meetingData.id);
             
-            // Wait for audioBlob to be ready (may take a moment after stopRecording)
-            let attempts = 0;
-            let blob = audioBlob;
-            while (!blob && attempts < 30) {
-              await new Promise(r => setTimeout(r, 200));
-              blob = audioBlob;
-              attempts++;
-            }
+            // Use captured blob (state becomes stale after unmount)
+            // No need to wait - blob was captured before navigation
+            const blob = capturedAudioBlob;
 
-            console.log('%c[BG] 📦 BLOB CHECK', 'color: #f97316', { hasBlob: !!blob, attempts, blobSize: blob?.size });
+            console.log('%c[BG] 📦 BLOB CHECK', 'color: #f97316', { hasBlob: !!blob, blobSize: blob?.size, wasCaptured: true });
 
             if (!blob) {
               console.error('%c[BG] ❌ NO BLOB - aborting', 'color: #ef4444; font-weight: bold', { attempts });
@@ -1061,11 +1068,12 @@ export default function RecordingScreen() {
             console.log('%c[BG] 🔍 PROVIDER CHECK', 'color: #f97316', { provider: userPreferences.transcription_provider, isGoogle: userPreferences.transcription_provider === 'google' });
             
             if (userPreferences.transcription_provider === 'google') {
-              console.log('%c[BG] 🔄 STARTING ENHANCEMENT', 'color: #10b981; font-weight: bold', { liveSegmentsCount: liveSegments.length, blobSize: blob.size });
+              console.log('%c[BG] 🔄 STARTING ENHANCEMENT', 'color: #10b981; font-weight: bold', { liveSegmentsCount: capturedLiveSegments.length, blobSize: blob.size });
               
               try {
                 // Convert SpeakerSegment[] to TranscriptSegment[] (ensure speaker is always string)
-                const transcriptSegments = liveSegments.map(seg => ({
+                // Use captured segments (state becomes stale after unmount)
+                const transcriptSegments = capturedLiveSegments.map(seg => ({
                   speaker: seg.speaker || 'Speaker',
                   text: seg.text,
                   start: seg.start?.toString(),
@@ -1128,10 +1136,13 @@ export default function RecordingScreen() {
                   await supabase.from('meetings').update({ status: 'completed' }).eq('id', meetingData.id);
                 }
               } catch (enhanceError) {
-                console.error('❌ Enhancement failed:', enhanceError);
-                // #region agent log
-                fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'record.tsx:enhancement:error',message:'Enhancement FAILED with error',data:{error:(enhanceError as Error).message},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4'})}).catch(()=>{});
+                // #region agent log - CONSOLE LOG
+                console.log('%c[BG] ❌ ENHANCEMENT ERROR', 'color: #ef4444; font-weight: bold', {
+                  error: (enhanceError as Error).message,
+                  stack: (enhanceError as Error).stack
+                });
                 // #endregion
+                console.error('❌ Enhancement failed:', enhanceError);
                 // Keep live segments, just mark as completed
                 await supabase.from('meetings').update({ status: 'completed' }).eq('id', meetingData.id);
               }
@@ -1148,8 +1159,11 @@ export default function RecordingScreen() {
             }
 
           } catch (bgError) {
-            // #region agent log
-            fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'record.tsx:bg:error',message:'Background task ERROR',data:{error:(bgError as Error).message},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
+            // #region agent log - CONSOLE LOG
+            console.log('%c[BG] ❌ BACKGROUND TASK ERROR', 'color: #ef4444; font-weight: bold', {
+              error: (bgError as Error).message,
+              stack: (bgError as Error).stack
+            });
             // #endregion
             console.error('❌ Background processing error:', bgError);
             // Mark as completed anyway so user doesn't wait forever
