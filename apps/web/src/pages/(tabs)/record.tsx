@@ -738,18 +738,20 @@ export default function RecordingScreen() {
             chunkCount++;
             // Convert Blob to ArrayBuffer and send to Gemini
             const arrayBuffer = await chunk.arrayBuffer();
+            const mimeType = chunk.type || 'audio/webm'; // Get actual mime type from Blob
             
             // #region agent log
             if (chunkCount <= 5 || chunkCount % 10 === 0) {
               debugLog('record.tsx:geminiChunk', '📤 SENDING AUDIO CHUNK', {
                 chunkNumber: chunkCount,
                 chunkSizeBytes: arrayBuffer.byteLength,
+                mimeType: mimeType,
                 hasWorkflow: !!geminiWorkflowRef.current
               }, 'GEMINI');
             }
             // #endregion
             
-            workflow.sendChunk(arrayBuffer);
+            workflow.sendChunk(arrayBuffer, mimeType);
           });
 
         } catch (geminiError) {

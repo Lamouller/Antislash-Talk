@@ -45,8 +45,10 @@ interface UseGeminiTranscriptionOptions {
 }
 
 // Models configuration
-const LIVE_MODEL = 'gemini-2.0-flash-live-001'; // Only model that supports WebSocket Live API
-const DEFAULT_ENHANCEMENT_MODEL = 'gemini-2.5-flash'; // Default for enhancement phase
+// Gemini Live API - only native-audio models support bidiGenerateContent
+// Verified via: curl "https://generativelanguage.googleapis.com/v1beta/models?key=..." | jq
+const LIVE_MODEL = 'gemini-2.5-flash-native-audio-latest'; // Supports bidiGenerateContent + input_audio_transcription
+const DEFAULT_ENHANCEMENT_MODEL = 'gemini-2.5-flash'; // For post-recording enhancement
 
 export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = {}) {
     const {
@@ -138,24 +140,29 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                 debugLog('useGeminiTranscription:startLive', '✅ WEBSOCKET CONNECTED', {}, 'LIVE');
                 // #endregion
 
-                // Setup message for live transcription - ALWAYS use gemini-2.0-flash-live-001
+                // Setup message for live transcription
+                // Native-audio models require AUDIO output + speech_config + input_audio_transcription
                 const setupMsg = {
                     setup: {
                         model: `models/${LIVE_MODEL}`,
                         generation_config: {
-                            response_modalities: ['TEXT']
+                            response_modalities: ['AUDIO'],  // Required for native-audio models
+                            speech_config: {
+                                voice_config: {
+                                    prebuilt_voice_config: {
+                                        voice_name: 'Aoede'  // French-compatible voice
+                                    }
+                                }
+                            }
                         },
                         system_instruction: {
                             parts: [{
-                                text: `Tu es un assistant de transcription temps réel professionnel.
-RÈGLES STRICTES:
-1. Transcris l'audio en ${language} avec précision
-2. Détecte les changements de voix et indique [SPEAKER_CHANGE] quand tu entends une nouvelle voix
-3. Si tu entends un nom propre mentionné, note-le entre parenthèses: (nom détecté: Jean)
-4. Retourne UNIQUEMENT le texte transcrit, rien d'autre
-5. Ne répète JAMAIS le même texte deux fois`
+                                text: `Tu es un assistant de transcription temps réel.
+Transcris l'audio en ${language} avec précision.
+Détecte les changements de locuteur.`
                             }]
                         },
+                        // Enable input audio transcription - this is the key feature!
                         input_audio_transcription: {}
                     }
                 };
@@ -178,9 +185,15 @@ RÈGLES STRICTES:
                 }
             };
 
-            wsRef.current.onmessage = (event) => {
+            wsRef.current.onmessage = async (event) => {
                 try {
-                    const data = JSON.parse(event.data);
+                    // Handle Blob data (browser sends Blob, not string)
+                    let rawData = event.data;
+                    if (rawData instanceof Blob) {
+                        rawData = await rawData.text();
+                    }
+                    
+                    const data = JSON.parse(rawData);
 
                     // #region agent log
                     debugLog('useGeminiTranscription:onMessage', '📥 WS MESSAGE RECEIVED', {
@@ -312,7 +325,7 @@ RÈGLES STRICTES:
     }, [model, language, enableLiveTranscription]);
 
     // Send audio chunk during live recording
-    const sendAudioChunk = useCallback((chunk: ArrayBuffer) => {
+    const sendAudioChunk = useCallback((chunk: ArrayBuffer, mimeType?: string) => {
         // Store for enhancement phase
         audioChunksRef.current.push(chunk);
 
@@ -322,10 +335,24 @@ RÈGLES STRICTES:
                 new Uint8Array(chunk).reduce((data, byte) => data + String.fromCharCode(byte), '')
             );
 
+            // Use the actual mime type from the recorder (usually audio/webm or audio/mp4)
+            const actualMimeType = mimeType || 'audio/webm';
+            
+            // #region agent log
+            if (audioChunksRef.current.length <= 3) {
+                debugLog('useGeminiTranscription:sendChunk', '📤 SENDING CHUNK', {
+                    chunkIndex: audioChunksRef.current.length,
+                    mimeType: actualMimeType,
+                    sizeBytes: chunk.byteLength,
+                    wsState: wsRef.current?.readyState
+                }, 'LIVE');
+            }
+            // #endregion
+
             wsRef.current.send(JSON.stringify({
                 realtime_input: {
                     media_chunks: [{
-                        mime_type: 'audio/pcm',
+                        mime_type: actualMimeType,
                         data: base64
                     }]
                 }
@@ -394,11 +421,24 @@ RÈGLES STRICTES:
             setProgress(20);
             onProgress?.(20);
 
-            // Determine MIME type
+            // Determine MIME type - Gemini supports: WAV, MP3, AIFF, AAC, OGG, FLAC
+            // Browser typically records in webm/opus - we'll try with the original type
+            // as Gemini may still process it, or fall back to audio/ogg
             let mimeType = audioBlob.type || 'audio/webm';
-            if (mimeType.includes('mp4')) mimeType = 'audio/mp4';
+            
+            // Map common browser formats to Gemini-compatible types
+            if (mimeType.includes('mp4') || mimeType.includes('m4a')) mimeType = 'audio/aac';
             else if (mimeType.includes('wav')) mimeType = 'audio/wav';
-            else if (mimeType.includes('webm')) mimeType = 'audio/webm';
+            else if (mimeType.includes('webm') || mimeType.includes('opus')) mimeType = 'audio/ogg'; // Try OGG for webm/opus
+            else if (mimeType.includes('mp3') || mimeType.includes('mpeg')) mimeType = 'audio/mp3';
+            
+            // #region agent log
+            debugLog('useGeminiTranscription:enhance', '📎 AUDIO FORMAT', {
+                originalType: audioBlob.type,
+                mappedType: mimeType,
+                sizeKB: Math.round(audioBlob.size / 1024)
+            }, 'ENHANCE');
+            // #endregion
 
             // Build enhancement prompt with existing transcription context
             const existingText = (existingSegments || liveSegments).map(s => 
