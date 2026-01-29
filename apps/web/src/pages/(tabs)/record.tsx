@@ -380,6 +380,9 @@ export default function RecordingScreen() {
   }, []);
 
   useEffect(() => {
+    // #region agent log - Hypothesis A: Track state sync from hook to component
+    debugLog('record.tsx:useEffect:syncIsPaused', 'Syncing isPaused from hook', { oldIsPaused: isPaused, newRecorderIsPaused: recorderIsPaused, timestamp: Date.now() }, 'A');
+    // #endregion
     setIsPaused(recorderIsPaused);
   }, [recorderIsPaused]);
 
@@ -710,10 +713,19 @@ export default function RecordingScreen() {
   };
 
   const handlePauseResume = () => {
+    // #region agent log - Hypothesis A,E: Track UI click and state before action
+    debugLog('record.tsx:handlePauseResume', 'BUTTON CLICKED', { isPaused, recorderIsPaused, isRecording, timestamp: Date.now() }, 'A');
+    // #endregion
     if (isPaused) {
+      // #region agent log - Hypothesis A,E: About to call resumeRecording
+      debugLog('record.tsx:handlePauseResume:resume', 'Calling resumeRecording()', { isPaused, recorderIsPaused }, 'A');
+      // #endregion
       resumeRecording();
       toast.success('Recording resumed');
     } else {
+      // #region agent log - Hypothesis A,E: About to call pauseRecording
+      debugLog('record.tsx:handlePauseResume:pause', 'Calling pauseRecording()', { isPaused, recorderIsPaused }, 'A');
+      // #endregion
       pauseRecording();
       toast.success('Recording paused');
     }

@@ -169,16 +169,29 @@ export function useWebAudioRecorder() {
   };
 
   const pauseRecording = () => {
+    // #region agent log - Hypothesis A,B,E: Track pause call details
+    debugLog('useWebAudioRecorder.ts:pauseRecording', 'PAUSE called', { isRecording, isPaused, wasInterrupted: wasInterruptedRef.current, mediaRecorderState: mediaRecorderRef.current?.state, timestamp: Date.now() }, 'A');
+    // #endregion
     if (mediaRecorderRef.current && isRecording && !isPaused) {
       mediaRecorderRef.current.pause();
       setIsPaused(true);
       if (timerRef.current) clearInterval(timerRef.current);
       // Manual pause, not interruption
       wasInterruptedRef.current = false;
+      // #region agent log - Hypothesis A,B,E: Confirm pause executed
+      debugLog('useWebAudioRecorder.ts:pauseRecording:done', 'PAUSE executed', { newIsPaused: true, wasInterruptedNow: false, mediaRecorderState: mediaRecorderRef.current?.state }, 'A');
+      // #endregion
+    } else {
+      // #region agent log - Hypothesis A,B,E: Pause was blocked
+      debugLog('useWebAudioRecorder.ts:pauseRecording:blocked', 'PAUSE blocked - conditions not met', { isRecording, isPaused, hasMediaRecorder: !!mediaRecorderRef.current }, 'A');
+      // #endregion
     }
   };
 
   const resumeRecording = () => {
+    // #region agent log - Hypothesis A,B,E: Track resume call details
+    debugLog('useWebAudioRecorder.ts:resumeRecording', 'RESUME called', { isPaused, wasInterrupted: wasInterruptedRef.current, mediaRecorderState: mediaRecorderRef.current?.state, timestamp: Date.now() }, 'A');
+    // #endregion
     if (mediaRecorderRef.current && isPaused) {
       mediaRecorderRef.current.resume();
       setIsPaused(false);
@@ -187,6 +200,13 @@ export function useWebAudioRecorder() {
       }, 1000);
       // Manual resume, clear interruption flag
       wasInterruptedRef.current = false;
+      // #region agent log - Hypothesis A,B,E: Confirm resume executed
+      debugLog('useWebAudioRecorder.ts:resumeRecording:done', 'RESUME executed', { newIsPaused: false, wasInterruptedNow: false, mediaRecorderState: mediaRecorderRef.current?.state }, 'A');
+      // #endregion
+    } else {
+      // #region agent log - Hypothesis A,B,E: Resume was blocked
+      debugLog('useWebAudioRecorder.ts:resumeRecording:blocked', 'RESUME blocked - conditions not met', { isPaused, hasMediaRecorder: !!mediaRecorderRef.current }, 'A');
+      // #endregion
     }
   };
 
@@ -247,7 +267,13 @@ export function useWebAudioRecorder() {
 
     // 🔄 Polling fallback: check every 2 seconds if we should auto-resume
     const pollingInterval = setInterval(() => {
+      // #region agent log - Hypothesis B: Track polling state
+      debugLog('useWebAudioRecorder.ts:polling', 'Polling check', { isRecording, wasInterrupted: wasInterruptedRef.current, mediaRecorderState: mediaRecorderRef.current?.state }, 'B');
+      // #endregion
       if (isRecording && wasInterruptedRef.current && mediaRecorderRef.current?.state === 'paused') {
+        // #region agent log - Hypothesis B: Auto-resume triggered!
+        debugLog('useWebAudioRecorder.ts:polling:autoResume', 'AUTO-RESUME TRIGGERED BY POLLING!', { isRecording, wasInterrupted: wasInterruptedRef.current }, 'B');
+        // #endregion
         console.log('[useWebAudioRecorder] 🔄 Polling detected paused state after interruption - auto-resuming');
         attemptAutoResume();
       }
