@@ -385,22 +385,31 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                                     length: cleanText.length
                                 }, 'LIVE');
 
-                                // 🔄 AGGREGATE: Merge with previous segment if same speaker
+                                // 🔄 AGGREGATE: Merge with previous segment if same speaker (with limits)
                                 setLiveSegments(prev => {
                                     if (prev.length > 0) {
                                         const lastSegment = prev[prev.length - 1];
-                                        // Same speaker? Append to last segment
+                                        // Same speaker? Check if we should merge
                                         if (lastSegment.speaker === newSpeaker) {
-                                            const updatedSegments = [...prev];
-                                            updatedSegments[prev.length - 1] = {
-                                                ...lastSegment,
-                                                text: lastSegment.text + ' ' + cleanText,
-                                                confidence: isFinal ? 0.9 : 0.75
-                                            };
-                                            return updatedSegments;
+                                            const combinedLength = lastSegment.text.length + cleanText.length + 1;
+                                            // Count sentences in last segment (by terminal punctuation)
+                                            const sentenceCount = (lastSegment.text.match(/[.!?]+/g) || []).length;
+                                            
+                                            // Merge only if: under 400 chars AND under 3 sentences
+                                            const shouldMerge = combinedLength < 400 && sentenceCount < 3;
+                                            
+                                            if (shouldMerge) {
+                                                const updatedSegments = [...prev];
+                                                updatedSegments[prev.length - 1] = {
+                                                    ...lastSegment,
+                                                    text: lastSegment.text + ' ' + cleanText,
+                                                    confidence: isFinal ? 0.9 : 0.75
+                                                };
+                                                return updatedSegments;
+                                            }
                                         }
                                     }
-                                    // Different speaker or first segment: create new
+                                    // Different speaker, first segment, or limits exceeded: create new
                                     return [...prev, {
                                         speaker: newSpeaker,
                                         text: cleanText,
