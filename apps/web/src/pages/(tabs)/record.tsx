@@ -11,6 +11,7 @@ const debugLog = (loc: string, msg: string, data: any, hyp: string) => { try { c
 import { useWebAudioRecorder } from '../../hooks/useWebAudioRecorder';
 import { useLocalTranscription, LocalTranscriptionResult } from '../../hooks/useLocalTranscription';
 import { useAI } from '../../hooks/useAI';
+import { useGeminiTranscription, TranscriptSegment } from '../../hooks/useGeminiTranscription';
 import { useWakeLock } from '../../hooks/useWakeLock';
 import { useDisplayMode } from '../../hooks/useDisplayMode';
 import { getAdaptivePrompts, getWhisperOptimizedPrompts, requiresSpecialPrompts } from '../../lib/adaptive-prompts';
@@ -192,6 +193,22 @@ export default function RecordingScreen() {
 
   // 🚀 AI Generation hook (OpenAI, Gemini, etc.) with streaming support
   const { generateParallel: generateTitleAndSummaryParallel } = useAI();
+
+  // 🎙️ Gemini Live Transcription hook (real-time transcription + diarization)
+  const geminiTranscription = useGeminiTranscription({
+    model: userPreferences.transcription_model || 'gemini-2.5-flash',
+    language: 'fr',
+    enableLiveTranscription: true,
+    enablePostEnhancement: true
+  });
+
+  // State for Gemini live transcription segments
+  const [geminiLiveSegments, setGeminiLiveSegments] = useState<TranscriptSegment[]>([]);
+  const geminiWorkflowRef = useRef<{
+    sendChunk: (chunk: ArrayBuffer) => void;
+    stop: () => void;
+    finalize: (audioBlob: Blob) => Promise<any>;
+  } | null>(null);
 
   // State for streaming summary display
   const [streamingSummary, setStreamingSummary] = useState<string>('');
@@ -596,19 +613,34 @@ export default function RecordingScreen() {
 
   const handleStartRecording = async () => {
     try {
+      const isGeminiProvider = userPreferences.transcription_provider === 'google';
+      const isLocalWithDiarization = enableStreamingTranscription && userPreferences.transcription_model?.includes('diarization');
+      
       console.log('%c[record] 🎙️ STARTING RECORDING', 'color: #10b981; font-weight: bold; font-size: 14px');
       console.log('');
       console.log('🔍 DIAGNOSTIC - LIVE STREAMING ACTIVATION CHECK');
       console.log('='.repeat(60));
+      console.log(`  ✅ Provider: ${userPreferences.transcription_provider}`);
+      console.log(`  ✅ Is Gemini: ${isGeminiProvider ? '✅ YES' : '❌ NO'}`);
       console.log(`  ✅ Streaming toggle enabled: ${enableStreamingTranscription ? '✅ YES' : '❌ NO'}`);
       console.log(`  ✅ Model name: "${userPreferences.transcription_model || 'NOT SET'}"`);
       console.log(`  ✅ Model includes "diarization": ${userPreferences.transcription_model?.includes('diarization') ? '✅ YES' : '❌ NO'}`);
-      console.log(`  ✅ Both conditions met: ${(enableStreamingTranscription && userPreferences.transcription_model?.includes('diarization')) ? '✅ YES - LIVE MODE WILL ACTIVATE!' : '❌ NO - BATCH MODE ONLY'}`);
+      console.log(`  ✅ Will use Gemini Live: ${isGeminiProvider ? '✅ YES' : '❌ NO'}`);
+      console.log(`  ✅ Will use Local Whisper Live: ${isLocalWithDiarization ? '✅ YES' : '❌ NO'}`);
       console.log('='.repeat(60));
       console.log('');
 
+      // #region agent log
+      debugLog('record.tsx:handleStartRecording', '🎙️ STARTING RECORDING', {
+        provider: userPreferences.transcription_provider,
+        model: userPreferences.transcription_model,
+        isGeminiProvider,
+        isLocalWithDiarization,
+        enableStreamingTranscription
+      }, 'START');
+      // #endregion
+
       // 🔒 Request Wake Lock (with automatic iOS fallback)
-      // This is non-blocking and handles both native Wake Lock and iOS NoSleep pattern
       if (wakeLockSupported) {
         requestWakeLock().then(success => {
           if (success) {
@@ -628,13 +660,84 @@ export default function RecordingScreen() {
 
       // Réinitialiser les segments live et le mapping de speakers
       setLiveTranscriptionSegments([]);
+      setGeminiLiveSegments([]);
       setSpeakerMapping({});
       speakerMappingRef.current = {};
       setIsStreamingActive(false);
+      geminiTranscription.reset();
 
-      // 🚀 Si streaming activé ET modèle avec diarization → LIVE TRANSCRIPTION
-      if (enableStreamingTranscription && userPreferences.transcription_model?.includes('diarization')) {
-        console.log('%c[record] 🚀 LIVE STREAMING MODE ACTIVATED!', 'color: #7c3aed; font-weight: bold; font-size: 16px; background: #ede9fe; padding: 8px 16px; border-radius: 8px');
+      // 🚀 OPTION 1: Gemini Live Transcription (Google provider)
+      if (isGeminiProvider && enableStreamingTranscription) {
+        console.log('%c[record] 🚀 GEMINI LIVE TRANSCRIPTION MODE ACTIVATED!', 'color: #10b981; font-weight: bold; font-size: 16px; background: #ecfdf5; padding: 8px 16px; border-radius: 8px');
+        setIsStreamingActive(true);
+
+        // #region agent log
+        debugLog('record.tsx:handleStartRecording', '🚀 STARTING GEMINI LIVE', {
+          model: userPreferences.transcription_model
+        }, 'GEMINI');
+        // #endregion
+
+        try {
+          // Start Gemini live workflow
+          const workflow = await geminiTranscription.startFullWorkflow(
+            // Callback for each live segment
+            (segment) => {
+              console.log(`%c[record] 🎤 GEMINI LIVE SEGMENT`, 'color: #10b981; font-weight: bold', segment);
+              
+              // #region agent log
+              debugLog('record.tsx:geminiLiveSegment', '📝 LIVE SEGMENT', {
+                speaker: segment.speaker,
+                textPreview: segment.text.substring(0, 50)
+              }, 'GEMINI');
+              // #endregion
+              
+              setGeminiLiveSegments(prev => [...prev, segment]);
+              
+              // Also update the main live transcription for UI
+              const speakerSegment: SpeakerSegment = {
+                text: segment.text,
+                speaker: segment.speaker,
+                start: typeof segment.start === 'string' ? parseFloat(segment.start.replace(':', '.')) : segment.start,
+                end: typeof segment.end === 'string' ? parseFloat(segment.end.replace(':', '.')) : segment.end
+              };
+              setLiveTranscriptionSegments(prev => [...prev, speakerSegment]);
+            },
+            // Callback when enhancement is complete
+            (result) => {
+              console.log('%c[record] ✅ GEMINI ENHANCEMENT COMPLETE', 'color: #10b981; font-weight: bold', result);
+              // #region agent log
+              debugLog('record.tsx:geminiEnhanced', '✅ ENHANCEMENT COMPLETE', {
+                segmentsCount: result.segments.length,
+                textLength: result.text.length
+              }, 'GEMINI');
+              // #endregion
+            }
+          );
+
+          geminiWorkflowRef.current = workflow;
+
+          // Start audio recording with chunk callback for Gemini
+          await startRecording(async (chunk: Blob, _chunkIndex: number) => {
+            // Convert Blob to ArrayBuffer and send to Gemini
+            const arrayBuffer = await chunk.arrayBuffer();
+            workflow.sendChunk(arrayBuffer);
+          });
+
+        } catch (geminiError) {
+          console.error('[record] ❌ Gemini Live failed, falling back to batch mode:', geminiError);
+          // #region agent log
+          debugLog('record.tsx:handleStartRecording', '❌ GEMINI LIVE FAILED', {
+            error: (geminiError as Error).message
+          }, 'GEMINI');
+          // #endregion
+          setIsStreamingActive(false);
+          geminiWorkflowRef.current = null;
+          await startRecording();
+        }
+
+      // 🚀 OPTION 2: Local Whisper with diarization
+      } else if (isLocalWithDiarization) {
+        console.log('%c[record] 🚀 LOCAL WHISPER LIVE MODE ACTIVATED!', 'color: #7c3aed; font-weight: bold; font-size: 16px; background: #ede9fe; padding: 8px 16px; border-radius: 8px');
         setIsStreamingActive(true);
 
         // Callback pour traiter chaque chunk audio live
@@ -686,16 +789,22 @@ export default function RecordingScreen() {
           });
         };
 
-        await startRecording(handleChunkReady); // Passer le callback
+        await startRecording(handleChunkReady);
       } else {
+        // 📦 BATCH MODE - No live transcription
         console.log('[record] 📦 BATCH MODE - Recording without live transcription');
-        await startRecording(); // Pas de callback
+        await startRecording();
       }
 
       setPageState('recording');
       toast.success(t('record.recordingInProgress') + ' 🎙️');
     } catch (error) {
       console.error('Failed to start recording:', error);
+      // #region agent log
+      debugLog('record.tsx:handleStartRecording', '❌ RECORDING ERROR', {
+        error: (error as Error).message
+      }, 'START');
+      // #endregion
       toast.error('Failed to start recording. Please check your microphone permissions.');
       setPageState('error');
     }
@@ -703,7 +812,30 @@ export default function RecordingScreen() {
 
   const handleStopRecording = async () => {
     console.log('%c[record] ⏹️ STOPPING RECORDING', 'color: #dc2626; font-weight: bold');
+    
+    // #region agent log
+    debugLog('record.tsx:handleStopRecording', '⏹️ STOPPING', {
+      hasGeminiWorkflow: !!geminiWorkflowRef.current,
+      liveSegmentsCount: liveTranscriptionSegments.length,
+      geminiSegmentsCount: geminiLiveSegments.length
+    }, 'STOP');
+    // #endregion
+
+    // Stop the audio recorder
     stopRecording();
+
+    // 🎙️ Finalize Gemini workflow if active (triggers enhancement phase)
+    if (geminiWorkflowRef.current) {
+      console.log('%c[record] 🔄 Finalizing Gemini workflow (enhancement phase)...', 'color: #10b981; font-weight: bold');
+      geminiWorkflowRef.current.stop();
+      geminiWorkflowRef.current = null;
+      
+      // #region agent log
+      debugLog('record.tsx:handleStopRecording', '🔄 GEMINI WORKFLOW STOPPED', {
+        segmentsCount: geminiLiveSegments.length
+      }, 'GEMINI');
+      // #endregion
+    }
 
     // 🔓 Release Wake Lock (handles both native and iOS fallback)
     if (wakeLockActive) {
@@ -718,6 +850,7 @@ export default function RecordingScreen() {
     // Désactiver le mode streaming live (la transcription continue pour les derniers chunks)
     setIsStreamingActive(false);
     console.log(`[record] Live segments received: ${liveTranscriptionSegments.length}`);
+    console.log(`[record] Gemini live segments: ${geminiLiveSegments.length}`);
 
     setPageState('ready');
     toast.success('Recording stopped');
