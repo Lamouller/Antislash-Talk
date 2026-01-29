@@ -1062,10 +1062,19 @@ export default function RecordingScreen() {
               console.log('🔄 Starting Gemini enhancement phase...');
               
               try {
+                // Convert SpeakerSegment[] to TranscriptSegment[] (ensure speaker is always string)
+                const transcriptSegments = liveSegments.map(seg => ({
+                  speaker: seg.speaker || 'Speaker',
+                  text: seg.text,
+                  start: seg.start?.toString(),
+                  end: seg.end?.toString(),
+                  isLive: true
+                }));
+                
                 // Call enhancement with the audio blob and existing live segments
                 const enhancedResult = await geminiTranscription.enhanceTranscription(
                   blob,
-                  liveSegments, // Pass the live segments we saved
+                  transcriptSegments, // Pass converted segments
                   (progress) => console.log(`Enhancement progress: ${progress}%`)
                 );
 
