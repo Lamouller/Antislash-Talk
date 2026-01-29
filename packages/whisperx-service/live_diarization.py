@@ -31,18 +31,7 @@ import torchaudio
 from fastapi import WebSocket, WebSocketDisconnect
 from scipy.spatial.distance import cosine
 
-# Fix PyTorch serialization for Pyannote models (PyTorch 2.6+ security)
-# PyTorch 2.6 changed weights_only default to True, blocking many model loads
-# We trust Pyannote models from HuggingFace, so disable this restriction
-_original_torch_load = torch.load
-
-def _patched_torch_load(*args, **kwargs):
-    """Patched torch.load that defaults to weights_only=False for Pyannote compatibility"""
-    if 'weights_only' not in kwargs:
-        kwargs['weights_only'] = False
-    return _original_torch_load(*args, **kwargs)
-
-torch.load = _patched_torch_load
+# Note: torch.load is patched in server.py to fix PyTorch 2.6+ weights_only issue
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

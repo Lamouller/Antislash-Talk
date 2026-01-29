@@ -11,6 +11,16 @@ from pathlib import Path
 from typing import Optional, List
 import logging
 
+# ⚠️ CRITICAL: Patch torch.load BEFORE any other imports that use PyTorch
+# PyTorch 2.6+ changed weights_only default to True, breaking Pyannote model loading
+import torch
+_original_torch_load = torch.load
+def _patched_torch_load(*args, **kwargs):
+    if 'weights_only' not in kwargs:
+        kwargs['weights_only'] = False
+    return _original_torch_load(*args, **kwargs)
+torch.load = _patched_torch_load
+
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
