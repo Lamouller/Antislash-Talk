@@ -926,32 +926,27 @@ export default function RecordingScreen() {
     }
     geminiWorkflowRef.current = null;
     // #region agent log
-    console.log('%c[BG] 🔍 CHECKPOINT 1: After geminiWorkflowRef.current = null', 'color: #eab308');
-    toast('🔍 CP1: workflow null', { duration: 1000 });
+    debugLog('record.tsx:handleStopRecording', '🔍 CP1: workflow null', {}, 'CHECKPOINT');
     // #endregion
 
     // 🔓 Release Wake Lock (handles both native and iOS fallback)
     try {
       // #region agent log
-      console.log('%c[BG] 🔍 CHECKPOINT 2: Before wake lock check', 'color: #eab308', { wakeLockActive });
-      toast('🔍 CP2: wake lock check', { duration: 1000 });
+      debugLog('record.tsx:handleStopRecording', '🔍 CP2: wake lock check', { wakeLockActive }, 'CHECKPOINT');
       // #endregion
       if (wakeLockActive) {
         await releaseWakeLock();
         console.log('[record] 🔓 Wake Lock released');
       }
       // #region agent log
-      console.log('%c[BG] 🔍 CHECKPOINT 3: After wake lock', 'color: #eab308');
-      toast('🔍 CP3: wake lock done', { duration: 1000 });
+      debugLog('record.tsx:handleStopRecording', '🔍 CP3: wake lock done', {}, 'CHECKPOINT');
       // #endregion
     } catch (wakeLockError) {
-      console.warn('[record] Wake lock release error (non-fatal):', wakeLockError);
-      toast.error('CP2-3 ERROR: ' + (wakeLockError as Error).message);
+      debugLog('record.tsx:handleStopRecording', '❌ CP2-3 ERROR', { error: (wakeLockError as Error).message }, 'CHECKPOINT');
     }
 
     // #region agent log
-    console.log('%c[BG] 🔍 CHECKPOINT 4: Before emergency clear', 'color: #eab308');
-    toast('🔍 CP4: emergency clear', { duration: 1000 });
+    debugLog('record.tsx:handleStopRecording', '🔍 CP4: emergency clear', {}, 'CHECKPOINT');
     // #endregion
 
     // 🆘 Clear emergency recording data (successful stop = no need for recovery)
@@ -959,17 +954,14 @@ export default function RecordingScreen() {
     try {
       await clearEmergencyRecording();
       // #region agent log
-      console.log('%c[BG] 🔍 CHECKPOINT 5: After emergency clear', 'color: #eab308');
-      toast('🔍 CP5: emergency done', { duration: 1000 });
+      debugLog('record.tsx:handleStopRecording', '🔍 CP5: emergency done', {}, 'CHECKPOINT');
       // #endregion
     } catch (emergencyError) {
-      console.warn('[record] Emergency recording clear error (non-fatal):', emergencyError);
-      toast.error('CP4-5 ERROR: ' + (emergencyError as Error).message);
+      debugLog('record.tsx:handleStopRecording', '❌ CP4-5 ERROR', { error: (emergencyError as Error).message }, 'CHECKPOINT');
     }
 
     // #region agent log
-    console.log('%c[BG] 🔍 CHECKPOINT 6: Before setIsStreamingActive', 'color: #eab308');
-    toast('🔍 CP6: streaming off', { duration: 1000 });
+    debugLog('record.tsx:handleStopRecording', '🔍 CP6: streaming off', {}, 'CHECKPOINT');
     // #endregion
 
     // Désactiver le mode streaming live (la transcription continue pour les derniers chunks)
@@ -978,34 +970,29 @@ export default function RecordingScreen() {
     console.log(`[record] Gemini live segments: ${geminiLiveSegments.length}`);
 
     // #region agent log
-    console.log('%c[BG] 🔍 CHECKPOINT 7: Before toast.success', 'color: #eab308');
-    toast('🔍 CP7: before success', { duration: 1000 });
+    debugLog('record.tsx:handleStopRecording', '🔍 CP7: before success', { liveCount: liveTranscriptionSegments.length, geminiCount: geminiLiveSegments.length }, 'CHECKPOINT');
     // #endregion
 
     toast.success('Recording stopped');
 
     // #region agent log - DEBUG: Trace autoTranscribe check
-    console.log('%c[BG] 🔍 PRE-CHECK autoTranscribeAfterRecording', 'color: #f97316; font-weight: bold', {
+    debugLog('record.tsx:handleStopRecording', '🔍 CP8: PRE-CHECK autoTranscribe', {
       autoTranscribeAfterRecording,
       hasAudioBlob: !!audioBlob,
       audioBlobSize: audioBlob?.size,
       geminiSegmentsCount: geminiLiveSegments.length
-    });
-    toast(`🔍 CP8: autoTranscribe=${autoTranscribeAfterRecording}`, { duration: 2000 });
+    }, 'CHECKPOINT');
     // #endregion
 
     // 🚀 EARLY NAVIGATION: Create meeting immediately and navigate
     // Post-processing happens in background on the meeting page
     if (autoTranscribeAfterRecording) {
-      console.log('%c[BG] ✅ autoTranscribeAfterRecording is TRUE - entering try block', 'color: #10b981; font-weight: bold');
-      toast('🔍 CP9: autoTranscribe TRUE', { duration: 1500 });
+      debugLog('record.tsx:handleStopRecording', '🔍 CP9: autoTranscribe TRUE - entering try', {}, 'CHECKPOINT');
       
       try {
-        console.log('%c[BG] 🔑 Getting user...', 'color: #3b82f6');
-        toast('🔍 CP10: getting user...', { duration: 1000 });
+        debugLog('record.tsx:handleStopRecording', '🔍 CP10: getting user...', {}, 'CHECKPOINT');
         const { data: { user } } = await supabase.auth.getUser();
-        console.log('%c[BG] 🔑 User result:', 'color: #3b82f6', { hasUser: !!user, userId: user?.id?.substring(0, 8) });
-        toast(`🔍 CP11: user=${user ? 'OK' : 'NULL'}`, { duration: 1500 });
+        debugLog('record.tsx:handleStopRecording', '🔍 CP11: user result', { hasUser: !!user, userId: user?.id?.substring(0, 8) }, 'CHECKPOINT');
         if (!user) throw new Error('User not authenticated');
 
         // Get live segments to include in initial save
@@ -1229,10 +1216,10 @@ export default function RecordingScreen() {
 
       } catch (error) {
         // #region agent log
-        console.log('%c[BG] ❌ EARLY NAVIGATION CATCH ERROR', 'color: #ef4444; font-weight: bold', {
+        debugLog('record.tsx:handleStopRecording', '❌ EARLY NAVIGATION CATCH ERROR', {
           error: (error as Error).message,
           stack: (error as Error).stack
-        });
+        }, 'CHECKPOINT');
         // #endregion
         console.error('❌ Early navigation failed:', error);
         toast.error('Failed to create meeting');
@@ -1240,7 +1227,7 @@ export default function RecordingScreen() {
       }
     } else {
       // #region agent log
-      console.log('%c[BG] ❌ autoTranscribeAfterRecording is FALSE - manual mode', 'color: #ef4444; font-weight: bold');
+      debugLog('record.tsx:handleStopRecording', '❌ CP9-ALT: autoTranscribe FALSE - manual mode', {}, 'CHECKPOINT');
       // #endregion
       console.log('🎙️ Auto-processing disabled, showing manual options');
       setPageState('ready');
