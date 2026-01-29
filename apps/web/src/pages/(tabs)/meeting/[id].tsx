@@ -122,9 +122,14 @@ export default function MeetingDetail() {
     try {
       const { data, error } = await supabase
         .from('meetings')
-        .select('*, audio_expires_at')
+        .select('*, audio_expires_at, prompt_title, prompt_summary, prompt_transcript')
         .eq('id', id)
         .single();
+      
+      // Log if meeting has saved prompts
+      if (data?.prompt_summary) {
+        console.log('[Meeting Detail] 📝 Meeting has saved summary prompt:', data.prompt_summary?.substring(0, 50) + '...');
+      }
 
       if (error) throw error;
 
@@ -213,13 +218,20 @@ export default function MeetingDetail() {
       console.log(`[Meeting Detail] 📄 Transcript length: ${transcriptText.length} characters`);
 
       // Get selected prompts content
+      // Priority: 1. Selected in UI, 2. Saved with meeting, 3. Default
       const titlePromptContent = selectedTitlePromptId !== 'default'
         ? promptTemplates.find(p => p.id === selectedTitlePromptId)?.content
-        : undefined;
+        : (meeting as any)?.prompt_title || undefined;
 
       const summaryPromptContent = selectedSummaryPromptId !== 'default'
         ? promptTemplates.find(p => p.id === selectedSummaryPromptId)?.content
-        : undefined;
+        : (meeting as any)?.prompt_summary || undefined;
+      
+      console.log('[Meeting Detail] 📝 Prompt sources:', {
+        titleSource: selectedTitlePromptId !== 'default' ? 'UI selection' : ((meeting as any)?.prompt_title ? 'Saved with meeting' : 'Default'),
+        summarySource: selectedSummaryPromptId !== 'default' ? 'UI selection' : ((meeting as any)?.prompt_summary ? 'Saved with meeting' : 'Default'),
+        summaryPromptPreview: summaryPromptContent?.substring(0, 50)
+      });
 
       // Generate title with configured AI provider (Ollama, OpenAI, Gemini, etc.)
       console.log('[Meeting Detail] 📝 Generating title...');

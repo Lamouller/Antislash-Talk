@@ -127,6 +127,7 @@ type PageState = 'ready' | 'recording' | 'saving' | 'uploading' | 'processing' |
 function DebugLogsPanel() {
   const [logs, setLogs] = useState<any[]>([]);
   const [isOpen, setIsOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
   
   const refreshLogs = () => {
     try {
@@ -138,6 +139,35 @@ function DebugLogsPanel() {
   const clearLogs = () => {
     localStorage.setItem('__debug_logs__', '[]');
     setLogs([]);
+  };
+
+  const copyLogs = async () => {
+    const logsText = logs.length === 0 
+      ? 'No logs' 
+      : logs.map((l: any) => `[${l.hypothesisId}] ${new Date(l.timestamp).toLocaleTimeString()} ${l.location}\n  ${l.message}: ${JSON.stringify(l.data)}`).join('\n\n');
+    
+    try {
+      await navigator.clipboard.writeText(logsText);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      // Fallback for iOS
+      const textArea = document.createElement('textarea');
+      textArea.value = logsText;
+      textArea.style.position = 'fixed';
+      textArea.style.left = '-9999px';
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      try {
+        document.execCommand('copy');
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch (e) {
+        console.error('Copy failed:', e);
+      }
+      document.body.removeChild(textArea);
+    }
   };
   
   useEffect(() => {
@@ -154,6 +184,9 @@ function DebugLogsPanel() {
       <div className="mt-2 max-h-64 overflow-y-auto">
         <div className="flex gap-2 mb-2">
           <button onClick={refreshLogs} className="px-2 py-1 bg-blue-600 text-white rounded text-xs">Refresh</button>
+          <button onClick={copyLogs} className={`px-2 py-1 ${copied ? 'bg-green-600' : 'bg-purple-600'} text-white rounded text-xs`}>
+            {copied ? '✓ Copied!' : '📋 Copy'}
+          </button>
           <button onClick={clearLogs} className="px-2 py-1 bg-red-600 text-white rounded text-xs">Clear</button>
         </div>
         <pre className="text-green-400 whitespace-pre-wrap font-mono text-[10px]">
@@ -528,10 +561,12 @@ export default function RecordingScreen() {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
 
+        // Only fetch summary and custom prompts (those applicable to summary generation)
         const { data, error } = await supabase
           .from('prompt_templates')
           .select('*')
           .eq('user_id', user.id)
+          .in('category', ['summary', 'custom'])
           .order('is_favorite', { ascending: false })
           .order('created_at', { ascending: false });
 
@@ -540,8 +575,18 @@ export default function RecordingScreen() {
           return;
         }
 
-        setPromptTemplates(data || []);
-        console.log('📝 Loaded prompt templates:', data?.length || 0);
+        const templates = data || [];
+        setPromptTemplates(templates);
+        console.log('📝 Loaded summary prompt templates:', templates.length);
+
+        // Auto-select the starred (favorite) prompt if one exists
+        const favoritePrompt = templates.find(t => t.is_favorite);
+        if (favoritePrompt) {
+          console.log('⭐ Auto-selecting favorite prompt:', favoritePrompt.name);
+          setSelectedPromptId(favoritePrompt.id);
+          // Apply the favorite prompt immediately
+          setUserPrompts(prev => ({ ...prev, summary: favoritePrompt.content }));
+        }
       } catch (error) {
         console.error('Error fetching prompt templates:', error);
       }
@@ -552,22 +597,34 @@ export default function RecordingScreen() {
 
   // Function to apply a prompt template
   const applyPromptTemplate = (templateId: string) => {
-    const template = promptTemplates.find(t => t.id === templateId);
-    if (!template) return;
-
-    console.log('✨ Applying prompt template:', template.name, 'Category:', template.category);
-
-    // Apply prompt based on category
-    if (template.category === 'summary') {
-      setUserPrompts(prev => ({ ...prev, summary: template.content }));
-    } else if (template.category === 'title') {
-      setUserPrompts(prev => ({ ...prev, title: template.content }));
-    } else if (template.category === 'transcript') {
-      setUserPrompts(prev => ({ ...prev, transcript: template.content }));
-    } else if (template.category === 'custom') {
-      // For custom prompts, apply to summary by default
-      setUserPrompts(prev => ({ ...prev, summary: template.content }));
+    // Handle deselection (empty value)
+    if (!templateId) {
+      setSelectedPromptId(null);
+      console.log('🔄 Prompt deselected, reverting to default');
+      return;
     }
+
+    const template = promptTemplates.find(t => t.id === templateId);
+    if (!template) {
+      console.warn('❌ Template not found:', templateId);
+      return;
+    }
+
+    // #region agent log - Hypothesis F: Track prompt selection
+    debugLog('record.tsx:applyPromptTemplate', 'PROMPT SELECTED', { templateId, templateName: template.name, contentLength: template.content?.length, contentPreview: template.content?.substring(0, 100) }, 'F');
+    // #endregion
+
+    console.log('✨ Applying prompt template:', template.name, 'Category:', template.category, 'Content length:', template.content?.length);
+
+    // All prompts in this selector are for summary (filtered in fetch)
+    setUserPrompts(prev => {
+      const updated = { ...prev, summary: template.content };
+      // #region agent log - Hypothesis F: Confirm state update
+      debugLog('record.tsx:applyPromptTemplate:setState', 'userPrompts.summary UPDATED', { oldSummaryLength: prev.summary?.length, newSummaryLength: template.content?.length }, 'F');
+      // #endregion
+      console.log('📝 Updated userPrompts.summary to:', template.content?.substring(0, 50) + '...');
+      return updated;
+    });
 
     setSelectedPromptId(templateId);
     toast.success(`Prompt "${template.name}" appliqué ✨`);
@@ -741,6 +798,9 @@ export default function RecordingScreen() {
       setPageState('local-transcribing');
 
       console.log('🎯 Starting transcription with custom prompts:', userPrompts);
+      // #region agent log - Hypothesis F,G: Check userPrompts at transcription start
+      debugLog('record.tsx:handleTranscription', 'TRANSCRIPTION STARTED', { selectedPromptId, userPromptsSummaryLength: userPrompts.summary?.length, userPromptsSummaryPreview: userPrompts.summary?.substring(0, 100), userPromptsTitleLength: userPrompts.title?.length }, 'F');
+      // #endregion
 
       // 🚀 STREAMING MODE: Si activé et compatible
       if (enableStreamingTranscription && model.includes('diarization')) {
@@ -831,6 +891,10 @@ export default function RecordingScreen() {
                   console.log('   → Custom summary prompt:', userPrompts.summary ? 'YES' : 'NO');
                   console.log('   → Context notes:', contextNotes ? 'YES' : 'NO');
                   
+                  // #region agent log - Hypothesis G: Check prompt at generation time
+                  debugLog('record.tsx:generateSummary', 'GENERATING SUMMARY', { userPromptsSummaryLength: userPrompts.summary?.length, userPromptsSummaryPreview: userPrompts.summary?.substring(0, 100), hasContextNotes: !!contextNotes }, 'G');
+                  // #endregion
+                  
                   // Enrich summary prompt with context notes if provided
                   let summaryPrompt = userPrompts.summary;
                   if (contextNotes) {
@@ -885,6 +949,9 @@ export default function RecordingScreen() {
 
         // Apply custom prompts for enhancement
         try {
+          // #region agent log - Hypothesis G: Check prompt before enhanceWithLocalLLM
+          debugLog('record.tsx:enhanceWithLocalLLM', 'CALLING enhanceWithLocalLLM', { userPromptsSummaryLength: userPrompts.summary?.length, userPromptsSummaryPreview: userPrompts.summary?.substring(0, 100), llmModel: userPreferences.llm_model }, 'G');
+          // #endregion
           // Pass Ollama model for local LLM enhancement
           const enhanced = await enhanceWithLocalLLM(result.text, userPrompts, userPreferences.llm_model);
           console.log('🌟 Enhanced result with custom prompts:', enhanced);
@@ -1657,21 +1724,27 @@ export default function RecordingScreen() {
                       </div>
 
                       {promptTemplates.length > 0 ? (
-                        <select
-                          className="w-full px-4 py-3 border border-purple-300 dark:border-purple-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
-                          value={selectedPromptId || ''}
-                          onChange={(e) => applyPromptTemplate(e.target.value)}
-                          disabled={isTranscribing}
-                        >
-                          <option value="">{t('record.selectPrompt')}</option>
-                          {promptTemplates.map(template => (
-                            <option key={template.id} value={template.id}>
-                              {template.is_favorite && '⭐ '}
-                              {template.name}
-                              {template.category !== 'custom' && ` (${template.category})`}
-                            </option>
-                          ))}
-                        </select>
+                        <>
+                          <select
+                            className="w-full px-4 py-3 border border-purple-300 dark:border-purple-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
+                            value={selectedPromptId || ''}
+                            onChange={(e) => applyPromptTemplate(e.target.value)}
+                            disabled={isTranscribing}
+                          >
+                            <option value="">{t('record.selectPrompt')}</option>
+                            {promptTemplates.map(template => (
+                              <option key={template.id} value={template.id}>
+                                {template.is_favorite && '⭐ '}
+                                {template.name}
+                              </option>
+                            ))}
+                          </select>
+                          {selectedPromptId && (
+                            <p className="mt-2 text-xs text-purple-600 dark:text-purple-400">
+                              ✓ Prompt sélectionné pour le résumé
+                            </p>
+                          )}
+                        </>
                       ) : (
                         <div className="text-center py-2 text-sm text-purple-700 dark:text-purple-300">
                           <p className="mb-2">{t('record.noPrompts')}</p>
