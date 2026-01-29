@@ -11,13 +11,18 @@ from pathlib import Path
 from typing import Optional, List
 import logging
 
-# ⚠️ CRITICAL: Patch torch.load BEFORE any other imports that use PyTorch
+# ⚠️ CRITICAL: Disable PyTorch weights_only BEFORE any other imports
 # PyTorch 2.6+ changed weights_only default to True, breaking Pyannote model loading
 import torch
+import torch.serialization
+
+# Set internal default to False (most reliable method)
+torch.serialization._default_weights_only = False
+
+# Also patch torch.load for any code that checks explicitly
 _original_torch_load = torch.load
 def _patched_torch_load(*args, **kwargs):
-    if 'weights_only' not in kwargs:
-        kwargs['weights_only'] = False
+    kwargs.setdefault('weights_only', False)
     return _original_torch_load(*args, **kwargs)
 torch.load = _patched_torch_load
 
