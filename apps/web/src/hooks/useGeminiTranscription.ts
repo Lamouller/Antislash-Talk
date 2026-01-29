@@ -393,29 +393,33 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
         }
     }, [model, language, enableLiveTranscription]);
 
-    // Send PCM audio chunk during live recording
-    // IMPORTANT: Gemini Live API only accepts audio/pcm (16-bit, 16kHz, mono)
-    const sendPCMChunk = useCallback((pcmData: ArrayBuffer) => {
-        const chunkIndex = audioChunksRef.current.length + 1;
+    // Send audio chunk during live recording
+    const sendAudioChunk = useCallback((chunk: ArrayBuffer, mimeType?: string) => {
+        // Store for enhancement phase
+        audioChunksRef.current.push(chunk);
+        const chunkIndex = audioChunksRef.current.length;
 
         // #region agent log
         if (chunkIndex <= 3) {
-            fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:sendPCMChunk',message:'SENDING_PCM',data:{chunkIndex,sizeBytes:pcmData.byteLength,wsState:wsRef.current?.readyState,wsOpen:wsRef.current?.readyState===WebSocket.OPEN},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+            fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:sendChunk',message:'SENDING_TO_WS',data:{chunkIndex,sizeBytes:chunk.byteLength,mimeType:mimeType||'default',wsState:wsRef.current?.readyState,wsOpen:wsRef.current?.readyState===WebSocket.OPEN},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
         }
         // #endregion
 
-        // Send to live transcription - MUST be audio/pcm for Gemini Live
+        // Send to live transcription WebSocket
         if (wsRef.current?.readyState === WebSocket.OPEN) {
             const base64 = btoa(
-                new Uint8Array(pcmData).reduce((data, byte) => data + String.fromCharCode(byte), '')
+                new Uint8Array(chunk).reduce((data, byte) => data + String.fromCharCode(byte), '')
             );
+
+            // Use the actual mime type from the recorder
+            const actualMimeType = mimeType || 'audio/webm';
             
             // #region agent log
             if (chunkIndex <= 3) {
-                debugLog('useGeminiTranscription:sendPCMChunk', '📤 SENDING PCM CHUNK', {
+                debugLog('useGeminiTranscription:sendChunk', '📤 SENDING CHUNK TO WS', {
                     chunkIndex,
-                    mimeType: 'audio/pcm',
-                    sizeBytes: pcmData.byteLength,
+                    mimeType: actualMimeType,
+                    sizeBytes: chunk.byteLength,
                     wsState: wsRef.current?.readyState
                 }, 'LIVE');
             }
@@ -424,25 +428,17 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
             wsRef.current.send(JSON.stringify({
                 realtime_input: {
                     media_chunks: [{
-                        mime_type: 'audio/pcm',
+                        mime_type: actualMimeType,
                         data: base64
                     }]
                 }
             }));
+        } else {
+            debugLog('useGeminiTranscription:sendChunk', '⚠️ WS NOT OPEN - chunk stored only', {
+                chunkIndex,
+                wsState: wsRef.current?.readyState
+            }, 'LIVE');
         }
-    }, []);
-
-    // Store audio chunk for enhancement phase (keeps original format)
-    const sendAudioChunk = useCallback((chunk: ArrayBuffer, mimeType?: string) => {
-        // Store for enhancement phase (original format)
-        audioChunksRef.current.push(chunk);
-        
-        // Note: Don't send to WebSocket here - PCM streaming handles that
-        debugLog('useGeminiTranscription:sendChunk', '💾 STORED CHUNK FOR ENHANCEMENT', {
-            chunkIndex: audioChunksRef.current.length,
-            mimeType: mimeType || 'unknown',
-            sizeBytes: chunk.byteLength
-        }, 'LIVE');
     }, []);
 
     // Start PCM audio capture using AudioWorklet (for Gemini Live)
@@ -517,9 +513,6 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
 
     // Stop live transcription
     const stopLiveTranscription = useCallback(() => {
-        // Stop PCM capture first
-        stopPCMCapture();
-        
         if (wsRef.current) {
             wsRef.current.send(JSON.stringify({ client_content: { turn_complete: true } }));
             setTimeout(() => {
@@ -779,22 +772,11 @@ RETOURNE UNIQUEMENT LE JSON, AUCUN AUTRE TEXTE.`;
         // Start live WebSocket connection
         await startLiveTranscription(onLiveSegment);
         
-        // Wait for WebSocket to be ready, then start PCM capture
-        // The WebSocket needs to receive setupComplete before we send audio
+        // Wait for WebSocket to be ready before sending audio
         await new Promise(r => setTimeout(r, 500));
-        
-        // Start PCM audio capture (this sends audio directly to WebSocket)
-        try {
-            await startPCMCapture();
-            // #region agent log
-            fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:fullWorkflow',message:'PCM_CAPTURE_READY',data:{wsState:wsRef.current?.readyState},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
-            // #endregion
-        } catch (pcmError) {
-            console.error('PCM capture failed:', pcmError);
-        }
 
         return {
-            sendChunk: sendAudioChunk, // Still available for storing chunks for enhancement
+            sendChunk: sendAudioChunk, // Sends chunks to WebSocket + stores for enhancement
             stop: stopLiveTranscription,
             finalize: async (audioBlob: Blob) => {
                 stopLiveTranscription();
@@ -808,7 +790,7 @@ RETOURNE UNIQUEMENT LE JSON, AUCUN AUTRE TEXTE.`;
                 return result;
             }
         };
-    }, [startLiveTranscription, sendAudioChunk, stopLiveTranscription, enhanceTranscription, liveSegments, enableLiveTranscription, enablePostEnhancement, startPCMCapture]);
+    }, [startLiveTranscription, sendAudioChunk, stopLiveTranscription, enhanceTranscription, liveSegments, enableLiveTranscription, enablePostEnhancement]);
 
     // Reset state
     const reset = useCallback(() => {
