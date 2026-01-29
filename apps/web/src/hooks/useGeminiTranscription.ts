@@ -368,36 +368,52 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                                 }
                             }
                             
-                            // 🎭 SPEAKER NAME MEMORY SYSTEM
-                            // Priority: 1. Detected name, 2. Mapped name from Pyannote ID, 3. Raw Pyannote ID, 4. Fallback
+                            // 🎭 SPEAKER NAME MEMORY SYSTEM (VOICE-FIRST)
+                            // Priority: 1. Pyannote voice ID (trust the voice!), 2. Text-based name for NEW speakers only
                             const pyannoteSpeaker = externalSpeakerRef.current; // e.g., "SPEAKER_01"
+                            const previousPyannoteSpeaker = speakerNamesRef.current.get('_lastPyannoteSpeaker');
+                            const isNewSpeaker = pyannoteSpeaker && pyannoteSpeaker !== previousPyannoteSpeaker;
                             
-                            if (detectedName) {
-                                // Name detected in text - use it and map to Pyannote speaker if available
-                                currentSpeakerRef.current = detectedName;
+                            // Track current Pyannote speaker for change detection
+                            if (pyannoteSpeaker) {
+                                speakerNamesRef.current.set('_lastPyannoteSpeaker', pyannoteSpeaker);
+                            }
+                            
+                            if (detectedName && pyannoteSpeaker) {
+                                // Name detected in text - BUT only use it if:
+                                // 1. This Pyannote speaker has NO name yet (first introduction)
+                                // 2. OR this is a NEW Pyannote speaker (speaker change detected by voice)
+                                const existingMapping = speakerNamesRef.current.get(pyannoteSpeaker);
                                 
-                                if (pyannoteSpeaker) {
-                                    // 🔗 Associate name with Pyannote speaker ID for future use
-                                    const previousMapping = speakerNamesRef.current.get(pyannoteSpeaker);
+                                if (!existingMapping) {
+                                    // ✅ FIRST INTRODUCTION: Accept the name for this voice
                                     speakerNamesRef.current.set(pyannoteSpeaker, detectedName);
-                                    console.log(`%c[SPEAKER MEMORY] 🧠 MAPPED: ${pyannoteSpeaker} → "${detectedName}"`, 'color: #8b5cf6; font-weight: bold');
+                                    currentSpeakerRef.current = detectedName;
+                                    console.log(`%c[SPEAKER MEMORY] 🧠 FIRST MAPPING: ${pyannoteSpeaker} → "${detectedName}"`, 'color: #8b5cf6; font-weight: bold');
                                     
-                                    // 🔄 RETROACTIVE UPDATE: Update all past segments with this Pyannote ID
-                                    if (!previousMapping || previousMapping !== detectedName) {
-                                        setLiveSegments(prev => {
-                                            const updated = prev.map(seg => {
-                                                if (seg.speaker === pyannoteSpeaker) {
-                                                    console.log(`%c[SPEAKER MEMORY] ✏️ RETROACTIVE: "${seg.speaker}" → "${detectedName}" for: "${seg.text.substring(0, 30)}..."`, 'color: #f59e0b');
-                                                    return { ...seg, speaker: detectedName };
-                                                }
-                                                return seg;
-                                            });
-                                            return updated;
+                                    // 🔄 RETROACTIVE UPDATE: Update past segments with this Pyannote ID
+                                    setLiveSegments(prev => {
+                                        const updated = prev.map(seg => {
+                                            if (seg.speaker === pyannoteSpeaker) {
+                                                console.log(`%c[SPEAKER MEMORY] ✏️ RETROACTIVE: "${seg.speaker}" → "${detectedName}"`, 'color: #f59e0b');
+                                                return { ...seg, speaker: detectedName };
+                                            }
+                                            return seg;
                                         });
-                                    }
+                                        return updated;
+                                    });
+                                    speakerNamesRef.current.set('_lastDetected', detectedName);
+                                } else {
+                                    // ❌ SAME SPEAKER already has a name - IGNORE the new name in text
+                                    // (Someone might say another person's name, but voice says it's still the same person)
+                                    currentSpeakerRef.current = existingMapping;
+                                    console.log(`%c[SPEAKER MEMORY] 🚫 IGNORED "${detectedName}" - voice still ${pyannoteSpeaker} = "${existingMapping}"`, 'color: #ef4444');
                                 }
-                                // Also store as last detected for fallback
+                            } else if (detectedName && !pyannoteSpeaker) {
+                                // Name detected but no Pyannote - use text-based detection as fallback
+                                currentSpeakerRef.current = detectedName;
                                 speakerNamesRef.current.set('_lastDetected', detectedName);
+                                console.log(`%c[SPEAKER MEMORY] 📝 TEXT-ONLY: "${detectedName}" (no Pyannote)`, 'color: #f59e0b');
                             } else if (pyannoteSpeaker) {
                                 // No name detected, but we have Pyannote speaker
                                 // Check if this Pyannote ID has a mapped name
