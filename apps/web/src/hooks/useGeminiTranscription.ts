@@ -44,13 +44,20 @@ interface UseGeminiTranscriptionOptions {
     enablePostEnhancement?: boolean;
 }
 
+// Models configuration
+const LIVE_MODEL = 'gemini-2.0-flash-live-001'; // Only model that supports WebSocket Live API
+const DEFAULT_ENHANCEMENT_MODEL = 'gemini-2.5-flash'; // Default for enhancement phase
+
 export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = {}) {
     const {
-        model = 'gemini-2.5-flash',
+        model = DEFAULT_ENHANCEMENT_MODEL, // Model for enhancement phase (2.5, 3.0, etc.)
         language = 'fr',
         enableLiveTranscription = true,
         enablePostEnhancement = true
     } = options;
+    
+    // Live phase always uses gemini-2.0-flash-live-001
+    // Enhancement phase uses the user-selected model (2.5, 3.0, etc.)
 
     // State
     const [isLiveActive, setIsLiveActive] = useState(false);
@@ -102,7 +109,11 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
         if (!enableLiveTranscription) return;
 
         // #region agent log
-        debugLog('useGeminiTranscription:startLive', '🎙️ STARTING LIVE PHASE', { model, language }, 'LIVE');
+        debugLog('useGeminiTranscription:startLive', '🎙️ STARTING LIVE PHASE', { 
+            liveModel: LIVE_MODEL,
+            enhancementModel: model,
+            language
+        }, 'LIVE');
         // #endregion
 
         const apiKey = await getApiKey();
@@ -117,7 +128,7 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
         lastTextRef.current = '';
 
         try {
-            // Use Gemini Live API via WebSocket
+            // Always use gemini-2.0-flash-live-001 for Live WebSocket API
             const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${apiKey}`;
             
             wsRef.current = new WebSocket(wsUrl);
@@ -127,10 +138,10 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                 debugLog('useGeminiTranscription:startLive', '✅ WEBSOCKET CONNECTED', {}, 'LIVE');
                 // #endregion
 
-                // Setup message for live transcription
+                // Setup message for live transcription - ALWAYS use gemini-2.0-flash-live-001
                 const setupMsg = {
                     setup: {
-                        model: `models/gemini-2.0-flash-live-001`,
+                        model: `models/${LIVE_MODEL}`,
                         generation_config: {
                             response_modalities: ['TEXT']
                         },
@@ -149,12 +160,50 @@ RÈGLES STRICTES:
                     }
                 };
 
-                wsRef.current?.send(JSON.stringify(setupMsg));
+                // #region agent log
+                debugLog('useGeminiTranscription:startLive', '📤 SENDING SETUP MESSAGE', {
+                    liveModel: setupMsg.setup.model,
+                    enhancementModel: model,
+                    hasSystemInstruction: !!setupMsg.setup.system_instruction
+                }, 'LIVE');
+                // #endregion
+
+                try {
+                    wsRef.current?.send(JSON.stringify(setupMsg));
+                    debugLog('useGeminiTranscription:startLive', '✅ SETUP MESSAGE SENT', {}, 'LIVE');
+                } catch (sendError) {
+                    debugLog('useGeminiTranscription:startLive', '❌ SETUP SEND ERROR', {
+                        error: (sendError as Error).message
+                    }, 'LIVE');
+                }
             };
 
             wsRef.current.onmessage = (event) => {
                 try {
                     const data = JSON.parse(event.data);
+
+                    // #region agent log
+                    debugLog('useGeminiTranscription:onMessage', '📥 WS MESSAGE RECEIVED', {
+                        hasSetupComplete: !!data.setupComplete,
+                        hasServerContent: !!data.serverContent,
+                        hasError: !!data.error,
+                        keys: Object.keys(data).slice(0, 5)
+                    }, 'LIVE');
+                    // #endregion
+
+                    // Check for setup completion
+                    if (data.setupComplete) {
+                        debugLog('useGeminiTranscription:onMessage', '✅ SETUP COMPLETE - Ready for audio', {}, 'LIVE');
+                    }
+
+                    // Check for errors
+                    if (data.error) {
+                        debugLog('useGeminiTranscription:onMessage', '❌ SERVER ERROR', {
+                            error: data.error
+                        }, 'LIVE');
+                        setError(data.error.message || 'Server error');
+                        return;
+                    }
 
                     // Handle input transcription (from audio)
                     if (data.serverContent?.inputTranscription?.text) {
@@ -225,20 +274,35 @@ RÈGLES STRICTES:
                 }
             };
 
-            wsRef.current.onerror = () => {
+            wsRef.current.onerror = (event) => {
                 // #region agent log
-                debugLog('useGeminiTranscription:startLive', '❌ WEBSOCKET ERROR', {}, 'LIVE');
+                debugLog('useGeminiTranscription:startLive', '❌ WEBSOCKET ERROR', {
+                    type: event.type,
+                    message: 'WebSocket error occurred'
+                }, 'LIVE');
                 // #endregion
                 setError('WebSocket connection error');
             };
 
-            wsRef.current.onclose = () => {
+            wsRef.current.onclose = (event) => {
                 // #region agent log
                 debugLog('useGeminiTranscription:startLive', '🔌 WEBSOCKET CLOSED', {
-                    segmentsCount: liveSegments.length
+                    segmentsCount: liveSegments.length,
+                    code: event.code,
+                    reason: event.reason || 'No reason provided',
+                    wasClean: event.wasClean
                 }, 'LIVE');
                 // #endregion
                 setIsLiveActive(false);
+                
+                // Common close codes:
+                // 1000 = Normal closure
+                // 1001 = Going away
+                // 1006 = Abnormal closure (no close frame)
+                // 1011 = Server error
+                if (event.code !== 1000) {
+                    setError(`WebSocket closed: ${event.reason || `Code ${event.code}`}`);
+                }
             };
 
         } catch (err) {
@@ -307,6 +371,7 @@ RÈGLES STRICTES:
 
         // #region agent log
         debugLog('useGeminiTranscription:enhance', '🔄 STARTING ENHANCEMENT PHASE', {
+            enhancementModel: model,
             audioBlobSize: audioBlob.size,
             existingSegmentsCount: (existingSegments || liveSegments).length
         }, 'ENHANCE');

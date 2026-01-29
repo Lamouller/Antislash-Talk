@@ -1571,7 +1571,7 @@ export default function SettingsScreen() {
                     </p>
                     <p className="text-xs text-violet-600 dark:text-violet-400 mt-1">
                       {preferredTranscriptionProvider === 'google' 
-                        ? "💡 Gemini Live: Transcription temps réel + amélioration diarization automatique"
+                        ? "💡 Phase 1: Gemini 2.0 Live (temps réel) → Phase 2: Amélioration avec le modèle sélectionné"
                         : preferredTranscriptionProvider === 'openai'
                           ? "💡 OpenAI: Transcription cloud rapide et précise"
                           : "💡 Streaming gives instant feedback - see text appear live!"

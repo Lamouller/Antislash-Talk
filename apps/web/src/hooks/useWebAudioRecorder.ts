@@ -151,8 +151,8 @@ export function useWebAudioRecorder() {
         if (timerRef.current) clearInterval(timerRef.current);
       };
       
-            // 🔥 CLÉ DU STREAMING LIVE: Chunks toutes les 20 secondes !
-            const CHUNK_INTERVAL_MS = 20000; // 20 secondes (balance entre latence et charge serveur)
+            // 🔥 CLÉ DU STREAMING LIVE: Chunks toutes les 3 secondes pour temps réel !
+            const CHUNK_INTERVAL_MS = 3000; // 3 secondes pour un vrai temps réel
       if (onChunkReady) {
         console.log(`%c[useWebAudioRecorder] ⚡ LIVE MODE: Generating chunks every ${CHUNK_INTERVAL_MS / 1000}s`, 'color: #f59e0b; font-weight: bold');
         mediaRecorderRef.current.start(CHUNK_INTERVAL_MS);
