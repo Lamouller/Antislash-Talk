@@ -31,6 +31,13 @@ import torchaudio
 from fastapi import WebSocket, WebSocketDisconnect
 from scipy.spatial.distance import cosine
 
+# Fix PyTorch serialization for Pyannote models (PyTorch 2.x+ security)
+try:
+    import torch.torch_version
+    torch.serialization.add_safe_globals([torch.torch_version.TorchVersion])
+except Exception:
+    pass  # Older PyTorch versions don't need this
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -134,15 +141,21 @@ def get_embedding_model():
         if not HUGGINGFACE_TOKEN:
             raise ValueError("HUGGINGFACE_TOKEN required for speaker embeddings")
         
-        logger.info("🧠 Loading Pyannote speaker embedding model...")
-        from pyannote.audio import Model
-        _embedding_model = Model.from_pretrained(
-            "pyannote/wespeaker-voxceleb-resnet34-LM",
-            use_auth_token=HUGGINGFACE_TOKEN
-        )
-        _embedding_model = _embedding_model.to(DEVICE)
-        _embedding_model.eval()
-        logger.info("✅ Embedding model loaded")
+        try:
+            logger.info("🧠 Loading Pyannote speaker embedding model...")
+            from pyannote.audio import Model
+            
+            # Load model with explicit weights_only=False for compatibility
+            _embedding_model = Model.from_pretrained(
+                "pyannote/wespeaker-voxceleb-resnet34-LM",
+                use_auth_token=HUGGINGFACE_TOKEN
+            )
+            _embedding_model = _embedding_model.to(DEVICE)
+            _embedding_model.eval()
+            logger.info("✅ Embedding model loaded successfully")
+        except Exception as e:
+            logger.error(f"❌ Failed to load embedding model: {e}")
+            raise
     return _embedding_model
 
 
