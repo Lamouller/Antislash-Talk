@@ -7,10 +7,11 @@ import { MeetingTimeline } from '../../../components/meetings/MeetingTimeline';
 import { PrepareMeetingButton } from '../../../components/meetings/PrepareMeetingButton';
 import Waveform from '../../../components/meetings/Waveform';
 import toast from 'react-hot-toast';
-import { Calendar, Clock, Users, FileText, Play, Download, Check, X, Sparkles, MessageSquare, BarChart3, ArrowLeft, Copy, User, Edit2, FileDown, FileType, Table, Code, Wand2 } from 'lucide-react';
+import { Calendar, Clock, Users, FileText, Play, Download, Check, X, Sparkles, MessageSquare, BarChart3, ArrowLeft, Copy, User, Edit2, FileDown, FileType, Table, Code, Wand2, RefreshCw } from 'lucide-react';
 import jsPDF from 'jspdf';
 import { useTranslation } from 'react-i18next';
 import { useAI } from '../../../hooks/useAI';
+import { useGeminiTranscription } from '../../../hooks/useGeminiTranscription';
 
 // #region agent log - Debug logging for meeting page
 const debugLog = (loc: string, msg: string, data: any, hyp: string) => {
@@ -112,6 +113,14 @@ export default function MeetingDetail() {
   // 🚀 AI Generation hook (OpenAI, Gemini, etc.) with streaming
   const { generateParallel: generateTitleAndSummaryParallel } = useAI();
 
+  // 🔄 Gemini transcription hook for enhancement
+  const { enhanceTranscription } = useGeminiTranscription({
+    model: 'gemini-3-flash-preview',
+    language: 'fr',
+    enableLiveTranscription: false,
+    enablePostEnhancement: true
+  });
+
   const [meeting, setMeeting] = useState<MeetingData | null>(null);
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState<string | null>(null);
@@ -131,6 +140,10 @@ export default function MeetingDetail() {
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportFormat, setExportFormat] = useState<'pdf' | 'json' | 'csv' | 'txt'>('pdf');
   const [isExporting, setIsExporting] = useState(false);
+
+  // Enhancement state
+  const [isEnhancing, setIsEnhancing] = useState(false);
+  const [enhancementProgress, setEnhancementProgress] = useState(0);
 
   const fetchMeeting = useCallback(async () => {
     if (!id) return;
@@ -817,6 +830,92 @@ export default function MeetingDetail() {
     }
   }, [meeting, exportFormat, exportToPDF, exportToJSON, exportToCSV, exportToTXT]);
 
+  // 🔄 Handler for re-running enhancement on existing transcript
+  const handleRetryEnhancement = useCallback(async () => {
+    if (!meeting || !audioUrl) {
+      toast.error('Audio non disponible pour l\'amélioration');
+      return;
+    }
+
+    setIsEnhancing(true);
+    setEnhancementProgress(0);
+
+    try {
+      // Fetch the audio blob from the URL
+      toast('🔄 Chargement de l\'audio...', { duration: 2000 });
+      const response = await fetch(audioUrl);
+      if (!response.ok) {
+        throw new Error('Impossible de charger l\'audio');
+      }
+      const audioBlob = await response.blob();
+
+      debugLog('meeting:handleRetryEnhancement', '🔄 STARTING ENHANCEMENT', {
+        meetingId: meeting.id,
+        audioBlobSize: audioBlob.size,
+        existingSegmentsCount: Array.isArray(meeting.transcript) ? meeting.transcript.length : 0
+      }, 'ENHANCE');
+
+      toast('✨ Amélioration de la transcription en cours...', { duration: 3000 });
+
+      // Get existing segments if any
+      const existingSegments = Array.isArray(meeting.transcript)
+        ? meeting.transcript.map((seg: any) => ({
+            text: seg.text,
+            speaker: seg.speaker,
+            start: seg.start,
+            end: seg.end
+          }))
+        : [];
+
+      // Call enhancement
+      const enhancedResult = await enhanceTranscription(
+        audioBlob,
+        existingSegments,
+        (progress) => setEnhancementProgress(progress)
+      );
+
+      debugLog('meeting:handleRetryEnhancement', '✅ ENHANCEMENT COMPLETE', {
+        segmentsCount: enhancedResult.segments.length,
+        speakers: enhancedResult.speakers
+      }, 'ENHANCE');
+
+      if (enhancedResult && enhancedResult.segments.length > 0) {
+        // Save to database
+        const { error: updateError } = await supabase
+          .from('meetings')
+          .update({
+            transcript: enhancedResult.segments,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', meeting.id);
+
+        if (updateError) throw updateError;
+
+        // Update local state
+        setMeeting(prev => prev ? {
+          ...prev,
+          transcript: enhancedResult.segments as any
+        } : null);
+
+        toast.success('✅ Transcription améliorée avec succès !');
+        debugLog('meeting:handleRetryEnhancement', '💾 SAVED TO DB', {
+          meetingId: meeting.id
+        }, 'ENHANCE');
+      } else {
+        toast.error('L\'amélioration n\'a pas retourné de résultats');
+      }
+    } catch (error) {
+      console.error('Enhancement error:', error);
+      debugLog('meeting:handleRetryEnhancement', '❌ ERROR', {
+        error: (error as Error).message
+      }, 'ENHANCE');
+      toast.error((error as Error).message || 'Erreur lors de l\'amélioration');
+    } finally {
+      setIsEnhancing(false);
+      setEnhancementProgress(0);
+    }
+  }, [meeting, audioUrl, enhanceTranscription]);
+
   if (loading) {
     return (
       <div 
@@ -1319,12 +1418,36 @@ export default function MeetingDetail() {
               {/* Transcript Section */}
               {(Array.isArray(meeting.transcript) && meeting.transcript.length > 0) ? (
               <div data-section="transcript" className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-3xl border border-gray-200/50 dark:border-gray-700/50 shadow-xl p-8 hover:shadow-2xl transition-all duration-300 mb-8">
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-8 flex items-center">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 flex items-center justify-center mr-3 shadow-lg">
-                    <FileText className="w-4 h-4 text-white" />
-                  </div>
-                  {t('meetingDetail.transcriptTitle', { count: meeting.transcript.length })}
-                </h2>
+                <div className="flex items-center justify-between mb-8">
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 flex items-center justify-center mr-3 shadow-lg">
+                      <FileText className="w-4 h-4 text-white" />
+                    </div>
+                    {t('meetingDetail.transcriptTitle', { count: meeting.transcript.length })}
+                  </h2>
+                  
+                  {/* 🔄 Enhancement Button */}
+                  {audioUrl && !isAudioExpired() && (
+                    <Button
+                      onClick={handleRetryEnhancement}
+                      disabled={isEnhancing}
+                      variant="outline"
+                      className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border-amber-300 dark:border-amber-700 hover:from-amber-100 hover:to-orange-100 dark:hover:from-amber-900/30 dark:hover:to-orange-900/30 text-amber-700 dark:text-amber-300 shadow-md hover:shadow-lg transition-all"
+                    >
+                      {isEnhancing ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                          Amélioration... {enhancementProgress > 0 && `(${enhancementProgress}%)`}
+                        </>
+                      ) : (
+                        <>
+                          <Wand2 className="w-4 h-4 mr-2" />
+                          Améliorer avec IA
+                        </>
+                      )}
+                    </Button>
+                  )}
+                </div>
 
                 <div className="space-y-4 max-h-[600px] overflow-y-auto pr-4">
                   {meeting.transcript.map((segment: any, index: number) => {
