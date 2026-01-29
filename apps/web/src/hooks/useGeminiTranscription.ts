@@ -391,20 +391,20 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
 
                         // Decide when to create segment:
                         // 1. If isFinal = true (Gemini says sentence is complete)
-                        // 2. If accumulated text > 25 chars (faster threshold)
+                        // 2. If accumulated text > 80 chars (longer phrases)
                         // 3. If text ends with sentence-ending punctuation
-                        const hasEnoughText = accumulatedTextRef.current.length > 25;
+                        const hasEnoughText = accumulatedTextRef.current.length > 80;
                         const hasSentenceEnd = /[.!?。]$/.test(accumulatedTextRef.current.trim());
                         
                         if (isFinal || hasEnoughText || hasSentenceEnd) {
                             createSegment(isFinal ? 'final' : hasSentenceEnd ? 'punctuation' : 'length');
                         } else {
-                            // Set timeout for pause detection - create segment after 800ms of silence
+                            // Set timeout for pause detection - create segment after 1.5s of silence
                             pauseTimeoutRef.current = setTimeout(() => {
                                 if (accumulatedTextRef.current.trim().length > 0) {
                                     createSegment('pause');
                                 }
-                            }, 800);
+                            }, 1500);
                         }
                     }
 
