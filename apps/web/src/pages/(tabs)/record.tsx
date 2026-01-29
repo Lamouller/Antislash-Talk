@@ -1641,81 +1641,7 @@ export default function RecordingScreen() {
               </div>
             )}
 
-            {/* Action Buttons (hidden on mobile when recording - use footer instead) */}
-            <div className="grid gap-4 md:block hidden">
-              {!isRecording && !audioBlob && (
-                <Button
-                  onClick={handleStartRecording}
-                  disabled={pageState !== 'ready'}
-                  className="w-full bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white py-4 text-lg font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5"
-                >
-                  <Mic className="w-6 h-6 mr-3" />
-                  {t('record.startRecording')}
-                </Button>
-              )}
-
-              {isRecording && (
-                <div className="grid grid-cols-2 gap-4">
-                  <Button
-                    onClick={handlePauseResume}
-                    variant="outline"
-                    className="py-4 text-lg font-semibold rounded-xl border-gray-200 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
-                  >
-                    {isPaused ? (
-                      <>
-                        <Play className="w-6 h-6 mr-2" />
-                        {t('record.resume')}
-                      </>
-                    ) : (
-                      <>
-                        <PauseIcon className="w-6 h-6 mr-2" />
-                        {t('record.pause')}
-                      </>
-                    )}
-                  </Button>
-                  <Button
-                    onClick={handleStopRecording}
-                    className="bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white py-4 text-lg font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
-                  >
-                    <Square className="w-6 h-6 mr-2" />
-                    {t('record.stop')}
-                  </Button>
-                </div>
-              )}
-            </div>
-
-            {/* Mobile: Start button hidden - using footer instead */}
-
-            {/* Desktop recording controls (hidden on mobile - footer is used instead) */}
-            <div className="hidden md:block">
-              {isRecording && (
-                <div className="grid grid-cols-2 gap-4">
-                  <Button
-                    onClick={handlePauseResume}
-                    variant="outline"
-                    className="py-4 text-lg font-semibold rounded-xl border-gray-200 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
-                  >
-                    {isPaused ? (
-                      <>
-                        <Play className="w-6 h-6 mr-2" />
-                        {t('record.resume')}
-                      </>
-                    ) : (
-                      <>
-                        <PauseIcon className="w-6 h-6 mr-2" />
-                        {t('record.pause')}
-                      </>
-                    )}
-                  </Button>
-                  <Button
-                    onClick={handleStopRecording}
-                    className="bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white py-4 text-lg font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
-                  >
-                    <Square className="w-6 h-6 mr-2" />
-                    {t('record.stop')}
-                  </Button>
-                </div>
-              )}
+            {/* Recording controls are now in the footer - see bottom of page */}
 
               {audioBlob && !isRecording && !autoTranscribeAfterRecording && (
                 <div className="space-y-4">
@@ -1909,15 +1835,15 @@ export default function RecordingScreen() {
               </div>
             )}
 
-            {/* Spacer for mobile footer */}
-            <div className="h-40 md:hidden" />
+            {/* Spacer for footer */}
+            <div className="h-40" />
           </div>
         </div>
       </div>
 
-      {/* 📱 MOBILE FOOTER - Persistent recording controls (BEFORE and DURING recording) */}
+      {/* 📱 RECORDING FOOTER - Persistent recording controls (BEFORE and DURING recording) */}
       <div 
-        className="md:hidden fixed bottom-0 left-0 right-0 bg-gradient-to-t from-gray-900 via-gray-900/95 to-gray-900/90 backdrop-blur-xl border-t border-gray-700/50 z-40"
+        className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-gray-900 via-gray-900/95 to-gray-900/90 backdrop-blur-xl border-t border-gray-700/50 z-40"
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 60px)' }}
       >
         <div className="px-4 py-4">
