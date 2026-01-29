@@ -2,6 +2,17 @@ import { useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { useOllama } from './useOllama';
 
+// #region agent log - Debug logging for AI streaming
+const debugLog = (loc: string, msg: string, data: any, hyp: string) => {
+    try {
+        const logs = JSON.parse(localStorage.getItem('__debug_logs__') || '[]');
+        logs.push({ location: loc, message: msg, data, timestamp: Date.now(), hypothesisId: hyp });
+        if (logs.length > 200) logs.shift();
+        localStorage.setItem('__debug_logs__', JSON.stringify(logs));
+        console.log(`%c[AI:${hyp}] ${loc}: ${msg}`, 'color: #7c3aed; font-weight: bold', data);
+    } catch (e) { }
+};
+// #endregion
 
 export type AIProvider = 'openai' | 'anthropic' | 'google' | 'mistral' | 'local';
 
@@ -100,6 +111,16 @@ export function useAI() {
         const modelId = model || 'gpt-4o-mini';
         const isReasoningModel = modelId.startsWith('o1') || modelId.startsWith('o3');
         
+        // #region agent log
+        debugLog('useAI:generateOpenAIStream', 'STARTING OpenAI STREAM', {
+            model: modelId,
+            isReasoningModel,
+            systemPromptLength: system.length,
+            userPromptLength: user.length,
+            userPromptPreview: user.substring(0, 200)
+        }, 'STREAM');
+        // #endregion
+        
         const messages = isReasoningModel 
             ? [{ role: 'user', content: `${system}\n\n${user}` }]
             : [
@@ -128,12 +149,16 @@ export function useAI() {
 
         if (!response.ok) {
             const error = await response.json();
+            // #region agent log
+            debugLog('useAI:generateOpenAIStream', 'OpenAI ERROR', { error, status: response.status }, 'STREAM');
+            // #endregion
             throw new Error(error.error?.message || 'OpenAI API error');
         }
 
         const reader = response.body?.getReader();
         const decoder = new TextDecoder();
         let fullText = '';
+        let chunkCount = 0;
 
         if (reader) {
             while (true) {
@@ -153,7 +178,18 @@ export function useAI() {
                             const content = parsed.choices?.[0]?.delta?.content || '';
                             if (content) {
                                 fullText += content;
+                                chunkCount++;
                                 callbacks.onChunk?.(content);
+                                
+                                // Log every 10 chunks
+                                if (chunkCount % 10 === 0) {
+                                    // #region agent log
+                                    debugLog('useAI:generateOpenAIStream', `CHUNK #${chunkCount}`, {
+                                        totalLength: fullText.length,
+                                        latestContent: content.substring(0, 50)
+                                    }, 'STREAM');
+                                    // #endregion
+                                }
                             }
                         } catch (e) {
                             // Skip invalid JSON
@@ -162,6 +198,14 @@ export function useAI() {
                 }
             }
         }
+
+        // #region agent log
+        debugLog('useAI:generateOpenAIStream', 'STREAM COMPLETE', {
+            totalChunks: chunkCount,
+            totalLength: fullText.length,
+            preview: fullText.substring(0, 200)
+        }, 'STREAM');
+        // #endregion
 
         callbacks.onComplete?.(fullText);
         return fullText;
@@ -262,7 +306,15 @@ export function useAI() {
         // Use streamGenerateContent for streaming
         const url = `https://generativelanguage.googleapis.com/${apiVersion}/models/${cleanModel}:streamGenerateContent?key=${apiKey}&alt=sse`;
 
-        console.log(`🚀 Streaming Google API: ${cleanModel} (${apiVersion})`);
+        // #region agent log
+        debugLog('useAI:generateGoogleStream', 'STARTING Gemini STREAM', {
+            model: cleanModel,
+            apiVersion,
+            systemPromptLength: system.length,
+            userPromptLength: user.length,
+            userPromptPreview: user.substring(0, 200)
+        }, 'STREAM');
+        // #endregion
 
         const response = await fetch(url, {
             method: 'POST',
@@ -284,12 +336,16 @@ export function useAI() {
 
         if (!response.ok) {
             const error = await response.json();
+            // #region agent log
+            debugLog('useAI:generateGoogleStream', 'Gemini ERROR', { error, status: response.status }, 'STREAM');
+            // #endregion
             throw new Error(error.error?.message || `Google API error: ${response.statusText}`);
         }
 
         const reader = response.body?.getReader();
         const decoder = new TextDecoder();
         let fullText = '';
+        let chunkCount = 0;
 
         if (reader) {
             while (true) {
@@ -308,7 +364,18 @@ export function useAI() {
                             const content = parsed.candidates?.[0]?.content?.parts?.[0]?.text || '';
                             if (content) {
                                 fullText += content;
+                                chunkCount++;
                                 callbacks.onChunk?.(content);
+                                
+                                // Log every 10 chunks
+                                if (chunkCount % 10 === 0) {
+                                    // #region agent log
+                                    debugLog('useAI:generateGoogleStream', `CHUNK #${chunkCount}`, {
+                                        totalLength: fullText.length,
+                                        latestContent: content.substring(0, 50)
+                                    }, 'STREAM');
+                                    // #endregion
+                                }
                             }
                         } catch (e) {
                             // Skip invalid JSON
@@ -317,6 +384,14 @@ export function useAI() {
                 }
             }
         }
+
+        // #region agent log
+        debugLog('useAI:generateGoogleStream', 'STREAM COMPLETE', {
+            totalChunks: chunkCount,
+            totalLength: fullText.length,
+            preview: fullText.substring(0, 200)
+        }, 'STREAM');
+        // #endregion
 
         callbacks.onComplete?.(fullText);
         return fullText;
@@ -424,10 +499,25 @@ export function useAI() {
         const { systemPrompt, userPrompt, model: overrideModel, provider: overrideProvider, callbacks } = options;
         setIsGenerating(true);
         
+        // #region agent log
+        debugLog('useAI:generateStream', '🚀 STARTING STREAM GENERATION', {
+            overrideProvider,
+            overrideModel,
+            systemPromptLength: systemPrompt.length,
+            userPromptLength: userPrompt.length
+        }, 'STREAM');
+        // #endregion
+        
         try {
             let profile;
             try {
                 profile = await getProfileSettings();
+                // #region agent log
+                debugLog('useAI:generateStream', 'PROFILE FETCHED', {
+                    preferredLlm: profile?.preferred_llm,
+                    preferredLlmModel: profile?.preferred_llm_model
+                }, 'STREAM');
+                // #endregion
             } catch (err) {
                 console.warn('⚠️ Failed to fetch user profile:', err);
             }
@@ -439,12 +529,18 @@ export function useAI() {
                 const apiKey = await getApiKey(provider);
 
                 if (!apiKey) {
+                    // #region agent log
+                    debugLog('useAI:generateStream', 'NO API KEY - SEARCHING FALLBACK', { originalProvider: provider }, 'STREAM');
+                    // #endregion
                     const providers = ['google', 'openai', 'mistral'];
                     for (const p of providers) {
                         const key = await getApiKey(p);
                         if (key) {
                             provider = p as AIProvider;
                             model = undefined;
+                            // #region agent log
+                            debugLog('useAI:generateStream', 'FALLBACK PROVIDER FOUND', { newProvider: provider }, 'STREAM');
+                            // #endregion
                             break;
                         }
                     }
@@ -453,10 +549,19 @@ export function useAI() {
 
             const apiKey = await getApiKey(provider);
             if (!apiKey && provider !== 'local') {
+                // #region agent log
+                debugLog('useAI:generateStream', 'ERROR: NO API KEY', { provider }, 'STREAM');
+                // #endregion
                 throw new Error(`API Key for ${provider.toUpperCase()} not found.`);
             }
 
-            console.log(`🚀 Streaming with ${provider.toUpperCase()} (${model || 'default'})`);
+            // #region agent log
+            debugLog('useAI:generateStream', '🎯 PROVIDER SELECTED', {
+                provider,
+                model: model || 'default',
+                hasApiKey: !!apiKey
+            }, 'STREAM');
+            // #endregion
 
             let result = '';
             switch (provider) {
@@ -467,6 +572,9 @@ export function useAI() {
                     result = await generateGoogleStream(apiKey!, model || 'gemini-2.5-flash', systemPrompt, userPrompt, callbacks);
                     break;
                 default:
+                    // #region agent log
+                    debugLog('useAI:generateStream', 'FALLBACK TO NON-STREAMING', { provider }, 'STREAM');
+                    // #endregion
                     // Fallback to non-streaming for other providers
                     result = await generate({ systemPrompt, userPrompt, model, provider });
                     callbacks.onComplete?.(result);
@@ -474,6 +582,9 @@ export function useAI() {
 
             return result;
         } catch (error: any) {
+            // #region agent log
+            debugLog('useAI:generateStream', 'ERROR', { error: error.message }, 'STREAM');
+            // #endregion
             callbacks.onError?.(error);
             throw error;
         } finally {
@@ -484,49 +595,519 @@ export function useAI() {
     // ⚡ PARALLEL GENERATION - Generate title and summary at the same time
     const generateParallel = useCallback(async (
         transcript: string,
-        titlePrompt: string,
-        summaryPrompt: string,
+        titlePrompt?: string,
+        summaryPrompt?: string,
         onSummaryChunk?: (chunk: string) => void
     ): Promise<{ title: string; summary: string }> => {
-        console.log('⚡ Starting PARALLEL generation (title + summary)');
         const startTime = Date.now();
+
+        // Default prompts if none provided
+        const defaultTitlePrompt = 'Generate a concise, descriptive title (maximum 60 characters) for this meeting. Return ONLY the title, nothing else.';
+        const defaultSummaryPrompt = 'Summarize this meeting transcript in a structured way. Include key points, decisions made, and action items.';
+
+        const finalTitlePrompt = titlePrompt || defaultTitlePrompt;
+        const finalSummaryPrompt = summaryPrompt || defaultSummaryPrompt;
+
+        // #region agent log
+        debugLog('useAI:generateParallel', '⚡ STARTING PARALLEL GENERATION', {
+            transcriptLength: transcript.length,
+            transcriptPreview: transcript.substring(0, 200),
+            hasTitlePrompt: !!titlePrompt,
+            titlePromptLength: titlePrompt?.length || 0,
+            titlePromptPreview: (titlePrompt || defaultTitlePrompt).substring(0, 100),
+            hasSummaryPrompt: !!summaryPrompt,
+            summaryPromptLength: summaryPrompt?.length || 0,
+            summaryPromptPreview: (summaryPrompt || defaultSummaryPrompt).substring(0, 100),
+            hasStreamingCallback: !!onSummaryChunk
+        }, 'PARALLEL');
+        // #endregion
 
         // Generate title and summary in parallel
         const [titleResult, summaryResult] = await Promise.all([
             // Title generation (non-streaming, usually fast)
             generate({
-                systemPrompt: titlePrompt,
-                userPrompt: transcript.substring(0, 3000) // First 3000 chars for title
+                systemPrompt: 'You are an expert meeting assistant. Generate a concise title.',
+                userPrompt: `${finalTitlePrompt}\n\nTranscript:\n${transcript.substring(0, 3000)}`
             }),
             // Summary generation (streaming if callback provided)
             onSummaryChunk 
                 ? generateStream({
-                    systemPrompt: summaryPrompt,
-                    userPrompt: transcript,
+                    systemPrompt: 'You are an expert meeting assistant. Summarize the transcript.',
+                    userPrompt: `${finalSummaryPrompt}\n\nTranscript:\n${transcript}`,
                     callbacks: {
-                        onChunk: onSummaryChunk,
-                        onComplete: (text) => console.log(`✅ Summary complete: ${text.length} chars`)
+                        onChunk: (chunk) => {
+                            onSummaryChunk(chunk);
+                        },
+                        onComplete: (text) => {
+                            // #region agent log
+                            debugLog('useAI:generateParallel', '✅ SUMMARY STREAM COMPLETE', {
+                                summaryLength: text.length,
+                                summaryPreview: text.substring(0, 200)
+                            }, 'PARALLEL');
+                            // #endregion
+                        }
                     }
                 })
                 : generate({
-                    systemPrompt: summaryPrompt,
-                    userPrompt: transcript
+                    systemPrompt: 'You are an expert meeting assistant. Summarize the transcript.',
+                    userPrompt: `${finalSummaryPrompt}\n\nTranscript:\n${transcript}`
                 })
         ]);
 
         const duration = ((Date.now() - startTime) / 1000).toFixed(1);
-        console.log(`⚡ PARALLEL generation complete in ${duration}s`);
+        
+        // #region agent log
+        debugLog('useAI:generateParallel', '⚡ PARALLEL GENERATION COMPLETE', {
+            durationSeconds: duration,
+            titleLength: titleResult.length,
+            titleResult: titleResult.substring(0, 60),
+            summaryLength: summaryResult.length,
+            summaryPreview: summaryResult.substring(0, 200)
+        }, 'PARALLEL');
+        // #endregion
 
         return {
-            title: titleResult.trim(),
+            title: titleResult.replace(/["']/g, '').substring(0, 60).replace(/\n/g, ' ').trim(),
             summary: summaryResult.trim()
         };
     }, [generate, generateStream]);
+
+    // 🎙️ GEMINI AUDIO TRANSCRIPTION WITH DIARIZATION
+    const transcribeWithGemini = useCallback(async (
+        audioBlob: Blob,
+        options?: {
+            model?: string;
+            language?: string;
+            enableDiarization?: boolean;
+            onProgress?: (progress: number) => void;
+        }
+    ): Promise<{
+        text: string;
+        segments: Array<{
+            speaker: string;
+            text: string;
+            start?: number;
+            end?: number;
+        }>;
+        language?: string;
+    }> => {
+        const model = options?.model || 'gemini-2.5-flash';
+        const language = options?.language || 'auto';
+        const enableDiarization = options?.enableDiarization ?? true;
+
+        // #region agent log
+        debugLog('useAI:transcribeWithGemini', '🎙️ STARTING GEMINI TRANSCRIPTION', {
+            audioBlobSize: audioBlob.size,
+            audioBlobType: audioBlob.type,
+            model,
+            language,
+            enableDiarization
+        }, 'TRANSCRIBE');
+        // #endregion
+
+        const apiKey = await getApiKey('google');
+        if (!apiKey) {
+            throw new Error('Google API Key not found. Please add it in Settings.');
+        }
+
+        // Convert audio blob to base64
+        const arrayBuffer = await audioBlob.arrayBuffer();
+        const base64Audio = btoa(
+            new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
+        );
+
+        // Determine MIME type
+        let mimeType = audioBlob.type || 'audio/webm';
+        if (mimeType.includes('mp4') || mimeType.includes('m4a')) {
+            mimeType = 'audio/mp4';
+        } else if (mimeType.includes('webm')) {
+            mimeType = 'audio/webm';
+        } else if (mimeType.includes('wav')) {
+            mimeType = 'audio/wav';
+        }
+
+        options?.onProgress?.(10);
+
+        // Build the transcription prompt with diarization instructions
+        const transcriptionPrompt = enableDiarization
+            ? `Transcribe this audio with speaker diarization. 
+               
+Instructions:
+- Identify each speaker (Speaker_01, Speaker_02, etc.) or use their names if mentioned
+- Provide timestamps if possible (in MM:SS format)
+- Language: ${language === 'auto' ? 'Detect automatically' : language}
+- If only ONE speaker is present, label them as "Speaker_01" only
+
+Output format (JSON):
+{
+  "language": "detected language code",
+  "segments": [
+    {"speaker": "Speaker_01", "text": "What they said", "start": "00:00", "end": "00:05"},
+    {"speaker": "Speaker_02", "text": "Their response", "start": "00:06", "end": "00:12"}
+  ]
+}
+
+Return ONLY valid JSON, no markdown or explanation.`
+            : `Transcribe this audio accurately.
+Language: ${language === 'auto' ? 'Detect automatically' : language}
+
+Output format (JSON):
+{
+  "language": "detected language code",
+  "text": "Full transcription text"
+}
+
+Return ONLY valid JSON, no markdown or explanation.`;
+
+        // Determine API version
+        const cleanModel = model.replace(/^models\//, '');
+        const needsBeta = cleanModel.includes('exp') || 
+                          cleanModel.includes('preview') || 
+                          cleanModel.startsWith('gemini-3') ||
+                          cleanModel.startsWith('gemini-2.5') ||
+                          cleanModel.startsWith('gemini-2.0');
+        const apiVersion = needsBeta ? 'v1beta' : 'v1';
+
+        const url = `https://generativelanguage.googleapis.com/${apiVersion}/models/${cleanModel}:generateContent?key=${apiKey}`;
+
+        // #region agent log
+        debugLog('useAI:transcribeWithGemini', '📡 SENDING TO GEMINI', {
+            url: url.replace(apiKey, '***'),
+            mimeType,
+            audioSizeKB: Math.round(base64Audio.length / 1024),
+            promptLength: transcriptionPrompt.length
+        }, 'TRANSCRIBE');
+        // #endregion
+
+        options?.onProgress?.(30);
+
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                contents: [
+                    {
+                        parts: [
+                            {
+                                inlineData: {
+                                    mimeType: mimeType,
+                                    data: base64Audio
+                                }
+                            },
+                            {
+                                text: transcriptionPrompt
+                            }
+                        ]
+                    }
+                ],
+                generationConfig: {
+                    temperature: 0.1, // Low temperature for accuracy
+                    topP: 0.95,
+                    maxOutputTokens: 8192
+                }
+            })
+        });
+
+        options?.onProgress?.(70);
+
+        if (!response.ok) {
+            const error = await response.json();
+            // #region agent log
+            debugLog('useAI:transcribeWithGemini', '❌ GEMINI ERROR', { error, status: response.status }, 'TRANSCRIBE');
+            // #endregion
+            throw new Error(error.error?.message || `Gemini API error: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+        // #region agent log
+        debugLog('useAI:transcribeWithGemini', '📥 RAW RESPONSE', {
+            rawTextLength: rawText.length,
+            rawTextPreview: rawText.substring(0, 500)
+        }, 'TRANSCRIBE');
+        // #endregion
+
+        options?.onProgress?.(90);
+
+        // Parse the JSON response
+        let result: { text: string; segments: any[]; language?: string };
+
+        try {
+            // Clean the response (remove markdown code blocks if present)
+            let cleanedText = rawText.trim();
+            if (cleanedText.startsWith('```json')) {
+                cleanedText = cleanedText.slice(7);
+            } else if (cleanedText.startsWith('```')) {
+                cleanedText = cleanedText.slice(3);
+            }
+            if (cleanedText.endsWith('```')) {
+                cleanedText = cleanedText.slice(0, -3);
+            }
+            cleanedText = cleanedText.trim();
+
+            const parsed = JSON.parse(cleanedText);
+
+            if (enableDiarization && parsed.segments) {
+                result = {
+                    text: parsed.segments.map((s: any) => s.text).join(' '),
+                    segments: parsed.segments.map((s: any) => ({
+                        speaker: s.speaker || 'Speaker_01',
+                        text: s.text,
+                        start: s.start,
+                        end: s.end
+                    })),
+                    language: parsed.language
+                };
+            } else {
+                result = {
+                    text: parsed.text || rawText,
+                    segments: [{
+                        speaker: 'Speaker_01',
+                        text: parsed.text || rawText
+                    }],
+                    language: parsed.language
+                };
+            }
+        } catch (parseError) {
+            // If JSON parsing fails, use raw text
+            // #region agent log
+            debugLog('useAI:transcribeWithGemini', '⚠️ JSON PARSE FAILED, USING RAW', { error: (parseError as Error).message }, 'TRANSCRIBE');
+            // #endregion
+            result = {
+                text: rawText,
+                segments: [{
+                    speaker: 'Speaker_01',
+                    text: rawText
+                }]
+            };
+        }
+
+        options?.onProgress?.(100);
+
+        // #region agent log
+        debugLog('useAI:transcribeWithGemini', '✅ TRANSCRIPTION COMPLETE', {
+            textLength: result.text.length,
+            segmentsCount: result.segments.length,
+            speakers: [...new Set(result.segments.map(s => s.speaker))],
+            language: result.language
+        }, 'TRANSCRIBE');
+        // #endregion
+
+        return result;
+    }, []);
+
+    // 🎙️ GEMINI LIVE API - Real-time streaming transcription via WebSocket
+    const startGeminiLiveTranscription = useCallback(async (
+        options: {
+            model?: string;
+            language?: string;
+            onTranscript?: (text: string, isFinal: boolean) => void;
+            onSpeakerChange?: (speaker: string) => void;
+            onError?: (error: Error) => void;
+        }
+    ): Promise<{
+        sendAudioChunk: (chunk: ArrayBuffer) => void;
+        stop: () => void;
+        isConnected: () => boolean;
+    }> => {
+        const model = options?.model || 'gemini-2.0-flash-live-001';
+        const language = options?.language || 'fr';
+
+        // #region agent log
+        debugLog('useAI:startGeminiLive', '🎙️ STARTING GEMINI LIVE TRANSCRIPTION', {
+            model,
+            language
+        }, 'LIVE');
+        // #endregion
+
+        const apiKey = await getApiKey('google');
+        if (!apiKey) {
+            throw new Error('Google API Key not found. Please add it in Settings.');
+        }
+
+        // WebSocket URL for Gemini Live API
+        const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${apiKey}`;
+
+        let ws: WebSocket | null = null;
+        let isConnected = false;
+        let fullTranscript = '';
+
+        return new Promise((resolve, reject) => {
+            try {
+                ws = new WebSocket(wsUrl);
+
+                ws.onopen = () => {
+                    isConnected = true;
+                    // #region agent log
+                    debugLog('useAI:startGeminiLive', '✅ WEBSOCKET CONNECTED', {}, 'LIVE');
+                    // #endregion
+
+                    // Send setup message
+                    const setupMessage = {
+                        setup: {
+                            model: `models/${model}`,
+                            generation_config: {
+                                response_modalities: ['TEXT'],
+                                speech_config: {
+                                    voice_config: {
+                                        prebuilt_voice_config: {
+                                            voice_name: 'Aoede'
+                                        }
+                                    }
+                                }
+                            },
+                            system_instruction: {
+                                parts: [{
+                                    text: `You are a real-time transcription assistant. 
+                                    Transcribe the audio input accurately in ${language}.
+                                    Identify different speakers if possible (Speaker_01, Speaker_02, etc.).
+                                    Output ONLY the transcription, no commentary.`
+                                }]
+                            },
+                            tools: [],
+                            // Enable input audio transcription
+                            input_audio_transcription: {}
+                        }
+                    };
+
+                    ws!.send(JSON.stringify(setupMessage));
+
+                    // #region agent log
+                    debugLog('useAI:startGeminiLive', '📤 SETUP MESSAGE SENT', { model }, 'LIVE');
+                    // #endregion
+
+                    resolve({
+                        sendAudioChunk: (chunk: ArrayBuffer) => {
+                            if (ws && isConnected && ws.readyState === WebSocket.OPEN) {
+                                // Convert to base64
+                                const base64 = btoa(
+                                    new Uint8Array(chunk).reduce((data, byte) => data + String.fromCharCode(byte), '')
+                                );
+
+                                const audioMessage = {
+                                    realtime_input: {
+                                        media_chunks: [{
+                                            mime_type: 'audio/pcm',
+                                            data: base64
+                                        }]
+                                    }
+                                };
+
+                                ws.send(JSON.stringify(audioMessage));
+                            }
+                        },
+                        stop: () => {
+                            if (ws) {
+                                // Send end of turn
+                                ws.send(JSON.stringify({ client_content: { turn_complete: true } }));
+                                
+                                setTimeout(() => {
+                                    if (ws) {
+                                        ws.close();
+                                        isConnected = false;
+                                    }
+                                }, 500);
+                            }
+                            // #region agent log
+                            debugLog('useAI:startGeminiLive', '🛑 STOPPED', { fullTranscript: fullTranscript.substring(0, 200) }, 'LIVE');
+                            // #endregion
+                        },
+                        isConnected: () => isConnected && ws?.readyState === WebSocket.OPEN
+                    });
+                };
+
+                ws.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+
+                        // Handle setup complete
+                        if (data.setupComplete) {
+                            // #region agent log
+                            debugLog('useAI:startGeminiLive', '✅ SETUP COMPLETE', {}, 'LIVE');
+                            // #endregion
+                            return;
+                        }
+
+                        // Handle transcription from input audio
+                        if (data.serverContent?.inputTranscription) {
+                            const transcript = data.serverContent.inputTranscription.text || '';
+                            const isFinal = data.serverContent.inputTranscription.finished || false;
+                            
+                            if (transcript) {
+                                fullTranscript = isFinal ? fullTranscript + transcript + ' ' : fullTranscript;
+                                options.onTranscript?.(transcript, isFinal);
+                                
+                                // #region agent log
+                                if (isFinal) {
+                                    debugLog('useAI:startGeminiLive', '📝 TRANSCRIPT CHUNK', {
+                                        text: transcript.substring(0, 100),
+                                        isFinal
+                                    }, 'LIVE');
+                                }
+                                // #endregion
+                            }
+                        }
+
+                        // Handle model output (text response)
+                        if (data.serverContent?.modelTurn?.parts) {
+                            const parts = data.serverContent.modelTurn.parts;
+                            for (const part of parts) {
+                                if (part.text) {
+                                    options.onTranscript?.(part.text, true);
+                                }
+                            }
+                        }
+
+                        // Handle turn complete
+                        if (data.serverContent?.turnComplete) {
+                            // #region agent log
+                            debugLog('useAI:startGeminiLive', '✅ TURN COMPLETE', {
+                                fullTranscriptLength: fullTranscript.length
+                            }, 'LIVE');
+                            // #endregion
+                        }
+
+                    } catch (e) {
+                        // Ignore parse errors for binary data
+                    }
+                };
+
+                ws.onerror = (error) => {
+                    // #region agent log
+                    debugLog('useAI:startGeminiLive', '❌ WEBSOCKET ERROR', { error: String(error) }, 'LIVE');
+                    // #endregion
+                    options.onError?.(new Error('WebSocket error'));
+                    isConnected = false;
+                };
+
+                ws.onclose = (event) => {
+                    // #region agent log
+                    debugLog('useAI:startGeminiLive', '🔌 WEBSOCKET CLOSED', {
+                        code: event.code,
+                        reason: event.reason
+                    }, 'LIVE');
+                    // #endregion
+                    isConnected = false;
+                };
+
+            } catch (error) {
+                // #region agent log
+                debugLog('useAI:startGeminiLive', '❌ INIT ERROR', { error: (error as Error).message }, 'LIVE');
+                // #endregion
+                reject(error);
+            }
+        });
+    }, []);
 
     return {
         generate,
         generateStream,
         generateParallel,
+        transcribeWithGemini,
+        startGeminiLiveTranscription,
         isGenerating
     };
 }

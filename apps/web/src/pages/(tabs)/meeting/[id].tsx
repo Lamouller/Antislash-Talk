@@ -10,7 +10,19 @@ import toast from 'react-hot-toast';
 import { Calendar, Clock, Users, FileText, Play, Download, Check, X, Sparkles, MessageSquare, BarChart3, ArrowLeft, Copy, User, Edit2, FileDown, FileType, Table, Code, Wand2 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import { useTranslation } from 'react-i18next';
-import { useLocalTranscription } from '../../../hooks/useLocalTranscription';
+import { useAI } from '../../../hooks/useAI';
+
+// #region agent log - Debug logging for meeting page
+const debugLog = (loc: string, msg: string, data: any, hyp: string) => {
+    try {
+        const logs = JSON.parse(localStorage.getItem('__debug_logs__') || '[]');
+        logs.push({ location: loc, message: msg, data, timestamp: Date.now(), hypothesisId: hyp });
+        if (logs.length > 200) logs.shift();
+        localStorage.setItem('__debug_logs__', JSON.stringify(logs));
+        console.log(`%c[MEETING:${hyp}] ${loc}: ${msg}`, 'color: #059669; font-weight: bold', data);
+    } catch (e) { }
+};
+// #endregion
 
 type MeetingData = {
   id: string;
@@ -97,12 +109,16 @@ export default function MeetingDetail() {
   const [promptTemplates, setPromptTemplates] = useState<PromptTemplate[]>([]);
   const [selectedSummaryPromptId, setSelectedSummaryPromptId] = useState<string>('default');
   const [selectedTitlePromptId, setSelectedTitlePromptId] = useState<string>('default');
-  const { generateTitle, generateSummary } = useLocalTranscription();
+  // 🚀 AI Generation hook (OpenAI, Gemini, etc.) with streaming
+  const { generateParallel: generateTitleAndSummaryParallel } = useAI();
 
   const [meeting, setMeeting] = useState<MeetingData | null>(null);
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState<string | null>(null);
   const [generatingSummary, setGeneratingSummary] = useState(false);
+  
+  // 🚀 Streaming state for real-time summary display
+  const [streamingSummary, setStreamingSummary] = useState<string>('');
   // Removed unused state variables
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
 
@@ -187,14 +203,26 @@ export default function MeetingDetail() {
     const hasUtterances = meeting?.transcript && hasUtterancesFormat(meeting.transcript) && meeting.transcript.utterances.length > 0;
     const hasChunks = Array.isArray(meeting?.transcript) && meeting.transcript.length > 0;
 
+    // #region agent log
+    debugLog('meeting:handleGenerateSummary', '🚀 STARTING GENERATION', {
+      meetingId: meeting?.id,
+      hasUtterances,
+      hasChunks,
+      selectedTitlePromptId,
+      selectedSummaryPromptId
+    }, 'WORKFLOW');
+    // #endregion
+
     if (!hasUtterances && !hasChunks) {
+      // #region agent log
+      debugLog('meeting:handleGenerateSummary', '❌ NO TRANSCRIPT', {}, 'WORKFLOW');
+      // #endregion
       toast.error(t('meetingDetail.toastNoTranscript'));
       return;
     }
 
     setGeneratingSummary(true);
-
-    console.log('%c[Meeting Detail] 🤖 GENERATING TITLE & SUMMARY', 'color: #7c3aed; font-weight: bold; font-size: 14px');
+    setStreamingSummary(''); // Reset streaming state
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -217,7 +245,12 @@ export default function MeetingDetail() {
           .join(' ');
       }
 
-      console.log(`[Meeting Detail] 📄 Transcript length: ${transcriptText.length} characters`);
+      // #region agent log
+      debugLog('meeting:handleGenerateSummary', '📄 TRANSCRIPT EXTRACTED', {
+        transcriptLength: transcriptText.length,
+        transcriptPreview: transcriptText.substring(0, 200)
+      }, 'WORKFLOW');
+      // #endregion
 
       // Get selected prompts content
       // Priority: 1. Selected in UI, 2. Saved with meeting, 3. Default
@@ -229,24 +262,50 @@ export default function MeetingDetail() {
         ? promptTemplates.find(p => p.id === selectedSummaryPromptId)?.content
         : (meeting as any)?.prompt_summary || undefined;
       
-      console.log('[Meeting Detail] 📝 Prompt sources:', {
+      // #region agent log
+      debugLog('meeting:handleGenerateSummary', '📝 PROMPTS RESOLVED', {
         titleSource: selectedTitlePromptId !== 'default' ? 'UI selection' : ((meeting as any)?.prompt_title ? 'Saved with meeting' : 'Default'),
+        titlePromptLength: titlePromptContent?.length || 0,
+        titlePromptPreview: titlePromptContent?.substring(0, 100) || 'DEFAULT',
         summarySource: selectedSummaryPromptId !== 'default' ? 'UI selection' : ((meeting as any)?.prompt_summary ? 'Saved with meeting' : 'Default'),
-        summaryPromptPreview: summaryPromptContent?.substring(0, 50)
-      });
+        summaryPromptLength: summaryPromptContent?.length || 0,
+        summaryPromptPreview: summaryPromptContent?.substring(0, 100) || 'DEFAULT'
+      }, 'WORKFLOW');
+      // #endregion
 
-      // Generate title with configured AI provider (Ollama, OpenAI, Gemini, etc.)
-      console.log('[Meeting Detail] 📝 Generating title...');
-      const generatedTitle = await generateTitle(transcriptText, titlePromptContent);
-      console.log(`[Meeting Detail] ✅ Title generated: "${generatedTitle}"`);
-
-      // Generate summary with configured AI provider
-      console.log('[Meeting Detail] 📊 Generating summary...');
-      const generatedSummary = await generateSummary(transcriptText, summaryPromptContent);
-      console.log(`[Meeting Detail] ✅ Summary generated (${generatedSummary.length} chars)`);
+      // 🚀 Use PARALLEL generation with STREAMING for real-time display
+      let chunkCount = 0;
+      const { title: generatedTitle, summary: generatedSummary } = await generateTitleAndSummaryParallel(
+        transcriptText,
+        titlePromptContent,
+        summaryPromptContent,
+        // Streaming callback - update UI in real-time
+        (chunk) => {
+          chunkCount++;
+          setStreamingSummary(prev => prev + chunk);
+          
+          // Log first chunk and every 20th
+          if (chunkCount === 1 || chunkCount % 20 === 0) {
+            // #region agent log
+            debugLog('meeting:streamCallback', `📡 CHUNK #${chunkCount}`, {
+              chunkLength: chunk.length,
+              chunkPreview: chunk.substring(0, 50)
+            }, 'WORKFLOW');
+            // #endregion
+          }
+        }
+      );
+      
+      // #region agent log
+      debugLog('meeting:handleGenerateSummary', '✅ GENERATION COMPLETE', {
+        totalChunks: chunkCount,
+        titleResult: generatedTitle,
+        summaryLength: generatedSummary.length,
+        summaryPreview: generatedSummary.substring(0, 200)
+      }, 'WORKFLOW');
+      // #endregion
 
       // Update meeting in database
-      console.log('[Meeting Detail] 💾 Updating meeting in database...');
       const { error: updateError } = await supabase
         .from('meetings')
         .update({
@@ -256,22 +315,39 @@ export default function MeetingDetail() {
         })
         .eq('id', meeting.id);
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        // #region agent log
+        debugLog('meeting:handleGenerateSummary', '❌ DB UPDATE FAILED', { error: updateError }, 'WORKFLOW');
+        // #endregion
+        throw updateError;
+      }
 
       // Update local state
       setSummary(generatedSummary);
+      setStreamingSummary(''); // Clear streaming state
       setMeeting(prev => prev ? {
         ...prev,
         title: generatedTitle,
         summary: generatedSummary
       } : null);
 
-      console.log('%c[Meeting Detail] 🎉 Title & Summary generated successfully!', 'color: #16a34a; font-weight: bold');
+      // #region agent log
+      debugLog('meeting:handleGenerateSummary', '💾 DB UPDATE SUCCESS', {
+        meetingId: meeting.id,
+        newTitle: generatedTitle,
+        summaryLength: generatedSummary.length
+      }, 'WORKFLOW');
+      // #endregion
+      
       toast.success(t('meetingDetail.toastGenSuccess'));
 
-    } catch (error) {
+    } catch (error: any) {
+      // #region agent log
+      debugLog('meeting:handleGenerateSummary', '❌ ERROR', { error: error.message }, 'WORKFLOW');
+      // #endregion
       console.error('%c[Meeting Detail] ❌ Generation failed', 'color: #dc2626; font-weight: bold', error);
       toast.error(error instanceof Error ? error.message : t('meetingDetail.toastGenError'));
+      setStreamingSummary(''); // Clear on error
     } finally {
       setGeneratingSummary(false);
     }
@@ -1112,8 +1188,38 @@ export default function MeetingDetail() {
                   </Button>
                 </div>
 
+                {/* 🚀 STREAMING Summary Display - Real-time generation */}
+                {generatingSummary && streamingSummary && (
+                  <div className="mb-4 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 border border-emerald-200 dark:border-emerald-700/50 rounded-2xl p-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 flex items-center justify-center">
+                        <Sparkles className="w-4 h-4 text-white animate-pulse" />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                          ✨ Génération en cours
+                          <span className="inline-flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                            <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                            <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                          </span>
+                        </h4>
+                        <p className="text-xs text-emerald-600 dark:text-emerald-400">
+                          Streaming avec OpenAI/Gemini
+                        </p>
+                      </div>
+                    </div>
+                    <div className="bg-white/60 dark:bg-gray-800/60 rounded-xl p-4 max-h-64 overflow-y-auto">
+                      <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">
+                        {streamingSummary}
+                        <span className="inline-block w-2 h-4 bg-emerald-500 animate-pulse ml-0.5"></span>
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 {/* Summary Content or Placeholder */}
-                {summary ? (
+                {summary && !generatingSummary ? (
                   <div className="space-y-4">
                     <div className="bg-gradient-to-r from-blue-50/50 to-indigo-50/50 dark:from-blue-900/10 dark:to-indigo-900/10 rounded-2xl p-6 border border-blue-200/30 dark:border-blue-700/30">
                       <MarkdownRenderer content={summary} className="text-base leading-relaxed" />
@@ -1150,7 +1256,7 @@ export default function MeetingDetail() {
                       </Button>
                     </div>
                   </div>
-                ) : (
+                ) : !generatingSummary ? (
                   <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                     <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 flex items-center justify-center">
                       <MessageSquare className="w-6 h-6 opacity-50" />
@@ -1158,7 +1264,7 @@ export default function MeetingDetail() {
                     <p className="text-sm font-medium">{t('meetingDetail.noSummary')}</p>
                     <p className="text-xs mt-1">{t('meetingDetail.generateInsight')}</p>
                   </div>
-                )}
+                ) : null}
               </div>
 
               {/* Transcript Section */}

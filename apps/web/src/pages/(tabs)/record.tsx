@@ -10,7 +10,7 @@ const debugLog = (loc: string, msg: string, data: any, hyp: string) => { try { c
 // #endregion
 import { useWebAudioRecorder } from '../../hooks/useWebAudioRecorder';
 import { useLocalTranscription, LocalTranscriptionResult } from '../../hooks/useLocalTranscription';
-import { useOllama } from '../../hooks/useOllama';
+import { useAI } from '../../hooks/useAI';
 import { useWakeLock } from '../../hooks/useWakeLock';
 import { useDisplayMode } from '../../hooks/useDisplayMode';
 import { getAdaptivePrompts, getWhisperOptimizedPrompts, requiresSpecialPrompts } from '../../lib/adaptive-prompts';
@@ -190,10 +190,12 @@ export default function RecordingScreen() {
     enhanceWithLocalLLM
   } = useLocalTranscription();
 
-  // 🧪 TEST: Importer directement useOllama pour tester les custom prompts
-  const ollama = useOllama();
-  const generateTitle = ollama.generateTitle;
-  const generateSummary = ollama.generateSummary;
+  // 🚀 AI Generation hook (OpenAI, Gemini, etc.) with streaming support
+  const { generateParallel: generateTitleAndSummaryParallel } = useAI();
+
+  // State for streaming summary display
+  const [streamingSummary, setStreamingSummary] = useState<string>('');
+  const [isStreamingGeneration, setIsStreamingGeneration] = useState(false);
 
   // 🔒 Wake Lock for preventing screen sleep on mobile (with iOS fallback)
   const { isSupported: wakeLockSupported, isActive: wakeLockActive, usingFallback: wakeLockUsingFallback, requestLock: requestWakeLock, releaseLock: releaseWakeLock } = useWakeLock();
@@ -836,24 +838,29 @@ export default function RecordingScreen() {
             toast.success('🎉 Streaming transcription completed! Saving...', { duration: 2000 });
             const savedMeeting = await handleSave(enhancedResult);
 
-            // 🤖 AUTO-GENERATE SUMMARY EN BACKGROUND (si activé)
+            // 🤖 AUTO-GENERATE SUMMARY EN BACKGROUND (si activé) - NOW WITH STREAMING!
             if (autoGenerateSummaryAfterStreaming && savedMeeting?.id) {
-              console.log('🤖 AUTO-SUMMARY ACTIVATED! Generating in background...');
-              toast('🤖 Generating AI summary in background...', { duration: 3000 });
+              console.log('🤖 AUTO-SUMMARY ACTIVATED! Generating with STREAMING...');
+              toast('🤖 Generating AI summary (streaming)...', { duration: 3000 });
 
-              // Générer en background (ne bloque pas l'UX)
+              // Générer en background avec streaming (ne bloque pas l'UX)
               (async () => {
                 try {
-                  console.log('📝 Generating title with AI using custom prompts...');
-                  console.log('   → Custom title prompt:', userPrompts.title ? 'YES' : 'NO');
-                  const aiTitle = await generateTitle(result.text, userPrompts.title || undefined);
-
-                  console.log('📊 Generating summary with AI using custom prompts...');
-                  console.log('   → Custom summary prompt:', userPrompts.summary ? 'YES' : 'NO');
-                  console.log('   → Context notes:', contextNotes ? 'YES' : 'NO');
+                  setIsStreamingGeneration(true);
+                  setStreamingSummary('');
                   
-                  // #region agent log - Hypothesis G: Check prompt at generation time
-                  debugLog('record.tsx:generateSummary', 'GENERATING SUMMARY', { userPromptsSummaryLength: userPrompts.summary?.length, userPromptsSummaryPreview: userPrompts.summary?.substring(0, 100), hasContextNotes: !!contextNotes }, 'G');
+                  // #region agent log - Full workflow logging
+                  debugLog('record.tsx:autoGenerate', '🚀 STARTING AUTO-GENERATE WORKFLOW', {
+                    transcriptLength: result.text.length,
+                    transcriptPreview: result.text.substring(0, 200),
+                    hasTitlePrompt: !!userPrompts.title,
+                    titlePromptLength: userPrompts.title?.length || 0,
+                    hasSummaryPrompt: !!userPrompts.summary,
+                    summaryPromptLength: userPrompts.summary?.length || 0,
+                    summaryPromptPreview: userPrompts.summary?.substring(0, 100),
+                    hasContextNotes: !!contextNotes,
+                    meetingId: savedMeeting.id
+                  }, 'WORKFLOW');
                   // #endregion
                   
                   // Enrich summary prompt with context notes if provided
@@ -863,7 +870,47 @@ export default function RecordingScreen() {
                     summaryPrompt = summaryPrompt ? summaryPrompt + contextSection : `Summarize the following meeting transcript. Pay special attention to the context notes provided.${contextSection}`;
                   }
                   
-                  const aiSummary = await generateSummary(result.text, summaryPrompt || undefined);
+                  // #region agent log
+                  debugLog('record.tsx:autoGenerate', '📝 FINAL PROMPTS PREPARED', {
+                    finalTitlePrompt: userPrompts.title?.substring(0, 100) || 'DEFAULT',
+                    finalSummaryPrompt: summaryPrompt?.substring(0, 100) || 'DEFAULT'
+                  }, 'WORKFLOW');
+                  // #endregion
+                  
+                  // 🚀 Use parallel generation with streaming callback for real-time display
+                  let chunkCount = 0;
+                  const { title: aiTitle, summary: aiSummary } = await generateTitleAndSummaryParallel(
+                    result.text,
+                    userPrompts.title || undefined,
+                    summaryPrompt || undefined,
+                    // Streaming callback - update UI in real-time
+                    (chunk) => {
+                      chunkCount++;
+                      setStreamingSummary(prev => prev + chunk);
+                      
+                      // Log first chunk and every 20th chunk
+                      if (chunkCount === 1 || chunkCount % 20 === 0) {
+                        // #region agent log
+                        debugLog('record.tsx:streamingCallback', `📡 CHUNK RECEIVED #${chunkCount}`, {
+                          chunkLength: chunk.length,
+                          chunkPreview: chunk.substring(0, 50)
+                        }, 'WORKFLOW');
+                        // #endregion
+                      }
+                    }
+                  );
+
+                  setIsStreamingGeneration(false);
+                  
+                  // #region agent log
+                  debugLog('record.tsx:autoGenerate', '✅ GENERATION COMPLETE', {
+                    totalChunks: chunkCount,
+                    titleLength: aiTitle?.length || 0,
+                    titleResult: aiTitle,
+                    summaryLength: aiSummary?.length || 0,
+                    summaryPreview: aiSummary?.substring(0, 200)
+                  }, 'WORKFLOW');
+                  // #endregion
 
                   // Mettre à jour le meeting avec le titre et summary générés
                   const { error: updateError } = await supabase
@@ -875,15 +922,26 @@ export default function RecordingScreen() {
                     .eq('id', savedMeeting.id);
 
                   if (updateError) {
+                    // #region agent log
+                    debugLog('record.tsx:autoGenerate', '❌ DB UPDATE FAILED', { error: updateError }, 'WORKFLOW');
+                    // #endregion
                     console.error('❌ Failed to update meeting with AI content:', updateError);
                   } else {
-                    console.log('✅ Meeting updated with AI-generated content!');
-                    console.log('   → Title:', aiTitle);
-                    console.log('   → Summary length:', aiSummary?.length || 0, 'chars');
+                    // #region agent log
+                    debugLog('record.tsx:autoGenerate', '💾 DB UPDATE SUCCESS', {
+                      meetingId: savedMeeting.id,
+                      newTitle: aiTitle,
+                      summaryLength: aiSummary?.length || 0
+                    }, 'WORKFLOW');
+                    // #endregion
                     toast.success('✨ AI summary generated successfully!', { duration: 3000 });
                   }
-                } catch (aiError) {
-                  console.error('❌ AI generation failed:', aiError);
+                } catch (aiError: any) {
+                  // #region agent log
+                  debugLog('record.tsx:autoGenerate', '❌ GENERATION ERROR', { error: aiError.message }, 'WORKFLOW');
+                  // #endregion
+                  console.error('❌ AI streaming generation failed:', aiError);
+                  setIsStreamingGeneration(false);
                   toast.error('Failed to generate AI summary', { duration: 3000 });
                 }
               })();
@@ -1418,6 +1476,38 @@ export default function RecordingScreen() {
                         style={{ width: `${transcriptionProgress}%` }}
                       ></div>
                     </div>
+                  </div>
+                )}
+
+                {/* 🚀 AI STREAMING GENERATION - Real-time summary display */}
+                {isStreamingGeneration && (
+                  <div className="mb-6 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 border border-emerald-200 dark:border-emerald-700/50 rounded-2xl p-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 flex items-center justify-center">
+                        <Sparkles className="w-4 h-4 text-white animate-pulse" />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                          ✨ Generating AI Summary
+                          <span className="inline-flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                            <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                            <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                          </span>
+                        </h4>
+                        <p className="text-xs text-emerald-600 dark:text-emerald-400">
+                          Streaming with OpenAI/Gemini
+                        </p>
+                      </div>
+                    </div>
+                    {streamingSummary && (
+                      <div className="bg-white/60 dark:bg-gray-800/60 rounded-xl p-3 max-h-48 overflow-y-auto">
+                        <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">
+                          {streamingSummary}
+                          <span className="inline-block w-2 h-4 bg-emerald-500 animate-pulse ml-0.5"></span>
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

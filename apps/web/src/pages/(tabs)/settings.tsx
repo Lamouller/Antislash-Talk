@@ -189,17 +189,20 @@ const transcriptionModels: Record<SttTtsProvider, Model[]> = {
     {
       id: 'gemini-3-flash-preview',
       name: 'Gemini 3 Flash 🚀 NEW',
-      description: 'Latest frontier model with upgraded audio understanding.',
+      description: 'Latest frontier model with upgraded audio understanding + speaker diarization.',
+      supportsDiarization: true
     },
     {
       id: 'gemini-2.5-flash',
-      name: 'Gemini 2.5 Flash ⚡',
-      description: 'Best price/performance. 1M context with native audio capabilities.',
+      name: 'Gemini 2.5 Flash ⚡ + Diarization 🎭',
+      description: 'Best price/performance. 1M context with native audio + automatic speaker detection.',
+      supportsDiarization: true
     },
     {
       id: 'gemini-2.0-flash',
-      name: 'Gemini 2.0 Flash',
-      description: 'Previous model with native audio understanding.',
+      name: 'Gemini 2.0 Flash + Diarization 🎭',
+      description: 'Previous model with native audio understanding and speaker identification.',
+      supportsDiarization: true
     },
     {
       id: 'gemini-1.5-pro',
