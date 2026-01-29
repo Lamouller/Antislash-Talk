@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { Mic, Square, Pause as PauseIcon, RefreshCw, Play, Radio, Waves, Sparkles, Clock, FileAudio, Settings, Plus } from 'lucide-react';
+import { useRecordingContext } from '../../contexts/RecordingContext';
 
 // #region agent log - localStorage based for mobile debugging
 const debugLog = (loc: string, msg: string, data: any, hyp: string) => { try { const logs = JSON.parse(localStorage.getItem('__debug_logs__') || '[]'); logs.push({location:loc,message:msg,data,timestamp:Date.now(),hypothesisId:hyp}); if(logs.length > 100) logs.shift(); localStorage.setItem('__debug_logs__', JSON.stringify(logs)); console.log(`[DEBUG:${hyp}] ${loc}: ${msg}`, data); } catch(e){} };
@@ -270,6 +271,26 @@ export default function RecordingScreen() {
 
     checkForEmergencyRecording();
   }, []);
+
+  // 🔄 Sync recording state with global context for the floating timer
+  const { updateState: updateRecordingContext, resetState: resetRecordingContext } = useRecordingContext();
+  
+  useEffect(() => {
+    updateRecordingContext({
+      isRecording,
+      isPaused,
+      duration,
+      isTranscribing,
+      transcriptionProgress,
+    });
+  }, [isRecording, isPaused, duration, isTranscribing, transcriptionProgress, updateRecordingContext]);
+
+  // Reset global context when component unmounts
+  useEffect(() => {
+    return () => {
+      resetRecordingContext();
+    };
+  }, [resetRecordingContext]);
 
   // 🆘 Set up emergency save listeners for iOS standalone mode
   useEffect(() => {
@@ -1923,11 +1944,11 @@ export default function RecordingScreen() {
         <div 
           className="pointer-events-auto mx-4 rounded-full overflow-hidden"
           style={{
-            background: 'rgba(0,0,0,0.1)',
-            backdropFilter: 'blur(40px) saturate(180%)',
-            WebkitBackdropFilter: 'blur(40px) saturate(180%)',
-            boxShadow: '0 4px 24px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.08)',
-            border: '1px solid rgba(255,255,255,0.06)',
+            background: 'rgba(255,255,255,0.03)',
+            backdropFilter: 'blur(50px) saturate(200%)',
+            WebkitBackdropFilter: 'blur(50px) saturate(200%)',
+            boxShadow: '0 2px 20px rgba(0,0,0,0.08), inset 0 0.5px 0 rgba(255,255,255,0.1)',
+            border: '0.5px solid rgba(255,255,255,0.08)',
           }}
         >
           <div className="px-6 py-4">
@@ -1935,10 +1956,10 @@ export default function RecordingScreen() {
             {!isRecording && !audioBlob && !isTranscribing && (
               <div className="flex items-center gap-5">
                 <div className="flex flex-col">
-                  <span className="text-sm font-medium text-white/90">
+                  <span className="text-sm font-medium text-white/70">
                     Pret
                   </span>
-                  <span className="text-xs text-white/50">
+                  <span className="text-xs text-white/40">
                     Appuyez pour enregistrer
                   </span>
                 </div>
@@ -1947,8 +1968,9 @@ export default function RecordingScreen() {
                   disabled={pageState !== 'ready'}
                   className="w-16 h-16 rounded-full flex items-center justify-center transition-all duration-300 active:scale-90 disabled:opacity-50 relative group"
                   style={{
-                    background: 'linear-gradient(145deg, rgba(255,59,48,0.9) 0%, rgba(255,45,85,0.9) 100%)',
-                    boxShadow: '0 4px 20px rgba(255,59,48,0.4), inset 0 1px 0 rgba(255,255,255,0.3)',
+                    background: 'linear-gradient(145deg, rgba(255,59,48,0.75) 0%, rgba(255,45,85,0.75) 100%)',
+                    boxShadow: '0 4px 16px rgba(255,59,48,0.3)',
+                    border: '0.5px solid rgba(255,255,255,0.15)',
                   }}
                 >
                   <div className="absolute inset-0 rounded-full bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -1964,23 +1986,26 @@ export default function RecordingScreen() {
                   onClick={handlePauseResume}
                   className="w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 active:scale-90"
                   style={{
-                    background: 'rgba(255,255,255,0.1)',
-                    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1)',
+                    background: 'rgba(255,255,255,0.05)',
+                    backdropFilter: 'blur(20px)',
+                    WebkitBackdropFilter: 'blur(20px)',
+                    boxShadow: 'inset 0 0.5px 0 rgba(255,255,255,0.1)',
+                    border: '0.5px solid rgba(255,255,255,0.08)',
                   }}
                 >
                   {isPaused ? (
-                    <Play className="w-5 h-5 text-white/90" />
+                    <Play className="w-5 h-5 text-white/80" />
                   ) : (
-                    <PauseIcon className="w-5 h-5 text-white/90" />
+                    <PauseIcon className="w-5 h-5 text-white/80" />
                   )}
                 </button>
                 <div className="flex flex-col items-center min-w-[100px]">
-                  <span className="text-2xl font-mono font-semibold text-white tracking-tight">
+                  <span className="text-2xl font-mono font-semibold text-white/90 tracking-tight">
                     {formatTime(duration)}
                   </span>
                   <div className="flex items-center gap-1.5 mt-0.5">
                     <div className={`w-2 h-2 rounded-full ${isPaused ? 'bg-amber-400' : 'bg-red-500 animate-pulse'}`} />
-                    <span className="text-[11px] text-white/60 font-medium">
+                    <span className="text-[11px] text-white/50 font-medium">
                       {isPaused ? 'Pause' : 'REC'}
                     </span>
                   </div>
@@ -1989,8 +2014,9 @@ export default function RecordingScreen() {
                   onClick={handleStopRecording}
                   className="w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 active:scale-90"
                   style={{
-                    background: 'linear-gradient(145deg, rgba(255,59,48,0.8) 0%, rgba(220,38,38,0.8) 100%)',
-                    boxShadow: '0 2px 12px rgba(255,59,48,0.3), inset 0 1px 0 rgba(255,255,255,0.2)',
+                    background: 'linear-gradient(145deg, rgba(255,59,48,0.7) 0%, rgba(220,38,38,0.7) 100%)',
+                    boxShadow: '0 2px 10px rgba(255,59,48,0.25)',
+                    border: '0.5px solid rgba(255,255,255,0.1)',
                   }}
                 >
                   <Square className="w-5 h-5 text-white" />
@@ -2011,23 +2037,26 @@ export default function RecordingScreen() {
                   disabled={isTranscribing}
                   className="w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 active:scale-90 disabled:opacity-40"
                   style={{
-                    background: 'rgba(255,255,255,0.1)',
-                    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1)',
+                    background: 'rgba(255,255,255,0.05)',
+                    backdropFilter: 'blur(20px)',
+                    WebkitBackdropFilter: 'blur(20px)',
+                    boxShadow: 'inset 0 0.5px 0 rgba(255,255,255,0.1)',
+                    border: '0.5px solid rgba(255,255,255,0.08)',
                   }}
                 >
-                  <RefreshCw className="w-5 h-5 text-white/90" />
+                  <RefreshCw className="w-5 h-5 text-white/80" />
                 </button>
                 <div className="flex flex-col items-center min-w-[120px]">
-                  <span className="text-sm font-medium text-white/90">
+                  <span className="text-sm font-medium text-white/80">
                     {isTranscribing ? 'Transcription...' : 'Termine'}
                   </span>
                   {isTranscribing && (
-                    <div className="w-full mt-2 h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.1)' }}>
+                    <div className="w-full mt-2 h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.05)' }}>
                       <div 
                         className="h-full rounded-full transition-all duration-300"
                         style={{ 
                           width: `${transcriptionProgress}%`,
-                          background: 'linear-gradient(90deg, rgba(255,255,255,0.6) 0%, rgba(255,255,255,0.9) 100%)'
+                          background: 'linear-gradient(90deg, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0.8) 100%)'
                         }}
                       />
                     </div>
@@ -2037,15 +2066,16 @@ export default function RecordingScreen() {
                   className={`w-12 h-12 rounded-full flex items-center justify-center ${isTranscribing ? 'animate-pulse' : ''}`}
                   style={{
                     background: isTranscribing 
-                      ? 'linear-gradient(145deg, rgba(99,102,241,0.6) 0%, rgba(79,70,229,0.6) 100%)'
-                      : 'linear-gradient(145deg, rgba(34,197,94,0.6) 0%, rgba(22,163,74,0.6) 100%)',
-                    boxShadow: `0 2px 12px ${isTranscribing ? 'rgba(99,102,241,0.3)' : 'rgba(34,197,94,0.3)'}, inset 0 1px 0 rgba(255,255,255,0.2)`,
+                      ? 'linear-gradient(145deg, rgba(99,102,241,0.5) 0%, rgba(79,70,229,0.5) 100%)'
+                      : 'linear-gradient(145deg, rgba(34,197,94,0.5) 0%, rgba(22,163,74,0.5) 100%)',
+                    boxShadow: `0 2px 10px ${isTranscribing ? 'rgba(99,102,241,0.2)' : 'rgba(34,197,94,0.2)'}`,
+                    border: '0.5px solid rgba(255,255,255,0.1)',
                   }}
                 >
                   {isTranscribing ? (
-                    <Waves className="w-5 h-5 text-white" />
+                    <Waves className="w-5 h-5 text-white/90" />
                   ) : (
-                    <Sparkles className="w-5 h-5 text-white" />
+                    <Sparkles className="w-5 h-5 text-white/90" />
                   )}
                 </div>
               </div>

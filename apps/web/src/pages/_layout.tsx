@@ -4,7 +4,8 @@ import { supabase } from '../lib/supabase';
 import { Session } from '@supabase/supabase-js';
 import { Toaster } from 'react-hot-toast';
 import { useMarketingPagesConfig } from '../hooks/useMarketingPagesConfig';
-import { Mic } from 'lucide-react';
+import { Mic, Pause as PauseIcon, Square } from 'lucide-react';
+import { RecordingProvider, useRecordingState } from '../contexts/RecordingContext';
 
 // #region agent log - Global Debug Logs Panel Component
 function GlobalDebugLogsPanel() {
@@ -101,17 +102,76 @@ function GlobalDebugLogsPanel() {
 }
 // #endregion
 
-// Global Liquid Glass Recording Button
+// Format time helper
+function formatTime(seconds: number): string {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+}
+
+// Global Liquid Glass Recording Button with Timer
 function GlobalRecordingButton() {
   const navigate = useNavigate();
   const location = useLocation();
+  const recordingState = useRecordingState();
   
   // Don't show on record page (it has its own controls) or auth pages only
   const isRecordPage = location.pathname === '/tabs/record';
   const isAuthPage = location.pathname.startsWith('/auth');
   
   if (isRecordPage || isAuthPage) return null;
+
+  const { isRecording, isPaused, duration, isTranscribing, transcriptionProgress } = recordingState;
   
+  // Recording in progress - show timer and status
+  if (isRecording || isTranscribing) {
+    return (
+      <div 
+        className="fixed bottom-0 left-0 right-0 z-50 flex justify-center pointer-events-none"
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)' }}
+      >
+        <button
+          onClick={() => navigate('/tabs/record')}
+          className="pointer-events-auto flex items-center gap-3 px-5 py-3 rounded-full transition-all duration-300 active:scale-95"
+          style={{
+            background: 'rgba(255,255,255,0.03)',
+            backdropFilter: 'blur(50px) saturate(200%)',
+            WebkitBackdropFilter: 'blur(50px) saturate(200%)',
+            boxShadow: '0 2px 20px rgba(0,0,0,0.08), inset 0 0.5px 0 rgba(255,255,255,0.1)',
+            border: '0.5px solid rgba(255,255,255,0.08)',
+          }}
+        >
+          {/* Recording indicator */}
+          <div className={`w-3 h-3 rounded-full ${isPaused ? 'bg-amber-400' : 'bg-red-500 animate-pulse'}`} />
+          
+          {/* Timer */}
+          <span className="text-white/90 text-lg font-mono font-semibold min-w-[60px]">
+            {formatTime(duration)}
+          </span>
+          
+          {/* Status */}
+          <span className="text-white/60 text-xs font-medium">
+            {isTranscribing ? 'Transcription...' : isPaused ? 'Pause' : 'REC'}
+          </span>
+          
+          {/* Progress bar for transcription */}
+          {isTranscribing && (
+            <div className="w-16 h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.1)' }}>
+              <div 
+                className="h-full rounded-full transition-all"
+                style={{ 
+                  width: `${transcriptionProgress}%`,
+                  background: 'rgba(255,255,255,0.7)'
+                }}
+              />
+            </div>
+          )}
+        </button>
+      </div>
+    );
+  }
+  
+  // Default state - show record button
   return (
     <div 
       className="fixed bottom-0 left-0 right-0 z-50 flex justify-center pointer-events-none"
@@ -121,23 +181,23 @@ function GlobalRecordingButton() {
         onClick={() => navigate('/tabs/record')}
         className="pointer-events-auto flex items-center gap-3 px-6 py-3 rounded-full transition-all duration-300 active:scale-95"
         style={{
-          background: 'rgba(0,0,0,0.1)',
-          backdropFilter: 'blur(40px) saturate(180%)',
-          WebkitBackdropFilter: 'blur(40px) saturate(180%)',
-          boxShadow: '0 4px 24px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.08)',
-          border: '1px solid rgba(255,255,255,0.06)',
+          background: 'rgba(255,255,255,0.03)',
+          backdropFilter: 'blur(50px) saturate(200%)',
+          WebkitBackdropFilter: 'blur(50px) saturate(200%)',
+          boxShadow: '0 2px 20px rgba(0,0,0,0.08), inset 0 0.5px 0 rgba(255,255,255,0.1)',
+          border: '0.5px solid rgba(255,255,255,0.08)',
         }}
       >
         <div 
           className="w-10 h-10 rounded-full flex items-center justify-center"
           style={{
-            background: 'linear-gradient(145deg, rgba(255,59,48,0.9) 0%, rgba(255,45,85,0.9) 100%)',
-            boxShadow: '0 2px 12px rgba(255,59,48,0.4)',
+            background: 'linear-gradient(145deg, rgba(255,59,48,0.85) 0%, rgba(255,45,85,0.85) 100%)',
+            boxShadow: '0 2px 12px rgba(255,59,48,0.3)',
           }}
         >
           <Mic className="w-5 h-5 text-white" />
         </div>
-        <span className="text-white/70 text-sm font-medium pr-1">Enregistrer</span>
+        <span className="text-white/60 text-sm font-medium pr-1">Enregistrer</span>
       </button>
     </div>
   );
@@ -231,18 +291,20 @@ export default function RootLayout() {
   }
 
   return (
-    <div className="min-h-screen">
-      <Toaster 
-        position="top-center"
-        containerStyle={{
-          top: 'max(env(safe-area-inset-top, 0px), 20px)',
-        }}
-      />
-      <Outlet />
-      {/* Global Liquid Glass Recording Button - visible on all pages except record */}
-      <GlobalRecordingButton />
-      {/* Global Debug Panel - available on all pages */}
-      <GlobalDebugLogsPanel />
-    </div>
+    <RecordingProvider>
+      <div className="min-h-screen">
+        <Toaster 
+          position="top-center"
+          containerStyle={{
+            top: 'max(env(safe-area-inset-top, 0px), 20px)',
+          }}
+        />
+        <Outlet />
+        {/* Global Liquid Glass Recording Button - visible on all pages except record */}
+        <GlobalRecordingButton />
+        {/* Global Debug Panel - available on all pages */}
+        <GlobalDebugLogsPanel />
+      </div>
+    </RecordingProvider>
   );
 }
