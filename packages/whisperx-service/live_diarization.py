@@ -130,7 +130,10 @@ def get_vad_model():
 
 
 def get_embedding_model():
-    """Load speaker embedding model from Pyannote (lazy loading)"""
+    """Load speaker embedding model from Pyannote (lazy loading)
+    
+    Uses manual loading to bypass PyTorch 2.6+ weights_only restriction.
+    """
     global _embedding_model
     if _embedding_model is None:
         if not HUGGINGFACE_TOKEN:
@@ -139,22 +142,29 @@ def get_embedding_model():
         try:
             logger.info("🧠 Loading Pyannote speaker embedding model...")
             
-            # Add all necessary safe globals for PyTorch 2.6+ (weights_only=True default)
-            import torch.torch_version
-            from pyannote.audio.core.task import Specifications
-            torch.serialization.add_safe_globals([
-                torch.torch_version.TorchVersion,
-                Specifications,
-            ])
-            
-            from pyannote.audio import Model
-            _embedding_model = Model.from_pretrained(
-                "pyannote/wespeaker-voxceleb-resnet34-LM",
-                use_auth_token=HUGGINGFACE_TOKEN
+            # Step 1: Download model file from HuggingFace
+            from huggingface_hub import hf_hub_download
+            model_path = hf_hub_download(
+                repo_id="pyannote/wespeaker-voxceleb-resnet34-LM",
+                filename="pytorch_model.bin",
+                token=HUGGINGFACE_TOKEN
             )
+            logger.info(f"📥 Model downloaded: {model_path}")
+            
+            # Step 2: Load checkpoint with weights_only=False (bypasses PyTorch 2.6+ restriction)
+            checkpoint = torch.load(model_path, weights_only=False, map_location=DEVICE)
+            state_dict = checkpoint["state_dict"]
+            
+            # Step 3: Instantiate model class directly
+            from pyannote.audio.models.embedding.wespeaker import WeSpeakerResNet34
+            _embedding_model = WeSpeakerResNet34()
+            
+            # Step 4: Load state dict and prepare for inference
+            _embedding_model.load_state_dict(state_dict)
             _embedding_model = _embedding_model.to(DEVICE)
             _embedding_model.eval()
-            logger.info("✅ Embedding model loaded successfully")
+            
+            logger.info("✅ Embedding model loaded successfully (manual method)")
         except Exception as e:
             logger.error(f"❌ Failed to load embedding model: {e}")
             raise
