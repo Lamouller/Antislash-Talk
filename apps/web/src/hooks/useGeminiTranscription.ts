@@ -817,13 +817,18 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
         existingSegments?: TranscriptSegment[],
         onProgress?: (progress: number) => void
     ): Promise<GeminiTranscriptionResult> => {
-        // #region agent log
-        fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription:enhance:entry',message:'enhanceTranscription CALLED',data:{enablePostEnhancement,audioBlobSize:audioBlob?.size,existingSegmentsCount:existingSegments?.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4'})}).catch(()=>{});
+        // #region agent log - CONSOLE LOG for browser visibility
+        console.log('%c[ENHANCE] 🔄 enhanceTranscription CALLED', 'color: #f97316; font-weight: bold', {
+            enablePostEnhancement,
+            audioBlobSize: audioBlob?.size,
+            existingSegmentsCount: existingSegments?.length,
+            liveSegmentsCount: liveSegments.length
+        });
         // #endregion
         
         if (!enablePostEnhancement) {
-            // #region agent log
-            fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription:enhance:disabled',message:'Enhancement DISABLED - returning early',data:{enablePostEnhancement},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4'})}).catch(()=>{});
+            // #region agent log - CONSOLE LOG
+            console.log('%c[ENHANCE] ❌ Enhancement DISABLED - returning early', 'color: #ef4444; font-weight: bold', { enablePostEnhancement });
             // #endregion
             return {
                 text: (existingSegments || liveSegments).map(s => s.text).join(' '),
@@ -844,8 +849,14 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
         setProgress(0);
         onProgress?.(0);
 
+        // #region agent log - CONSOLE LOG
+        console.log('%c[ENHANCE] ✅ Enhancement ENABLED - starting process', 'color: #10b981; font-weight: bold');
+        // #endregion
+
         try {
+            console.log('%c[ENHANCE] 🔑 Fetching API key...', 'color: #3b82f6');
             const apiKey = await getApiKey();
+            console.log('%c[ENHANCE] 🔑 API Key result:', 'color: #3b82f6', { hasKey: !!apiKey, keyLength: apiKey?.length || 0 });
             if (!apiKey) throw new Error('Google API Key not found');
 
             // Convert audio to base64
@@ -946,6 +957,12 @@ ${existingText || '(aucune transcription préalable - analyse uniquement l\'audi
                 model: cleanModel,
                 audioSizeKB: Math.round(base64Audio.length / 1024)
             }, 'ENHANCE');
+            console.log('%c[ENHANCE] 📤 CALLING GEMINI API', 'color: #8b5cf6; font-weight: bold', {
+                model: cleanModel,
+                apiVersion,
+                audioSizeKB: Math.round(base64Audio.length / 1024),
+                mimeType
+            });
             // #endregion
 
             const response = await fetch(url, {
@@ -969,14 +986,14 @@ ${existingText || '(aucune transcription préalable - analyse uniquement l\'audi
             setProgress(70);
             onProgress?.(70);
 
-            // #region agent log
-            fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:enhance:apiResponse',message:'Gemini API response received',data:{status:response.status,ok:response.ok},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'})}).catch(()=>{});
+            // #region agent log - CONSOLE LOG
+            console.log('%c[ENHANCE] 📥 GEMINI API RESPONSE', 'color: #8b5cf6', { status: response.status, ok: response.ok });
             // #endregion
 
             if (!response.ok) {
                 const err = await response.json();
-                // #region agent log
-                fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:enhance:apiError',message:'Gemini API error',data:{error:err.error?.message||'unknown'},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
+                // #region agent log - CONSOLE LOG
+                console.log('%c[ENHANCE] ❌ GEMINI API ERROR', 'color: #ef4444; font-weight: bold', { error: err.error?.message || 'unknown', fullError: err });
                 // #endregion
                 throw new Error(err.error?.message || 'Gemini API error');
             }
