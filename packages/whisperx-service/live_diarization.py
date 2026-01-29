@@ -71,8 +71,12 @@ class LiveDiarizationSession:
         self.current_speaker: Optional[str] = None
         self.speaker_count = 0
         self.audio_buffer = np.array([], dtype=np.float32)
-        self.min_speech_duration = 0.3  # Minimum seconds to consider speech
-        self.embedding_threshold = 0.65  # Cosine distance threshold for same speaker (increased for better clustering)
+        self.min_speech_duration = 1.0  # Increased: Minimum 1 second for stable embeddings
+        self.embedding_threshold = 0.85  # Increased: More lenient to avoid over-segmentation
+        # Consistency tracking: require 2 consecutive different embeddings to change speaker
+        self.pending_speaker: Optional[str] = None
+        self.pending_count = 0
+        self.min_changes_for_new_speaker = 2  # Require 2 consecutive different embeddings
         
     def get_or_create_speaker(self, embedding: np.ndarray) -> Tuple[str, float, bool]:
         """
@@ -85,6 +89,7 @@ class LiveDiarizationSession:
             self.speaker_count = 1
             self.speakers[speaker_id] = SpeakerProfile(id=speaker_id)
             self.speakers[speaker_id].add_embedding(embedding)
+            self.current_speaker = speaker_id
             return speaker_id, 1.0, True
         
         # Compare with existing speakers
@@ -94,24 +99,61 @@ class LiveDiarizationSession:
         for speaker_id, profile in self.speakers.items():
             if profile.avg_embedding is not None:
                 distance = cosine(embedding, profile.avg_embedding)
+                logger.debug(f"📏 Distance to {speaker_id}: {distance:.3f}")
                 if distance < best_distance:
                     best_distance = distance
                     best_match = speaker_id
+        
+        logger.debug(f"📊 Best match: {best_match} (distance: {best_distance:.3f}, threshold: {self.embedding_threshold})")
         
         # Check if it's the same speaker or a new one
         if best_distance < self.embedding_threshold:
             # Same speaker - update profile
             confidence = 1.0 - best_distance
             self.speakers[best_match].add_embedding(embedding)
+            # Reset pending speaker tracking
+            self.pending_speaker = None
+            self.pending_count = 0
             return best_match, confidence, False
         else:
-            # New speaker
-            self.speaker_count += 1
-            speaker_id = f"SPEAKER_{self.speaker_count:02d}"
-            self.speakers[speaker_id] = SpeakerProfile(id=speaker_id)
-            self.speakers[speaker_id].add_embedding(embedding)
-            confidence = 1.0 - best_distance if best_distance < 1.0 else 0.5
-            return speaker_id, confidence, True
+            # Potentially new speaker - require consistency
+            potential_new_id = f"SPEAKER_{self.speaker_count + 1:02d}"
+            
+            # Check if this is consistent with pending change
+            if self.pending_speaker == potential_new_id:
+                self.pending_count += 1
+            else:
+                # Different pending speaker - reset count
+                self.pending_speaker = potential_new_id
+                self.pending_count = 1
+            
+            logger.debug(f"🔄 Pending speaker change: {self.pending_speaker} (count: {self.pending_count}/{self.min_changes_for_new_speaker})")
+            
+            # Only create new speaker if we have enough consistent detections
+            if self.pending_count >= self.min_changes_for_new_speaker:
+                self.speaker_count += 1
+                speaker_id = f"SPEAKER_{self.speaker_count:02d}"
+                self.speakers[speaker_id] = SpeakerProfile(id=speaker_id)
+                self.speakers[speaker_id].add_embedding(embedding)
+                confidence = 1.0 - best_distance if best_distance < 1.0 else 0.5
+                self.pending_speaker = None
+                self.pending_count = 0
+                return speaker_id, confidence, True
+            else:
+                # Not enough consistency - stick with current speaker or best match
+                if self.current_speaker and self.current_speaker in self.speakers:
+                    self.speakers[self.current_speaker].add_embedding(embedding)
+                    return self.current_speaker, 1.0 - best_distance, False
+                elif best_match:
+                    self.speakers[best_match].add_embedding(embedding)
+                    return best_match, 1.0 - best_distance, False
+                else:
+                    # Fallback: create first speaker
+                    speaker_id = "SPEAKER_01"
+                    self.speaker_count = 1
+                    self.speakers[speaker_id] = SpeakerProfile(id=speaker_id)
+                    self.speakers[speaker_id].add_embedding(embedding)
+                    return speaker_id, 0.5, True
 
 
 def get_vad_model():
@@ -219,8 +261,8 @@ def detect_speech(audio: np.ndarray, sample_rate: int = 16000) -> List[Tuple[flo
             vad_model,
             sampling_rate=sample_rate,
             threshold=0.5,
-            min_speech_duration_ms=300,
-            min_silence_duration_ms=100
+            min_speech_duration_ms=800,  # Increased for more stable detection
+            min_silence_duration_ms=300   # Longer silence before splitting
         )
         
         # Convert to time ranges
@@ -292,7 +334,7 @@ async def handle_live_diarization(websocket: WebSocket):
                             start_sample = int(start * SAMPLE_RATE)
                             end_sample = int(end * SAMPLE_RATE)
                             
-                            if end_sample > start_sample + int(0.3 * SAMPLE_RATE):  # Min 300ms
+                            if end_sample > start_sample + int(1.0 * SAMPLE_RATE):  # Min 1 second for stable embeddings
                                 speech_audio = audio_chunk[start_sample:end_sample]
                                 
                                 # Extract embedding
