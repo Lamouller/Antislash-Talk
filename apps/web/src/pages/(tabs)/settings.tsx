@@ -1594,20 +1594,17 @@ export default function SettingsScreen() {
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <h3 className="text-sm font-medium text-gray-900 dark:text-white">
-                        🤖 Auto-Generate AI Summary (Ollama)
+                        🤖 Auto-Generate Summary
                       </h3>
-                      <span className="px-2 py-0.5 text-xs font-semibold bg-blue-600 text-white rounded-full">
-                        NEW
-                      </span>
                     </div>
                     <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">
                       {autoGenerateSummaryAfterStreaming
-                        ? "✨ Automatically generate title and summary using Ollama after streaming transcription completes."
+                        ? "✨ Automatically generate title and summary after transcription completes."
                         : "📝 Generate title and summary manually from the meeting detail page."
                       }
                     </p>
                     <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                      💡 Requires Ollama service to be running.
+                      💡 Uses your preferred LLM provider (Gemini, OpenAI, etc.)
                     </p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer ml-4">
