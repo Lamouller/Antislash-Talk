@@ -897,16 +897,135 @@ export default function RecordingScreen() {
     console.log(`[record] Live segments received: ${liveTranscriptionSegments.length}`);
     console.log(`[record] Gemini live segments: ${geminiLiveSegments.length}`);
 
-    setPageState('ready');
     toast.success('Recording stopped');
 
-    // Auto-processing si activé dans les préférences
+    // 🚀 EARLY NAVIGATION: Create meeting immediately and navigate
+    // Post-processing happens in background on the meeting page
     if (autoTranscribeAfterRecording) {
-      console.log('🤖 Auto-processing enabled, waiting for audioBlob...');
-      toast.success('Auto-processing will start once recording is ready... 🤖');
-      setWaitingForAutoProcess(true);
+      console.log('🚀 Early navigation mode: Creating meeting and navigating immediately...');
+      
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('User not authenticated');
+
+        // Get live segments to include in initial save
+        const liveSegments = geminiLiveSegments.length > 0 ? geminiLiveSegments : liveTranscriptionSegments;
+        
+        // Create meeting entry immediately with status 'processing'
+        const meetingPayload = {
+          user_id: user.id,
+          title: title || `Meeting ${new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`,
+          duration: Math.round(duration),
+          status: 'processing', // Will be updated after background processing
+          transcription_provider: userPreferences.transcription_provider,
+          transcription_model: userPreferences.transcription_model,
+          participant_count: 1,
+          // Save live transcription if available
+          transcript: liveSegments.length > 0 ? liveSegments.map((seg, idx) => ({
+            text: seg.text,
+            speaker: seg.speaker,
+            start: seg.start || idx * 5,
+            end: seg.end || (idx + 1) * 5
+          })) : null,
+          // Save prompts for async processing
+          prompt_title: userPrompts.title || null,
+          prompt_summary: userPrompts.summary || null,
+          prompt_transcript: userPrompts.transcript || null,
+          context_notes: contextNotes || null
+        };
+
+        console.log('📝 Creating meeting with early navigation...', meetingPayload);
+
+        const { data: meetingData, error: insertError } = await supabase
+          .from('meetings')
+          .insert(meetingPayload)
+          .select()
+          .single();
+
+        if (insertError) throw insertError;
+
+        console.log('✅ Meeting created:', meetingData.id);
+        toast.success('🚀 Navigating to meeting...', { duration: 1500 });
+
+        // Reset form state
+        resetRecorder();
+        setTitle('');
+        setPageState('ready');
+
+        // Navigate IMMEDIATELY to meeting page
+        navigate(`/tabs/meeting/${meetingData.id}`);
+
+        // 🔄 BACKGROUND PROCESSING: Upload audio and trigger transcription
+        // This runs AFTER navigation, user sees meeting page with loading state
+        setTimeout(async () => {
+          try {
+            console.log('🔄 Starting background processing for meeting:', meetingData.id);
+            
+            // Wait for audioBlob to be ready (may take a moment after stopRecording)
+            let attempts = 0;
+            let blob = audioBlob;
+            while (!blob && attempts < 20) {
+              await new Promise(r => setTimeout(r, 200));
+              blob = audioBlob;
+              attempts++;
+            }
+
+            if (!blob) {
+              console.error('❌ AudioBlob not ready after waiting');
+              return;
+            }
+
+            // Upload audio
+            const timestamp = Date.now();
+            let fileExtension = 'webm';
+            const contentType = blob.type || 'audio/webm';
+            
+            if (contentType.includes('mp4') || contentType.includes('m4a')) {
+              fileExtension = 'mp4';
+            }
+            
+            const fileName = `${user.id}/${timestamp}.${fileExtension}`;
+            console.log('📤 Background upload:', fileName);
+
+            const { error: uploadError } = await supabase.storage
+              .from('meetingrecordings')
+              .upload(fileName, blob, { contentType, upsert: false });
+
+            if (uploadError) {
+              console.error('❌ Background upload failed:', uploadError);
+              return;
+            }
+
+            // Update meeting with audio URL
+            await supabase
+              .from('meetings')
+              .update({ recording_url: fileName })
+              .eq('id', meetingData.id);
+
+            console.log('✅ Audio uploaded, triggering async transcription...');
+
+            // Trigger async transcription if using cloud provider
+            if (userPreferences.transcription_provider !== 'local') {
+              // The webhook will pick up the meeting and process it
+              await supabase
+                .from('meetings')
+                .update({ status: 'pending' })
+                .eq('id', meetingData.id);
+            }
+
+          } catch (bgError) {
+            console.error('❌ Background processing error:', bgError);
+          }
+        }, 100);
+
+      } catch (error) {
+        console.error('❌ Early navigation failed:', error);
+        toast.error('Failed to create meeting');
+        setPageState('error');
+      }
     } else {
       console.log('🎙️ Auto-processing disabled, showing manual options');
+      setPageState('ready');
     }
   };
 

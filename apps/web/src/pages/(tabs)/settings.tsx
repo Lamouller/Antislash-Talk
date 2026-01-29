@@ -188,8 +188,8 @@ const transcriptionModels: Record<SttTtsProvider, Model[]> = {
   google: [
     {
       id: 'gemini-3-flash-preview',
-      name: 'Gemini 3 Flash 🚀 NEW',
-      description: 'Latest frontier model with upgraded audio understanding + speaker diarization.',
+      name: 'Gemini 3 Flash 🚀 + Diarization 🎭',
+      description: 'Latest frontier model with upgraded audio understanding + automatic speaker detection.',
       supportsDiarization: true
     },
     {
@@ -207,12 +207,12 @@ const transcriptionModels: Record<SttTtsProvider, Model[]> = {
     {
       id: 'gemini-1.5-pro',
       name: 'Gemini 1.5 Pro (Legacy)',
-      description: 'High-quality transcription with good accuracy.',
+      description: 'High-quality transcription with good accuracy. No diarization.',
     },
     {
       id: 'gemini-1.5-flash',
       name: 'Gemini 1.5 Flash (Legacy)',
-      description: 'Fast transcription with good balance.',
+      description: 'Fast transcription with good balance. No diarization.',
     },
   ],
   mistral: [
@@ -1883,19 +1883,42 @@ function PromptTextarea({ label, value, onChange }: { label: string; value: stri
 }
 
 // Backend Badge Component - Affiche plusieurs badges
-function BackendBadges({ supportsDiarization, requiresServer }: { supportsDiarization?: boolean; requiresServer?: boolean }) {
+function BackendBadges({ supportsDiarization, requiresServer, isCloud, provider }: { 
+  supportsDiarization?: boolean; 
+  requiresServer?: boolean;
+  isCloud?: boolean;
+  provider?: string;
+}) {
   const [whisperXAvailable, setWhisperXAvailable] = useState<boolean | null>(null);
 
   useEffect(() => {
-    // Check backend availability
-    checkWhisperXAvailability().then(setWhisperXAvailable).catch(() => setWhisperXAvailable(false));
-  }, []);
+    // Check backend availability (only for local)
+    if (!isCloud) {
+      checkWhisperXAvailability().then(setWhisperXAvailable).catch(() => setWhisperXAvailable(false));
+    }
+  }, [isCloud]);
 
   const badges = [];
 
-  // Badge Backend - Priorité intelligente
+  // 🌐 Cloud Provider Badge
+  if (isCloud) {
+    const cloudInfo = provider === 'google' 
+      ? { icon: '🌟', label: 'Google Cloud', gradient: 'from-blue-500 to-cyan-500' }
+      : provider === 'openai'
+        ? { icon: '🤖', label: 'OpenAI Cloud', gradient: 'from-green-500 to-emerald-500' }
+        : provider === 'mistral'
+          ? { icon: '🎯', label: 'Mistral Cloud', gradient: 'from-orange-500 to-red-500' }
+          : { icon: '☁️', label: 'Cloud', gradient: 'from-gray-500 to-gray-600' };
+    
+    badges.push(
+      <span key="backend" className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gradient-to-r ${cloudInfo.gradient} text-white shadow-sm`}>
+        {cloudInfo.icon} {cloudInfo.label}
+      </span>
+    );
+  }
+  // Local: Badge Backend - Priorité intelligente
   // 🏆 PRIORITÉ 1: WhisperX (si diarization + disponible)
-  if (supportsDiarization && whisperXAvailable) {
+  else if (supportsDiarization && whisperXAvailable) {
     badges.push(
       <span key="backend" className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gradient-to-r from-violet-600 to-purple-600 text-white shadow-sm">
         🏆 WhisperX
@@ -1984,10 +2007,13 @@ function SettingSelectRow({ title, selectedProvider, setSelectedProvider, provid
       </div>
       <div className="mt-2 space-y-1">
         <p className="text-sm text-gray-600 dark:text-gray-400">{selectedModelDesc}</p>
-        {isLocal && selectedModel && (
+        {/* Show badges for ALL providers */}
+        {selectedModel && (
           <BackendBadges
             supportsDiarization={selectedModelData?.supportsDiarization}
             requiresServer={selectedModelData?.requiresServer}
+            isCloud={!isLocal}
+            provider={selectedProvider}
           />
         )}
         {isLocal && selectedModelData && (

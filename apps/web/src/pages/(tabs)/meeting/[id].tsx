@@ -198,6 +198,31 @@ export default function MeetingDetail() {
     fetchPromptTemplates();
   }, [fetchMeeting, fetchPromptTemplates]);
 
+  // Track previous status to detect completion
+  const [previousStatus, setPreviousStatus] = useState<string | null>(null);
+
+  // 🔄 Auto-refresh when meeting is processing (background upload/transcription)
+  useEffect(() => {
+    if (!meeting) return;
+
+    // Detect transition to completed - show success toast
+    if (previousStatus && previousStatus !== 'completed' && meeting.status === 'completed') {
+      toast.success('✅ Traitement terminé ! La transcription est prête.', { duration: 4000 });
+    }
+    setPreviousStatus(meeting.status);
+
+    // Poll every 3 seconds while processing
+    if (meeting.status === 'processing' || meeting.status === 'pending' || meeting.status === 'uploading') {
+      console.log('[Meeting] 🔄 Status is', meeting.status, '- polling for updates...');
+      
+      const pollInterval = setInterval(() => {
+        fetchMeeting();
+      }, 3000);
+
+      return () => clearInterval(pollInterval);
+    }
+  }, [meeting?.status, fetchMeeting, previousStatus]);
+
   const handleGenerateSummary = async () => {
     // Check if transcript exists in either format
     const hasUtterances = meeting?.transcript && hasUtterancesFormat(meeting.transcript) && meeting.transcript.utterances.length > 0;
@@ -920,11 +945,23 @@ export default function MeetingDetail() {
               {/* Cover Gradient/Image Area */}
               <div className="h-32 bg-gradient-to-r from-blue-600/20 via-purple-600/20 to-pink-600/20 relative">
                 <div className="absolute top-4 right-4">
-                  <div className={`inline-flex items-center px-4 py-2 rounded-full ${statusConfig.bgColor} border ${statusConfig.borderColor} shadow-sm backdrop-blur-sm`}>
-                    <StatusIcon className={`w-4 h-4 mr-2 ${statusConfig.iconColor}`} />
+                  <div className={`inline-flex items-center px-4 py-2 rounded-full ${statusConfig.bgColor} border ${statusConfig.borderColor} shadow-sm backdrop-blur-sm ${(meeting.status === 'processing' || meeting.status === 'pending' || meeting.status === 'uploading') ? 'animate-pulse' : ''}`}>
+                    {/* Spinner for processing states */}
+                    {(meeting.status === 'processing' || meeting.status === 'pending' || meeting.status === 'uploading') ? (
+                      <div className="w-4 h-4 mr-2 rounded-full border-2 border-current border-t-transparent animate-spin"></div>
+                    ) : (
+                      <StatusIcon className={`w-4 h-4 mr-2 ${statusConfig.iconColor}`} />
+                    )}
                     <span className={`text-sm font-bold ${statusConfig.textColor}`}>
-                      {statusConfig.text}
+                      {meeting.status === 'processing' ? 'Traitement...' :
+                       meeting.status === 'uploading' ? 'Upload...' :
+                       meeting.status === 'pending' ? 'En attente...' :
+                       statusConfig.text}
                     </span>
+                    {/* Auto-refresh indicator */}
+                    {(meeting.status === 'processing' || meeting.status === 'pending' || meeting.status === 'uploading') && (
+                      <span className="ml-2 text-xs opacity-60">• auto</span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -956,6 +993,18 @@ export default function MeetingDetail() {
                           <span>{t('meetingDetail.participantCount', { count: meeting.participant_count || 1 })}</span>
                         </div>
                       </div>
+
+                      {/* Processing info line */}
+                      {(meeting.status === 'processing' || meeting.status === 'pending' || meeting.status === 'uploading') && (
+                        <div className="mt-4 flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400">
+                          <div className="w-3 h-3 rounded-full border-2 border-current border-t-transparent animate-spin"></div>
+                          <span>
+                            {meeting.status === 'processing' ? 'Transcription en arrière-plan... La page se met à jour automatiquement.' :
+                             meeting.status === 'uploading' ? "Upload de l'audio en cours..." :
+                             'En attente de traitement...'}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
 
