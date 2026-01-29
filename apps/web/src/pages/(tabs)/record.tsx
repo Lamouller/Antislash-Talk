@@ -1053,6 +1053,9 @@ export default function RecordingScreen() {
             // 🎯 ENHANCEMENT: Run post-processing with Gemini if using Google provider
             if (userPreferences.transcription_provider === 'google') {
               console.log('🔄 Starting Gemini enhancement phase...');
+              // #region agent log
+              fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'record.tsx:enhancement:start',message:'Enhancement phase STARTING',data:{provider:'google',liveSegmentsCount:liveSegments.length,blobSize:blob.size},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4'})}).catch(()=>{});
+              // #endregion
               
               try {
                 // Convert SpeakerSegment[] to TranscriptSegment[] (ensure speaker is always string)
@@ -1064,12 +1067,20 @@ export default function RecordingScreen() {
                   isLive: true
                 }));
                 
+                // #region agent log
+                fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'record.tsx:enhancement:calling',message:'Calling enhanceTranscription',data:{segmentCount:transcriptSegments.length,firstSpeaker:transcriptSegments[0]?.speaker},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4'})}).catch(()=>{});
+                // #endregion
+                
                 // Call enhancement with the audio blob and existing live segments
                 const enhancedResult = await geminiTranscription.enhanceTranscription(
                   blob,
                   transcriptSegments, // Pass converted segments
                   (progress) => console.log(`Enhancement progress: ${progress}%`)
                 );
+
+                // #region agent log
+                fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'record.tsx:enhancement:result',message:'Enhancement returned',data:{hasResult:!!enhancedResult,segmentCount:enhancedResult?.segments?.length,phase:enhancedResult?.phase,speakers:enhancedResult?.segments?.map((s: any)=>s.speaker).filter((v: string,i: number,a: string[])=>a.indexOf(v)===i)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4'})}).catch(()=>{});
+                // #endregion
 
                 if (enhancedResult && enhancedResult.segments.length > 0) {
                   console.log('✅ Enhancement complete:', enhancedResult.segments.length, 'segments');
@@ -1087,12 +1098,22 @@ export default function RecordingScreen() {
                       status: 'completed'
                     })
                     .eq('id', meetingData.id);
+                    
+                  // #region agent log
+                  fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'record.tsx:enhancement:saved',message:'Enhanced transcript saved to DB',data:{meetingId:meetingData.id,segmentCount:enhancedResult.segments.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4'})}).catch(()=>{});
+                  // #endregion
                 } else {
                   console.log('⚠️ Enhancement returned no segments, keeping live segments');
+                  // #region agent log
+                  fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'record.tsx:enhancement:noSegments',message:'Enhancement returned NO segments',data:{enhancedResult},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4'})}).catch(()=>{});
+                  // #endregion
                   await supabase.from('meetings').update({ status: 'completed' }).eq('id', meetingData.id);
                 }
               } catch (enhanceError) {
                 console.error('❌ Enhancement failed:', enhanceError);
+                // #region agent log
+                fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'record.tsx:enhancement:error',message:'Enhancement FAILED with error',data:{error:(enhanceError as Error).message},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4'})}).catch(()=>{});
+                // #endregion
                 // Keep live segments, just mark as completed
                 await supabase.from('meetings').update({ status: 'completed' }).eq('id', meetingData.id);
               }

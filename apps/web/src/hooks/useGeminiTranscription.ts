@@ -865,29 +865,53 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                 `[${s.speaker}]: ${s.text}`
             ).join('\n');
 
-            const enhancementPrompt = `Tu es un expert en transcription audio professionnelle avec identification des locuteurs.
+            // #region agent log
+            fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:enhance:buildPrompt',message:'Building enhancement prompt',data:{existingTextLength:existingText.length,segmentCount:(existingSegments||liveSegments).length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4'})}).catch(()=>{});
+            // #endregion
 
-CONTEXTE - Transcription live existante (peut contenir des erreurs):
-${existingText || '(aucune transcription préalable)'}
+            const enhancementPrompt = `Tu es un expert en transcription et diarization audio (identification des locuteurs par leur voix).
 
-TÂCHE:
-1. Réécoute l'audio complet et corrige les erreurs de transcription
-2. Identifie PRÉCISÉMENT chaque locuteur distinct par sa voix
-3. Utilise les noms propres si mentionnés, sinon Speaker_01, Speaker_02, etc.
-4. Ajoute les timestamps au format MM:SS
-5. IMPORTANT: Si un seul locuteur est présent, utilise UNIQUEMENT Speaker_01
+## AUDIO À ANALYSER
+Un enregistrement audio est fourni. Écoute-le INTÉGRALEMENT avant de répondre.
 
-FORMAT DE SORTIE (JSON strict):
+## TRANSCRIPTION LIVE DE RÉFÉRENCE (peut contenir des erreurs)
+${existingText || '(aucune transcription préalable - analyse uniquement l\'audio)'}
+
+## INSTRUCTIONS DE DIARIZATION (CRITIQUE)
+
+### Étape 1: Analyse des voix
+- Écoute l'audio et identifie le NOMBRE EXACT de voix distinctes
+- Chaque voix a un timbre, une tonalité et un rythme uniques
+- NE PAS confondre une même personne avec plusieurs speakers
+
+### Étape 2: Attribution des noms
+- Si une personne se présente ("je suis X", "c'est X qui parle", "ici X"), utilise ce nom
+- Sinon, utilise Speaker_01, Speaker_02, etc.
+- COHÉRENCE: Une même voix = UN SEUL nom/identifiant tout au long
+
+### Étape 3: Transcription précise
+- Corrige les erreurs de la transcription live
+- Garde le sens et les mots exacts prononcés
+- Ajoute les timestamps au format "MM:SS"
+
+## FORMAT DE SORTIE (JSON STRICT - AUCUN AUTRE TEXTE)
+\`\`\`json
 {
-  "language": "code langue détectée",
-  "speakers_detected": 2,
+  "language": "fr",
+  "speakers_detected": <nombre>,
+  "speaker_names": ["Nom1", "Speaker_02"],
   "segments": [
-    {"speaker": "Speaker_01", "text": "texte exact", "start": "00:00", "end": "00:15", "confidence": 0.95},
+    {"speaker": "Nom1", "text": "texte exact", "start": "00:00", "end": "00:15", "confidence": 0.95},
     {"speaker": "Speaker_02", "text": "réponse", "start": "00:16", "end": "00:28", "confidence": 0.92}
   ]
 }
+\`\`\`
 
-RETOURNE UNIQUEMENT LE JSON, AUCUN AUTRE TEXTE.`;
+## RÈGLES CRITIQUES
+- Retourne UNIQUEMENT le JSON, pas de texte avant ou après
+- Si 1 seul locuteur, speakers_detected=1 et utilise UN SEUL nom
+- Les segments doivent être dans l'ordre chronologique
+- Confidence entre 0.0 et 1.0`;
 
             setProgress(30);
             onProgress?.(30);
@@ -929,13 +953,23 @@ RETOURNE UNIQUEMENT LE JSON, AUCUN AUTRE TEXTE.`;
             setProgress(70);
             onProgress?.(70);
 
+            // #region agent log
+            fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:enhance:apiResponse',message:'Gemini API response received',data:{status:response.status,ok:response.ok},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'})}).catch(()=>{});
+            // #endregion
+
             if (!response.ok) {
                 const err = await response.json();
+                // #region agent log
+                fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:enhance:apiError',message:'Gemini API error',data:{error:err.error?.message||'unknown'},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
+                // #endregion
                 throw new Error(err.error?.message || 'Gemini API error');
             }
 
             const data = await response.json();
             const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            
+            // #region agent log
+            fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:enhance:rawResponse',message:'Raw text from Gemini',data:{length:rawText.length,preview:rawText.substring(0,300),hasContent:!!rawText},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'})}).catch(()=>{});
 
             // #region agent log
             debugLog('useGeminiTranscription:enhance', '📥 GEMINI RESPONSE', {
@@ -956,7 +990,15 @@ RETOURNE UNIQUEMENT LE JSON, AUCUN AUTRE TEXTE.`;
                 if (cleanedText.endsWith('```')) cleanedText = cleanedText.slice(0, -3);
                 cleanedText = cleanedText.trim();
 
+                // #region agent log
+                fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:enhance:cleanedText',message:'Cleaned text for parsing',data:{length:cleanedText.length,preview:cleanedText.substring(0,200)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
+                // #endregion
+
                 const parsed = JSON.parse(cleanedText);
+
+                // #region agent log
+                fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:enhance:parsed',message:'JSON parsed successfully',data:{speakersDetected:parsed.speakers_detected,segmentCount:parsed.segments?.length,speakerNames:parsed.speaker_names},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
+                // #endregion
 
                 const enhancedSegs: TranscriptSegment[] = (parsed.segments || []).map((s: any) => ({
                     speaker: s.speaker || 'Speaker_01',
@@ -976,12 +1018,17 @@ RETOURNE UNIQUEMENT LE JSON, AUCUN AUTRE TEXTE.`;
                     phase: 'enhanced'
                 };
 
+                // #region agent log
+                fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:enhance:success',message:'Enhancement complete',data:{segmentCount:enhancedSegs.length,speakers:[...new Set(enhancedSegs.map(s=>s.speaker))],phase:'enhanced'},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H5'})}).catch(()=>{});
+                // #endregion
+
             } catch (parseError) {
                 // Fallback to live segments if parsing fails
                 // #region agent log
                 debugLog('useGeminiTranscription:enhance', '⚠️ JSON PARSE FAILED', {
                     error: (parseError as Error).message
                 }, 'ENHANCE');
+                fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:enhance:parseError',message:'JSON parse FAILED',data:{error:(parseError as Error).message,rawTextPreview:rawText.substring(0,300)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
                 // #endregion
 
                 result = {
