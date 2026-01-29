@@ -348,21 +348,26 @@ async def handle_live_diarization(websocket: WebSocket):
                                     
                                     # Send speaker info
                                     if speaker_id != session.current_speaker:
+                                        logger.info(f"📤 SENDING speaker update: {speaker_id} (current was: {session.current_speaker})")
                                         if session.current_speaker:
-                                            await websocket.send_json({
+                                            msg = {
                                                 "type": "speaker_change",
                                                 "from": session.current_speaker,
                                                 "to": speaker_id,
                                                 "confidence": round(confidence, 2),
                                                 "is_new": is_new
-                                            })
+                                            }
+                                            logger.info(f"📤 WebSocket SEND: {msg}")
+                                            await websocket.send_json(msg)
                                         else:
-                                            await websocket.send_json({
+                                            msg = {
                                                 "type": "speaker",
                                                 "speaker": speaker_id,
                                                 "confidence": round(confidence, 2),
                                                 "is_new": is_new
-                                            })
+                                            }
+                                            logger.info(f"📤 WebSocket SEND: {msg}")
+                                            await websocket.send_json(msg)
                                         
                                         session.current_speaker = speaker_id
                                         logger.info(f"🎤 Speaker: {speaker_id} (confidence: {confidence:.2f}, new: {is_new})")

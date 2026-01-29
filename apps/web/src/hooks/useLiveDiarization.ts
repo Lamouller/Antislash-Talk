@@ -102,8 +102,15 @@ export function useLiveDiarization(options: UseLiveDiarizationOptions = {}) {
                 };
 
                 ws.onmessage = (event) => {
+                    // #region agent log
+                    fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useLiveDiarization.ts:onmessage',message:'WebSocket message received',data:{rawData:event.data?.substring?.(0,200)||event.data},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+                    // #endregion
+                    console.log(`%c[LiveDiarization] 📥 RAW MESSAGE: ${event.data?.substring?.(0, 100) || event.data}`, 'color: #ec4899');
                     try {
                         const data: SpeakerEvent = JSON.parse(event.data);
+                        // #region agent log
+                        fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useLiveDiarization.ts:parsed',message:'Parsed message type',data:{type:data.type,speaker:data.speaker,to:data.to,confidence:data.confidence},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+                        // #endregion
                         
                         switch (data.type) {
                             case 'ready':

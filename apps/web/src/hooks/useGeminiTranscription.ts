@@ -315,6 +315,12 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                                 // Pattern for "[Name] qui parle" without c'est prefix
                                 /^([A-Z][a-zà-ÿ]{2,})\s+qui\s+parle/i,
                                 /,\s*([A-Z][a-zà-ÿ]{2,})\s+qui\s+parle/i,
+                                // NEW: "c'est [Name]," - name followed by comma (simple introduction)
+                                /,\s*c'est\s+([A-Z][a-zà-ÿ]{2,}),/i,
+                                // NEW: "Bon, c'est [Name]," or "Alors c'est [Name]," - common intro starters
+                                /(?:^|[.!?]\s*)(?:bon|alors|ok|bien|oui|donc)\s*,?\s*c'est\s+([A-Z][a-zà-ÿ]{2,})/i,
+                                // NEW: "c'est [Name] [SecondName]," - compound names like "Jean Fabien"
+                                /c'est\s+([A-Z][a-zà-ÿ]{2,})\s+([A-Z][a-zà-ÿ]{2,})\s*,/i,
                             ];
                             
                             // Common words to exclude from name detection (expanded list)
@@ -341,7 +347,11 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                             for (const pattern of selfIntroPatterns) {
                                 const match = fullText.match(pattern);
                                 if (match && match[1]) {
-                                    const candidateName = match[1];
+                                    // Handle compound names (match[1] + match[2])
+                                    let candidateName = match[1];
+                                    if (match[2] && /^[A-Z]/.test(match[2])) {
+                                        candidateName = `${match[1]} ${match[2]}`;
+                                    }
                                     // Validate: not a common word, min 3 chars
                                     if (!EXCLUDED_WORDS.has(candidateName.toLowerCase()) && 
                                         candidateName.length >= 3) {
