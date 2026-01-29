@@ -303,9 +303,6 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                             // ═══════════════════════════════════════════════════════════════
                             
                             // 🎯 Lightweight name detection from self-introductions
-                            const textLower = fullText.toLowerCase();
-                            const NAME_PATTERN = /\b([A-Z][a-zà-ÿ]{2,}(?:-[A-Z][a-zà-ÿ]+)?)\b/g;
-                            
                             // Patterns for self-introduction (detect speaker name)
                             const selfIntroPatterns = [
                                 /c'est\s+([A-Z][a-zà-ÿ]{2,})\s+(?:qui\s+parle|ici|à l'appareil)/i,
