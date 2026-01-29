@@ -371,13 +371,6 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                             // 🎭 SPEAKER NAME MEMORY SYSTEM (VOICE-FIRST)
                             // Priority: 1. Pyannote voice ID (trust the voice!), 2. Text-based name for NEW speakers only
                             const pyannoteSpeaker = externalSpeakerRef.current; // e.g., "SPEAKER_01"
-                            const previousPyannoteSpeaker = speakerNamesRef.current.get('_lastPyannoteSpeaker');
-                            const isNewSpeaker = pyannoteSpeaker && pyannoteSpeaker !== previousPyannoteSpeaker;
-                            
-                            // Track current Pyannote speaker for change detection
-                            if (pyannoteSpeaker) {
-                                speakerNamesRef.current.set('_lastPyannoteSpeaker', pyannoteSpeaker);
-                            }
                             
                             if (detectedName && pyannoteSpeaker) {
                                 // Name detected in text - BUT only use it if:
