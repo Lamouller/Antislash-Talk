@@ -138,9 +138,16 @@ def get_embedding_model():
         
         try:
             logger.info("🧠 Loading Pyannote speaker embedding model...")
-            from pyannote.audio import Model
             
-            # Load model with explicit weights_only=False for compatibility
+            # Add all necessary safe globals for PyTorch 2.6+ (weights_only=True default)
+            import torch.torch_version
+            from pyannote.audio.core.task import Specifications
+            torch.serialization.add_safe_globals([
+                torch.torch_version.TorchVersion,
+                Specifications,
+            ])
+            
+            from pyannote.audio import Model
             _embedding_model = Model.from_pretrained(
                 "pyannote/wespeaker-voxceleb-resnet34-LM",
                 use_auth_token=HUGGINGFACE_TOKEN
