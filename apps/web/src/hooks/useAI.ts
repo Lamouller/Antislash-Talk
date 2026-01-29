@@ -666,8 +666,18 @@ export function useAI() {
         }, 'PARALLEL');
         // #endregion
 
+        // Clean title: remove markdown formatting (**bold**, *italic*), quotes, newlines
+        const cleanTitle = titleResult
+            .replace(/\*\*/g, '')  // Remove **bold**
+            .replace(/\*/g, '')   // Remove *italic*
+            .replace(/["']/g, '') // Remove quotes
+            .replace(/\n/g, ' ')  // Replace newlines with spaces
+            .replace(/^(Titre|Title)\s*:\s*/i, '') // Remove "Titre:" or "Title:" prefix
+            .trim()
+            .substring(0, 80);    // Limit length
+        
         return {
-            title: titleResult.replace(/["']/g, '').substring(0, 60).replace(/\n/g, ' ').trim(),
+            title: cleanTitle,
             summary: summaryResult.trim()
         };
     }, [generate, generateStream]);
