@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Optional, List
 import logging
 
-from fastapi import FastAPI, File, UploadFile, Form, HTTPException
+from fastapi import FastAPI, File, UploadFile, Form, HTTPException, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 import whisperx
@@ -440,6 +440,70 @@ async def download_models(model: str = Form("base")):
     except Exception as e:
         logger.error(f"❌ Model download failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 🎭 LIVE DIARIZATION WEBSOCKET - Real-time speaker identification
+# ═══════════════════════════════════════════════════════════════════════════
+
+@app.websocket("/ws/live-diarization")
+async def websocket_live_diarization(websocket: WebSocket):
+    """
+    🎭 Live Speaker Diarization via WebSocket
+    
+    Protocol:
+    - Connect: ws://localhost:8082/ws/live-diarization
+    - Send: Binary audio chunks (PCM 16kHz, 16-bit, mono)
+    - Receive: JSON messages
+      {"type": "speaker", "speaker": "SPEAKER_01", "confidence": 0.92}
+      {"type": "speaker_change", "from": "SPEAKER_01", "to": "SPEAKER_02"}
+    
+    Usage with Gemini Live:
+    1. Start Gemini Live WebSocket for text transcription
+    2. Start this WebSocket for speaker identification
+    3. Combine results: Gemini text + Pyannote speaker
+    """
+    try:
+        from live_diarization import handle_live_diarization
+        await handle_live_diarization(websocket)
+    except Exception as e:
+        logger.error(f"❌ Live diarization error: {e}")
+        await websocket.close(code=1011, reason=str(e))
+
+
+@app.get("/live-diarization/status")
+async def live_diarization_status():
+    """Check if live diarization is available"""
+    try:
+        # Check if models can be loaded
+        has_hf_token = HUGGINGFACE_TOKEN is not None
+        
+        # Try to check Pyannote model availability
+        pyannote_available = False
+        if has_hf_token:
+            try:
+                from pyannote.audio import Model
+                pyannote_available = True
+            except:
+                pass
+        
+        return {
+            "available": has_hf_token and pyannote_available,
+            "huggingface_token": has_hf_token,
+            "pyannote_model": pyannote_available,
+            "device": DEVICE,
+            "gpu_available": torch.cuda.is_available(),
+            "endpoint": "ws://localhost:8082/ws/live-diarization",
+            "protocol": {
+                "input": "Binary PCM audio (16kHz, 16-bit, mono)",
+                "output": "JSON messages with speaker identification"
+            }
+        }
+    except Exception as e:
+        return {
+            "available": False,
+            "error": str(e)
+        }
 
 
 if __name__ == "__main__":

@@ -12,6 +12,7 @@ import { useWebAudioRecorder } from '../../hooks/useWebAudioRecorder';
 import { useLocalTranscription, LocalTranscriptionResult } from '../../hooks/useLocalTranscription';
 import { useAI } from '../../hooks/useAI';
 import { useGeminiTranscription, TranscriptSegment } from '../../hooks/useGeminiTranscription';
+import { useLiveDiarization } from '../../hooks/useLiveDiarization';
 import { useWakeLock } from '../../hooks/useWakeLock';
 import { useDisplayMode } from '../../hooks/useDisplayMode';
 import { getAdaptivePrompts, getWhisperOptimizedPrompts, requiresSpecialPrompts } from '../../lib/adaptive-prompts';
@@ -200,6 +201,18 @@ export default function RecordingScreen() {
     language: 'fr',
     enableLiveTranscription: true,
     enablePostEnhancement: true
+  });
+
+  // 🎭 Pyannote Live Diarization hook (real-time speaker identification)
+  const liveDiarization = useLiveDiarization({
+    onSpeakerChange: (speaker, confidence) => {
+      // Update Gemini transcription with speaker from Pyannote
+      console.log(`%c[Pyannote] 🎭 Speaker: ${speaker} (${(confidence * 100).toFixed(0)}%)`, 'color: #7c3aed; font-weight: bold');
+      geminiTranscription.setExternalSpeaker(speaker);
+    },
+    onError: (error) => {
+      console.error('[Pyannote] ❌ Error:', error);
+    }
   });
 
   // State for Gemini live transcription segments
@@ -699,6 +712,27 @@ export default function RecordingScreen() {
           }, 'GEMINI');
           // #endregion
 
+          // 🎭 Start Pyannote Live in parallel (for speaker identification)
+          let pyannoteConnected = false;
+          try {
+            pyannoteConnected = await liveDiarization.connect();
+            if (pyannoteConnected) {
+              console.log('%c[record] 🎭 PYANNOTE LIVE CONNECTED - Speaker identification active!', 'color: #7c3aed; font-weight: bold; background: #ede9fe; padding: 4px 8px');
+              debugLog('record.tsx:handleStartRecording', '🎭 PYANNOTE LIVE CONNECTED', {
+                currentSpeaker: liveDiarization.currentSpeaker
+              }, 'PYANNOTE');
+              
+              // 🎭 Register PCM callback to forward audio to Pyannote
+              geminiTranscription.setOnPCMChunk((pcmData: ArrayBuffer) => {
+                liveDiarization.sendAudioChunk(pcmData);
+              });
+            } else {
+              console.log('%c[record] ⚠️ Pyannote not available - diarization in post-processing', 'color: #f59e0b');
+            }
+          } catch (pyannoteError) {
+            console.warn('[record] ⚠️ Pyannote Live not available:', pyannoteError);
+          }
+
           // Start Gemini live workflow
           const workflow = await geminiTranscription.startFullWorkflow(
             // Callback for each live segment
@@ -869,18 +903,35 @@ export default function RecordingScreen() {
     // Stop the audio recorder
     stopRecording();
 
-    // 🎙️ Finalize Gemini workflow if active (triggers enhancement phase)
-    if (geminiWorkflowRef.current) {
-      console.log('%c[record] 🔄 Finalizing Gemini workflow (enhancement phase)...', 'color: #10b981; font-weight: bold');
-      geminiWorkflowRef.current.stop();
-      geminiWorkflowRef.current = null;
+    // 🎭 Stop Pyannote Live and clean up PCM callback
+    if (liveDiarization.isConnected) {
+      console.log('%c[record] 🎭 Stopping Pyannote Live...', 'color: #7c3aed; font-weight: bold');
+      liveDiarization.disconnect();
+      geminiTranscription.setOnPCMChunk(null); // Remove PCM callback
       
       // #region agent log
-      debugLog('record.tsx:handleStopRecording', '🔄 GEMINI WORKFLOW STOPPED', {
+      debugLog('record.tsx:handleStopRecording', '🎭 PYANNOTE LIVE STOPPED', {
+        totalSpeakers: liveDiarization.speakers.length,
+        speakers: liveDiarization.speakers
+      }, 'PYANNOTE');
+      // #endregion
+    }
+
+    // 🎙️ Stop live streaming but KEEP workflow for enhancement
+    // Don't call stop() yet - we'll call finalize() in background which does stop + enhance
+    const workflowToFinalize = geminiWorkflowRef.current;
+    if (workflowToFinalize) {
+      console.log('%c[record] 🎙️ Gemini workflow will be finalized in background...', 'color: #10b981; font-weight: bold');
+      // Just stop the live WebSocket, enhancement will happen in background
+      workflowToFinalize.stop();
+      
+      // #region agent log
+      debugLog('record.tsx:handleStopRecording', '🔄 GEMINI LIVE STOPPED (enhancement pending)', {
         segmentsCount: geminiLiveSegments.length
       }, 'GEMINI');
       // #endregion
     }
+    geminiWorkflowRef.current = null;
 
     // 🔓 Release Wake Lock (handles both native and iOS fallback)
     if (wakeLockActive) {
@@ -955,16 +1006,16 @@ export default function RecordingScreen() {
         // Navigate IMMEDIATELY to meeting page
         navigate(`/tabs/meeting/${meetingData.id}`);
 
-        // 🔄 BACKGROUND PROCESSING: Upload audio and trigger transcription
+        // 🔄 BACKGROUND PROCESSING: Upload audio, enhance transcription, update meeting
         // This runs AFTER navigation, user sees meeting page with loading state
-        setTimeout(async () => {
+        (async () => {
           try {
             console.log('🔄 Starting background processing for meeting:', meetingData.id);
             
             // Wait for audioBlob to be ready (may take a moment after stopRecording)
             let attempts = 0;
             let blob = audioBlob;
-            while (!blob && attempts < 20) {
+            while (!blob && attempts < 30) {
               await new Promise(r => setTimeout(r, 200));
               blob = audioBlob;
               attempts++;
@@ -972,6 +1023,7 @@ export default function RecordingScreen() {
 
             if (!blob) {
               console.error('❌ AudioBlob not ready after waiting');
+              await supabase.from('meetings').update({ status: 'completed' }).eq('id', meetingData.id);
               return;
             }
 
@@ -993,6 +1045,7 @@ export default function RecordingScreen() {
 
             if (uploadError) {
               console.error('❌ Background upload failed:', uploadError);
+              await supabase.from('meetings').update({ status: 'completed' }).eq('id', meetingData.id);
               return;
             }
 
@@ -1002,11 +1055,48 @@ export default function RecordingScreen() {
               .update({ recording_url: fileName })
               .eq('id', meetingData.id);
 
-            console.log('✅ Audio uploaded, triggering async transcription...');
+            console.log('✅ Audio uploaded');
 
-            // Trigger async transcription if using cloud provider
-            if (userPreferences.transcription_provider !== 'local') {
-              // The webhook will pick up the meeting and process it
+            // 🎯 ENHANCEMENT: Run post-processing with Gemini if using Google provider
+            if (userPreferences.transcription_provider === 'google') {
+              console.log('🔄 Starting Gemini enhancement phase...');
+              
+              try {
+                // Call enhancement with the audio blob and existing live segments
+                const enhancedResult = await geminiTranscription.enhanceTranscription(
+                  blob,
+                  liveSegments, // Pass the live segments we saved
+                  (progress) => console.log(`Enhancement progress: ${progress}%`)
+                );
+
+                if (enhancedResult && enhancedResult.segments.length > 0) {
+                  console.log('✅ Enhancement complete:', enhancedResult.segments.length, 'segments');
+                  
+                  // Update meeting with enhanced transcription
+                  await supabase
+                    .from('meetings')
+                    .update({ 
+                      transcript: enhancedResult.segments.map((seg, idx) => ({
+                        text: seg.text,
+                        speaker: seg.speaker,
+                        start: seg.start || idx * 5,
+                        end: seg.end || (idx + 1) * 5
+                      })),
+                      status: 'completed'
+                    })
+                    .eq('id', meetingData.id);
+                } else {
+                  console.log('⚠️ Enhancement returned no segments, keeping live segments');
+                  await supabase.from('meetings').update({ status: 'completed' }).eq('id', meetingData.id);
+                }
+              } catch (enhanceError) {
+                console.error('❌ Enhancement failed:', enhanceError);
+                // Keep live segments, just mark as completed
+                await supabase.from('meetings').update({ status: 'completed' }).eq('id', meetingData.id);
+              }
+            } else {
+              // Non-Google provider: trigger webhook or mark completed
+              console.log('📡 Non-Google provider, marking as pending for webhook...');
               await supabase
                 .from('meetings')
                 .update({ status: 'pending' })
@@ -1015,8 +1105,10 @@ export default function RecordingScreen() {
 
           } catch (bgError) {
             console.error('❌ Background processing error:', bgError);
+            // Mark as completed anyway so user doesn't wait forever
+            await supabase.from('meetings').update({ status: 'completed' }).eq('id', meetingData.id);
           }
-        }, 100);
+        })();
 
       } catch (error) {
         console.error('❌ Early navigation failed:', error);
@@ -1848,24 +1940,22 @@ export default function RecordingScreen() {
                   </div>
                 </div>
 
-                {/* Scrollable transcription zone - Auto-scroll activé */}
+                {/* Scrollable transcription zone - Clean text bubbles, no speaker labels */}
                 <div
                   ref={transcriptionContainerRef}
-                  className="max-h-96 overflow-y-auto bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm rounded-xl p-4 space-y-3 border border-violet-200/50 dark:border-violet-700/30 scroll-smooth"
+                  className="max-h-96 overflow-y-auto bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm rounded-xl p-4 space-y-2 border border-violet-200/50 dark:border-violet-700/30 scroll-smooth"
                 >
                   {liveTranscriptionSegments.length > 0 ? (
                     liveTranscriptionSegments.map((segment, idx) => (
                       <div
                         key={idx}
-                        className="animate-in fade-in slide-in-from-bottom-2 duration-300"
+                        className="animate-in fade-in slide-in-from-bottom-2 duration-200"
                       >
-                        <div className="flex items-start gap-3">
-                          {segment.speaker && (
-                            <span className="text-xs font-semibold text-violet-600 dark:text-violet-400 bg-violet-100 dark:bg-violet-900/30 px-2 py-1 rounded-full">
-                              {segment.speaker}
-                            </span>
-                          )}
-                          <p className="flex-1 text-sm text-gray-900 dark:text-gray-100 leading-relaxed">
+                        {/* Clean text bubble - no speaker name, just the text */}
+                        <div className="flex items-start gap-2">
+                          {/* Small dot indicator */}
+                          <div className="w-2 h-2 mt-2 rounded-full bg-violet-400 dark:bg-violet-500 flex-shrink-0 opacity-60"></div>
+                          <p className="flex-1 text-sm text-gray-800 dark:text-gray-200 leading-relaxed bg-white/40 dark:bg-gray-700/40 px-3 py-2 rounded-xl">
                             {segment.text}
                           </p>
                         </div>
@@ -1907,10 +1997,10 @@ export default function RecordingScreen() {
                   )}
                 </div>
 
-                {/* Statistics */}
-                <div className="mt-4 flex items-center justify-between text-xs text-violet-600 dark:text-violet-400">
-                  <span>✨ {t('record.segmentsReceived', { count: liveTranscriptionSegments.length })}</span>
-                  <span>🏆 {t('record.diarization')}</span>
+                {/* Statistics - simplified */}
+                <div className="mt-3 flex items-center justify-between text-xs text-violet-600 dark:text-violet-400">
+                  <span>✨ {liveTranscriptionSegments.length} segments</span>
+                  <span className="text-gray-400 dark:text-gray-500">Diarization en post-traitement</span>
                 </div>
               </div>
             )}
