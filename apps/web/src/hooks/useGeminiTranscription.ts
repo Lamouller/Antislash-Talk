@@ -68,6 +68,7 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
     const [enhancedSegments, setEnhancedSegments] = useState<TranscriptSegment[]>([]);
     const [progress, setProgress] = useState(0);
     const [error, setError] = useState<string | null>(null);
+    const [streamingText, setStreamingText] = useState<string>(''); // Real-time streaming text display
 
     // Refs
     const wsRef = useRef<WebSocket | null>(null);
@@ -75,6 +76,8 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
     const currentSpeakerRef = useRef<string>('Speaker_01');
     const lastTextRef = useRef<string>('');
     const accumulatedTextRef = useRef<string>(''); // Accumulate incremental transcription
+    const pauseTimeoutRef = useRef<NodeJS.Timeout | null>(null); // Detect speech pauses
+    const onSegmentCallbackRef = useRef<((segment: TranscriptSegment) => void) | null>(null); // Store callback for timeout
     
     // Speaker name mapping: Speaker_XX -> Real name (when detected)
     const speakerNamesRef = useRef<Map<string, string>>(new Map());
@@ -145,9 +148,11 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
 
         setIsLiveActive(true);
         setLiveSegments([]);
+        setStreamingText('');
         audioChunksRef.current = [];
         lastTextRef.current = '';
-        accumulatedTextRef.current = ''; // Reset accumulator for new session
+        accumulatedTextRef.current = '';
+        onSegmentCallbackRef.current = onSegment || null; // Store callback for timeout-based creation
 
         try {
             // Always use gemini-2.0-flash-live-001 for Live WebSocket API
@@ -258,111 +263,109 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                         const text = data.serverContent.inputTranscription.text;
                         const isFinal = data.serverContent.inputTranscription.finished;
 
-                        // #region agent log
-                        fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:inputTranscription',message:'INPUT_TRANSCRIPTION_DETAIL',data:{text:text.substring(0,50),isFinal,accumulatedBefore:accumulatedTextRef.current.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,B'})}).catch(()=>{});
-                        // #endregion
+                        // Clear any pending pause timeout - new text arrived
+                        if (pauseTimeoutRef.current) {
+                            clearTimeout(pauseTimeoutRef.current);
+                            pauseTimeoutRef.current = null;
+                        }
 
-                        // ACCUMULATE text until isFinal
+                        // ACCUMULATE text
                         accumulatedTextRef.current += text;
                         
-                        // Only process when segment is final OR accumulated text is long enough
-                        const shouldProcess = isFinal || accumulatedTextRef.current.length > 50;
-                        
-                        // #region agent log
-                        fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:inputTranscription',message:'ACCUMULATION_STATUS',data:{isFinal,accumulatedLength:accumulatedTextRef.current.length,shouldProcess,accumulated:accumulatedTextRef.current.substring(0,80)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,B'})}).catch(()=>{});
-                        // #endregion
+                        // 🚀 REAL-TIME: Update streaming text immediately for instant display
+                        setStreamingText(accumulatedTextRef.current.trim());
 
-                        if (!shouldProcess) {
-                            return; // Wait for more text
-                        }
-
-                        // Get accumulated text for processing
-                        const fullText = accumulatedTextRef.current;
-                        
-                        // Avoid duplicates
-                        if (fullText === lastTextRef.current) {
-                            accumulatedTextRef.current = ''; // Reset for next segment
-                            return;
-                        }
-                        lastTextRef.current = fullText;
-
-                        // Detect speaker change
-                        if (fullText.includes('[SPEAKER_CHANGE]') || fullText.includes('(speaker change)')) {
-                            const speakerNum = parseInt(currentSpeakerRef.current.split('_')[1] || '1');
-                            currentSpeakerRef.current = `Speaker_${String(speakerNum + 1).padStart(2, '0')}`;
-                        }
-
-                        // Detect mentioned names - CASE SENSITIVE for name capture (must start with uppercase)
-                        // NOTE: Removed the 'i' flag to avoid matching lowercase words like "pas"
-                        const nameMatch = fullText.match(/\(nom détecté:\s*([^)]+)\)/i) || 
-                                         fullText.match(/(?:[Jj]e suis|[Cc]'est|[Ii]ci)\s+([A-Z][a-zéèêëàâäùûü]+(?:\s+[A-Z][a-zéèêëàâäùûü]+)?)/);
-                        if (nameMatch) {
-                            const detectedName = nameMatch[1].trim();
-                            // Only accept names that are at least 2 chars and start with uppercase
-                            if (detectedName.length >= 2 && /^[A-Z]/.test(detectedName)) {
-                                const oldSpeaker = currentSpeakerRef.current;
-                                
-                                // Store the mapping: Speaker_XX -> Real name
-                                speakerNamesRef.current.set(oldSpeaker, detectedName);
-                                
-                                // Update current speaker to real name
-                                currentSpeakerRef.current = detectedName;
-                                
-                                // Retroactively update ALL previous segments with this speaker
-                                setLiveSegments(prev => prev.map(seg => 
-                                    seg.speaker === oldSpeaker ? { ...seg, speaker: detectedName } : seg
-                                ));
-                                
-                                debugLog('useGeminiTranscription:speakerDetected', '👤 NAME DETECTED - UPDATING ALL', {
-                                    oldSpeaker,
-                                    newName: detectedName,
-                                    mappingSize: speakerNamesRef.current.size
-                                }, 'LIVE');
+                        // Helper function to create and emit segment
+                        const createSegment = (reason: string) => {
+                            const fullText = accumulatedTextRef.current;
+                            
+                            // Avoid duplicates
+                            if (fullText === lastTextRef.current || fullText.trim().length === 0) {
+                                accumulatedTextRef.current = '';
+                                setStreamingText('');
+                                return;
                             }
-                        }
+                            lastTextRef.current = fullText;
 
-                        // Clean text - remove metadata and hallucinations
-                        const cleanText = fullText
-                            .replace(/\[SPEAKER_CHANGE\]/gi, '')
-                            .replace(/\(nom détecté:[^)]+\)/gi, '')
-                            .replace(/\(speaker change\)/gi, '')
-                            .replace(/\*\*[^*]+\*\*/g, '') // Remove **bold** patterns (hallucinations)
-                            .replace(/\([^)]*transcri[^)]*\)/gi, '') // Remove (transcription...) patterns
-                            .replace(/\([^)]*clari[^)]*\)/gi, '') // Remove (clarification...) patterns
-                            .replace(/I've successfully.*/gi, '') // Remove assistant-like responses
-                            .replace(/My focus remains.*/gi, '')
-                            .replace(/I'm having trouble.*/gi, '')
-                            .trim();
+                            // Detect speaker change
+                            if (fullText.includes('[SPEAKER_CHANGE]') || fullText.includes('(speaker change)')) {
+                                const speakerNum = parseInt(currentSpeakerRef.current.split('_')[1] || '1');
+                                currentSpeakerRef.current = `Speaker_${String(speakerNum + 1).padStart(2, '0')}`;
+                            }
 
-                        // #region agent log
-                        fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:segment',message:'SEGMENT_CHECK',data:{cleanTextLength:cleanText.length,cleanTextPreview:cleanText.substring(0,50),isFinal,willCreate:!!(cleanText)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,C'})}).catch(()=>{});
-                        // #endregion
+                            // Detect mentioned names - CASE SENSITIVE for name capture
+                            const nameMatch = fullText.match(/\(nom détecté:\s*([^)]+)\)/i) || 
+                                             fullText.match(/(?:[Jj]e suis|[Cc]'est|[Ii]ci)\s+([A-Z][a-zéèêëàâäùûü]+(?:\s+[A-Z][a-zéèêëàâäùûü]+)?)/);
+                            if (nameMatch) {
+                                const detectedName = nameMatch[1].trim();
+                                if (detectedName.length >= 2 && /^[A-Z]/.test(detectedName)) {
+                                    const oldSpeaker = currentSpeakerRef.current;
+                                    speakerNamesRef.current.set(oldSpeaker, detectedName);
+                                    currentSpeakerRef.current = detectedName;
+                                    setLiveSegments(prev => prev.map(seg => 
+                                        seg.speaker === oldSpeaker ? { ...seg, speaker: detectedName } : seg
+                                    ));
+                                    debugLog('useGeminiTranscription:speakerDetected', '👤 NAME DETECTED', {
+                                        oldSpeaker, newName: detectedName
+                                    }, 'LIVE');
+                                }
+                            }
 
-                        // Create segment if we have text (don't require isFinal anymore - we've accumulated enough)
-                        if (cleanText) {
-                            const segment: TranscriptSegment = {
-                                speaker: currentSpeakerRef.current,
-                                text: cleanText,
-                                isLive: true,
-                                confidence: isFinal ? 0.9 : 0.75
-                            };
+                            // Clean text
+                            const cleanText = fullText
+                                .replace(/\[SPEAKER_CHANGE\]/gi, '')
+                                .replace(/\(nom détecté:[^)]+\)/gi, '')
+                                .replace(/\(speaker change\)/gi, '')
+                                .replace(/\*\*[^*]+\*\*/g, '')
+                                .replace(/\([^)]*transcri[^)]*\)/gi, '')
+                                .replace(/\([^)]*clari[^)]*\)/gi, '')
+                                .replace(/I've successfully.*/gi, '')
+                                .replace(/My focus remains.*/gi, '')
+                                .replace(/I'm having trouble.*/gi, '')
+                                .trim();
 
-                            // #region agent log
-                            fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:segment',message:'SEGMENT_CREATED',data:{speaker:segment.speaker,textPreview:cleanText.substring(0,30),textLength:cleanText.length,hasCallback:!!onSegment},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
-                            // #endregion
+                            if (cleanText) {
+                                const segment: TranscriptSegment = {
+                                    speaker: currentSpeakerRef.current,
+                                    text: cleanText,
+                                    isLive: true,
+                                    confidence: isFinal ? 0.9 : 0.75
+                                };
 
-                            setLiveSegments(prev => [...prev, segment]);
-                            onSegment?.(segment);
+                                debugLog('useGeminiTranscription:onSegment', '📝 SEGMENT CREATED', {
+                                    reason,
+                                    speaker: segment.speaker,
+                                    textPreview: cleanText.substring(0, 40),
+                                    length: cleanText.length
+                                }, 'LIVE');
 
-                            debugLog('useGeminiTranscription:onSegment', '📝 LIVE SEGMENT CREATED', {
-                                speaker: segment.speaker,
-                                textPreview: cleanText.substring(0, 50),
-                                isFinal
-                            }, 'LIVE');
-                        }
+                                setLiveSegments(prev => [...prev, segment]);
+                                onSegmentCallbackRef.current?.(segment);
+                                onSegment?.(segment);
+                            }
+                            
+                            // Reset for next segment
+                            accumulatedTextRef.current = '';
+                            setStreamingText('');
+                        };
+
+                        // Decide when to create segment:
+                        // 1. If isFinal = true (Gemini says sentence is complete)
+                        // 2. If accumulated text > 25 chars (faster threshold)
+                        // 3. If text ends with sentence-ending punctuation
+                        const hasEnoughText = accumulatedTextRef.current.length > 25;
+                        const hasSentenceEnd = /[.!?。]$/.test(accumulatedTextRef.current.trim());
                         
-                        // Reset accumulator for next segment
-                        accumulatedTextRef.current = '';
+                        if (isFinal || hasEnoughText || hasSentenceEnd) {
+                            createSegment(isFinal ? 'final' : hasSentenceEnd ? 'punctuation' : 'length');
+                        } else {
+                            // Set timeout for pause detection - create segment after 800ms of silence
+                            pauseTimeoutRef.current = setTimeout(() => {
+                                if (accumulatedTextRef.current.trim().length > 0) {
+                                    createSegment('pause');
+                                }
+                            }, 800);
+                        }
                     }
 
                     // Handle model text output - SKIP ENTIRELY for now
@@ -601,6 +604,32 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
 
     // Stop live transcription
     const stopLiveTranscription = useCallback(() => {
+        // Clear pause timeout
+        if (pauseTimeoutRef.current) {
+            clearTimeout(pauseTimeoutRef.current);
+            pauseTimeoutRef.current = null;
+        }
+        
+        // Flush any remaining accumulated text as final segment
+        if (accumulatedTextRef.current.trim().length > 0) {
+            const cleanText = accumulatedTextRef.current
+                .replace(/\*\*[^*]+\*\*/g, '')
+                .replace(/\([^)]*transcri[^)]*\)/gi, '')
+                .trim();
+            if (cleanText) {
+                const segment: TranscriptSegment = {
+                    speaker: currentSpeakerRef.current,
+                    text: cleanText,
+                    isLive: true,
+                    confidence: 0.8
+                };
+                setLiveSegments(prev => [...prev, segment]);
+                onSegmentCallbackRef.current?.(segment);
+            }
+            accumulatedTextRef.current = '';
+            setStreamingText('');
+        }
+        
         // Stop PCM capture first
         stopPCMCapture();
         if (wsRef.current) {
@@ -612,13 +641,11 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
         }
         setIsLiveActive(false);
 
-        // #region agent log
         debugLog('useGeminiTranscription:stopLive', '🛑 LIVE PHASE STOPPED', {
             totalSegments: liveSegments.length,
             totalChunks: audioChunksRef.current.length,
             totalPCMChunks: pcmChunkCountRef.current
         }, 'LIVE');
-        // #endregion
     }, [liveSegments.length, stopPCMCapture]);
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -896,15 +923,21 @@ RETOURNE UNIQUEMENT LE JSON, AUCUN AUTRE TEXTE.`;
 
     // Reset state
     const reset = useCallback(() => {
+        if (pauseTimeoutRef.current) {
+            clearTimeout(pauseTimeoutRef.current);
+            pauseTimeoutRef.current = null;
+        }
         setLiveSegments([]);
         setEnhancedSegments([]);
+        setStreamingText('');
         setProgress(0);
         setError(null);
         audioChunksRef.current = [];
         currentSpeakerRef.current = 'Speaker_01';
         lastTextRef.current = '';
-        accumulatedTextRef.current = ''; // Reset accumulator
-        speakerNamesRef.current.clear(); // Reset speaker names mapping
+        accumulatedTextRef.current = '';
+        onSegmentCallbackRef.current = null;
+        speakerNamesRef.current.clear();
     }, []);
 
     return {
@@ -915,6 +948,7 @@ RETOURNE UNIQUEMENT LE JSON, AUCUN AUTRE TEXTE.`;
         enhancedSegments,
         progress,
         error,
+        streamingText, // 🚀 Real-time text being transcribed (before segment is finalized)
 
         // Phase 1: Live
         startLiveTranscription,

@@ -1764,8 +1764,21 @@ export default function RecordingScreen() {
                     </div>
                   )}
 
+                  {/* 🚀 REAL-TIME streaming text preview - shows words as they arrive */}
+                  {isStreamingActive && geminiTranscription.streamingText && (
+                    <div className="bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 border border-yellow-300 dark:border-yellow-700/50 rounded-xl p-3 animate-pulse">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 bg-yellow-500 rounded-full animate-ping"></div>
+                        <span className="text-xs font-medium text-yellow-700 dark:text-yellow-400">En cours...</span>
+                      </div>
+                      <p className="text-sm text-gray-700 dark:text-gray-300 mt-1 italic">
+                        "{geminiTranscription.streamingText}"
+                      </p>
+                    </div>
+                  )}
+
                   {/* Loading indicator - visible only during active streaming */}
-                  {isStreamingActive && liveTranscriptionSegments.length > 0 && (
+                  {isStreamingActive && liveTranscriptionSegments.length > 0 && !geminiTranscription.streamingText && (
                     <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 animate-pulse">
                       <div className="w-1.5 h-1.5 bg-violet-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
                       <div className="w-1.5 h-1.5 bg-violet-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
