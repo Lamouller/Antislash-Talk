@@ -176,11 +176,20 @@ export function useWebAudioRecorder() {
 
   const stopRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
+      // 🔧 FIX: Stop all audio tracks to release the microphone
+      if (mediaRecorderRef.current.stream) {
+        mediaRecorderRef.current.stream.getTracks().forEach(track => {
+          track.stop();
+          console.log('[useWebAudioRecorder] 🎤 Microphone track stopped:', track.kind);
+        });
+      }
       mediaRecorderRef.current.stop();
       setIsRecording(false);
       setIsPaused(false);
       wasInterruptedRef.current = false;
+      manualPauseRef.current = false;
       if (timerRef.current) clearInterval(timerRef.current);
+      console.log('[useWebAudioRecorder] ⏹️ Recording stopped and microphone released');
     }
   };
 
@@ -285,10 +294,8 @@ export function useWebAudioRecorder() {
     };
 
     // 🔄 Polling fallback: check every 2 seconds if we should auto-resume
+    // Note: Logging disabled to avoid performance impact during recording
     const pollingInterval = setInterval(() => {
-      // #region agent log - Hypothesis B: Track polling state
-      debugLog('useWebAudioRecorder.ts:polling', 'Polling check', { isRecording, wasInterrupted: wasInterruptedRef.current, mediaRecorderState: mediaRecorderRef.current?.state }, 'B');
-      // #endregion
       if (isRecording && wasInterruptedRef.current && mediaRecorderRef.current?.state === 'paused') {
         // #region agent log - Hypothesis B: Auto-resume triggered!
         debugLog('useWebAudioRecorder.ts:polling:autoResume', 'AUTO-RESUME TRIGGERED BY POLLING!', { isRecording, wasInterrupted: wasInterruptedRef.current }, 'B');

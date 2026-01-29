@@ -123,81 +123,7 @@ const formatTime = (seconds: number): string => {
 
 type PageState = 'ready' | 'recording' | 'saving' | 'uploading' | 'processing' | 'error' | 'local-transcribing';
 
-// #region agent log - Debug Logs Panel Component
-function DebugLogsPanel() {
-  const [logs, setLogs] = useState<any[]>([]);
-  const [isOpen, setIsOpen] = useState(false);
-  const [copied, setCopied] = useState(false);
-  
-  const refreshLogs = () => {
-    try {
-      const stored = JSON.parse(localStorage.getItem('__debug_logs__') || '[]');
-      setLogs(stored);
-    } catch { setLogs([]); }
-  };
-  
-  const clearLogs = () => {
-    localStorage.setItem('__debug_logs__', '[]');
-    setLogs([]);
-  };
-
-  const copyLogs = async () => {
-    const logsText = logs.length === 0 
-      ? 'No logs' 
-      : logs.map((l: any) => `[${l.hypothesisId}] ${new Date(l.timestamp).toLocaleTimeString()} ${l.location}\n  ${l.message}: ${JSON.stringify(l.data)}`).join('\n\n');
-    
-    try {
-      await navigator.clipboard.writeText(logsText);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      // Fallback for iOS
-      const textArea = document.createElement('textarea');
-      textArea.value = logsText;
-      textArea.style.position = 'fixed';
-      textArea.style.left = '-9999px';
-      document.body.appendChild(textArea);
-      textArea.focus();
-      textArea.select();
-      try {
-        document.execCommand('copy');
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      } catch (e) {
-        console.error('Copy failed:', e);
-      }
-      document.body.removeChild(textArea);
-    }
-  };
-  
-  useEffect(() => {
-    if (isOpen) {
-      refreshLogs();
-      const interval = setInterval(refreshLogs, 2000); // Auto-refresh every 2s
-      return () => clearInterval(interval);
-    }
-  }, [isOpen]);
-  
-  return (
-    <details className="mt-6 bg-gray-900 rounded-xl p-4 text-xs" open={isOpen} onToggle={(e) => setIsOpen((e.target as HTMLDetailsElement).open)}>
-      <summary className="cursor-pointer text-yellow-400 font-mono">🔍 Debug Logs ({logs.length}) - tap to expand</summary>
-      <div className="mt-2 max-h-64 overflow-y-auto">
-        <div className="flex gap-2 mb-2">
-          <button onClick={refreshLogs} className="px-2 py-1 bg-blue-600 text-white rounded text-xs">Refresh</button>
-          <button onClick={copyLogs} className={`px-2 py-1 ${copied ? 'bg-green-600' : 'bg-purple-600'} text-white rounded text-xs`}>
-            {copied ? '✓ Copied!' : '📋 Copy'}
-          </button>
-          <button onClick={clearLogs} className="px-2 py-1 bg-red-600 text-white rounded text-xs">Clear</button>
-        </div>
-        <pre className="text-green-400 whitespace-pre-wrap font-mono text-[10px]">
-          {logs.length === 0 ? 'No logs yet. Start recording, receive a call, then check here.' : 
-            logs.map((l: any) => `[${l.hypothesisId}] ${new Date(l.timestamp).toLocaleTimeString()} ${l.location}\n  ${l.message}: ${JSON.stringify(l.data)}`).join('\n\n')}
-        </pre>
-      </div>
-    </details>
-  );
-}
-// #endregion
+// Debug Logs Panel moved to global layout (_layout.tsx)
 
 export default function RecordingScreen() {
   const navigate = useNavigate();
@@ -1138,6 +1064,14 @@ export default function RecordingScreen() {
         summary: userPrompts.summary?.substring(0, 50) + '...',
         transcript: userPrompts.transcript?.substring(0, 50) + '...'
       });
+      // #region agent log - Hypothesis H: Verify prompt is saved to DB
+      debugLog('record.tsx:handleSave:payload', 'SAVING MEETING WITH PROMPT', { 
+        promptSummaryLength: meetingPayload.prompt_summary?.length, 
+        promptSummaryPreview: meetingPayload.prompt_summary?.substring(0, 100),
+        selectedPromptId,
+        userPromptsSummaryLength: userPrompts.summary?.length
+      }, 'H');
+      // #endregion
 
 
 
@@ -1869,9 +1803,7 @@ export default function RecordingScreen() {
                 </Button>
               )}
 
-              {/* #region agent log - Debug Logs Panel */}
-              <DebugLogsPanel />
-              {/* #endregion */}
+              {/* Debug Logs Panel is now global - see floating 🔍 button */}
             </div>
 
             {/* Success Message */}

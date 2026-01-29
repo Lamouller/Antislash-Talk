@@ -127,9 +127,11 @@ export default function MeetingDetail() {
         .single();
       
       // Log if meeting has saved prompts
-      if (data?.prompt_summary) {
-        console.log('[Meeting Detail] 📝 Meeting has saved summary prompt:', data.prompt_summary?.substring(0, 50) + '...');
-      }
+      console.log('[Meeting Detail] 📝 Meeting prompt data from DB:', {
+        hasPromptSummary: !!data?.prompt_summary,
+        promptSummaryLength: data?.prompt_summary?.length,
+        promptSummaryPreview: data?.prompt_summary?.substring(0, 100)
+      });
 
       if (error) throw error;
 
