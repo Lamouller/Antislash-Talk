@@ -77,11 +77,6 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
     
     // Speaker name mapping: Speaker_XX -> Real name (when detected)
     const speakerNamesRef = useRef<Map<string, string>>(new Map());
-    
-    // PCM Audio capture refs
-    const audioContextRef = useRef<AudioContext | null>(null);
-    const workletNodeRef = useRef<AudioWorkletNode | null>(null);
-    const mediaStreamRef = useRef<MediaStream | null>(null);
 
     // Get API key
     const getApiKey = async (): Promise<string | null> => {
@@ -441,76 +436,6 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
         }
     }, []);
 
-    // Start PCM audio capture using AudioWorklet (for Gemini Live)
-    const startPCMCapture = useCallback(async () => {
-        try {
-            // Request microphone access
-            const stream = await navigator.mediaDevices.getUserMedia({
-                audio: {
-                    sampleRate: 16000,
-                    channelCount: 1,
-                    echoCancellation: true,
-                    noiseSuppression: true
-                }
-            });
-            mediaStreamRef.current = stream;
-
-            // Create AudioContext at 16kHz (required by Gemini)
-            audioContextRef.current = new AudioContext({ sampleRate: 16000 });
-            
-            // Load PCM processor worklet
-            await audioContextRef.current.audioWorklet.addModule('/pcm-processor.js');
-            
-            // Create source from microphone
-            const source = audioContextRef.current.createMediaStreamSource(stream);
-            
-            // Create worklet node
-            workletNodeRef.current = new AudioWorkletNode(audioContextRef.current, 'pcm-processor');
-            
-            // Handle PCM data from worklet
-            workletNodeRef.current.port.onmessage = (event) => {
-                if (event.data.type === 'pcm') {
-                    sendPCMChunk(event.data.data);
-                }
-            };
-            
-            // Connect: microphone -> worklet
-            source.connect(workletNodeRef.current);
-            
-            // #region agent log
-            fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:startPCMCapture',message:'PCM_CAPTURE_STARTED',data:{sampleRate:audioContextRef.current.sampleRate},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
-            debugLog('useGeminiTranscription:startPCMCapture', '🎤 PCM CAPTURE STARTED', {
-                sampleRate: audioContextRef.current.sampleRate
-            }, 'LIVE');
-            // #endregion
-            
-        } catch (err) {
-            // #region agent log
-            fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:startPCMCapture',message:'PCM_CAPTURE_ERROR',data:{error:(err as Error).message},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
-            // #endregion
-            console.error('Failed to start PCM capture:', err);
-            throw err;
-        }
-    }, [sendPCMChunk]);
-
-    // Stop PCM capture
-    const stopPCMCapture = useCallback(() => {
-        if (workletNodeRef.current) {
-            workletNodeRef.current.disconnect();
-            workletNodeRef.current = null;
-        }
-        if (audioContextRef.current) {
-            audioContextRef.current.close();
-            audioContextRef.current = null;
-        }
-        if (mediaStreamRef.current) {
-            mediaStreamRef.current.getTracks().forEach(track => track.stop());
-            mediaStreamRef.current = null;
-        }
-        
-        debugLog('useGeminiTranscription:stopPCMCapture', '🔇 PCM CAPTURE STOPPED', {}, 'LIVE');
-    }, []);
-
     // Stop live transcription
     const stopLiveTranscription = useCallback(() => {
         if (wsRef.current) {
@@ -528,7 +453,7 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
             totalChunks: audioChunksRef.current.length
         }, 'LIVE');
         // #endregion
-    }, [liveSegments.length, stopPCMCapture]);
+    }, [liveSegments.length]);
 
     // ═══════════════════════════════════════════════════════════════════════════
     // PHASE 2: ENHANCEMENT (after recording - better diarization)
