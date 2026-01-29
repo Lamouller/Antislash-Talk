@@ -1641,7 +1641,81 @@ export default function RecordingScreen() {
               </div>
             )}
 
-            {/* Recording controls are now in the footer - see bottom of page */}
+            {/* Action Buttons (hidden on mobile when recording - use footer instead) */}
+            <div className="grid gap-4 md:block hidden">
+              {!isRecording && !audioBlob && (
+                <Button
+                  onClick={handleStartRecording}
+                  disabled={pageState !== 'ready'}
+                  className="w-full bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white py-4 text-lg font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5"
+                >
+                  <Mic className="w-6 h-6 mr-3" />
+                  {t('record.startRecording')}
+                </Button>
+              )}
+
+              {isRecording && (
+                <div className="grid grid-cols-2 gap-4">
+                  <Button
+                    onClick={handlePauseResume}
+                    variant="outline"
+                    className="py-4 text-lg font-semibold rounded-xl border-gray-200 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
+                  >
+                    {isPaused ? (
+                      <>
+                        <Play className="w-6 h-6 mr-2" />
+                        {t('record.resume')}
+                      </>
+                    ) : (
+                      <>
+                        <PauseIcon className="w-6 h-6 mr-2" />
+                        {t('record.pause')}
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    onClick={handleStopRecording}
+                    className="bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white py-4 text-lg font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
+                  >
+                    <Square className="w-6 h-6 mr-2" />
+                    {t('record.stop')}
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            {/* Mobile: Start button hidden - using footer instead */}
+
+            {/* Desktop recording controls (hidden on mobile - footer is used instead) */}
+            <div className="hidden md:block">
+              {isRecording && (
+                <div className="grid grid-cols-2 gap-4">
+                  <Button
+                    onClick={handlePauseResume}
+                    variant="outline"
+                    className="py-4 text-lg font-semibold rounded-xl border-gray-200 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
+                  >
+                    {isPaused ? (
+                      <>
+                        <Play className="w-6 h-6 mr-2" />
+                        {t('record.resume')}
+                      </>
+                    ) : (
+                      <>
+                        <PauseIcon className="w-6 h-6 mr-2" />
+                        {t('record.pause')}
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    onClick={handleStopRecording}
+                    className="bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white py-4 text-lg font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
+                  >
+                    <Square className="w-6 h-6 mr-2" />
+                    {t('record.stop')}
+                  </Button>
+                </div>
+              )}
 
               {audioBlob && !isRecording && !autoTranscribeAfterRecording && (
                 <div className="space-y-4">
@@ -1835,107 +1909,122 @@ export default function RecordingScreen() {
               </div>
             )}
 
-            {/* Spacer for footer */}
-            <div className="h-40" />
+            {/* Spacer for mobile footer */}
+            <div className="h-40 md:hidden" />
           </div>
         </div>
       </div>
 
-      {/* LIQUID GLASS FOOTER - Apple-style floating bubble */}
+      {/* 📱 MOBILE FOOTER - Persistent recording controls (BEFORE and DURING recording) */}
       <div 
-        className="fixed bottom-0 left-0 right-0 z-50 flex justify-center pointer-events-none"
-        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)' }}
+        className="md:hidden fixed bottom-0 left-0 right-0 bg-gradient-to-t from-gray-900 via-gray-900/95 to-gray-900/90 backdrop-blur-xl border-t border-gray-700/50 z-40"
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 60px)' }}
       >
-        <div 
-          className="pointer-events-auto mx-4 rounded-[32px] overflow-hidden"
-          style={{
-            background: 'linear-gradient(135deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.05) 50%, rgba(0,0,0,0.2) 100%)',
-            backdropFilter: 'blur(40px) saturate(180%)',
-            WebkitBackdropFilter: 'blur(40px) saturate(180%)',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.2), inset 0 -1px 0 rgba(0,0,0,0.3)',
-            border: '1px solid rgba(255,255,255,0.15)',
-          }}
-        >
-          <div className="px-6 py-4">
-            {/* === BEFORE RECORDING - Compact pill === */}
-            {!isRecording && !audioBlob && !isTranscribing && (
-              <div className="flex items-center gap-5">
-                {/* Status text */}
-                <div className="flex flex-col">
-                  <span className="text-sm font-medium text-white/90">
-                    Prêt
-                  </span>
-                  <span className="text-xs text-white/50">
-                    Appuyez pour enregistrer
-                  </span>
-                </div>
+        <div className="px-4 py-4">
+          {/* Timer display (only during recording) */}
+          {isRecording && (
+            <div className="text-center mb-3">
+              <span className="text-3xl font-mono font-bold text-white">
+                {formatTime(duration)}
+              </span>
+              <div className="flex items-center justify-center gap-2 mt-1">
+                <div className={`w-2 h-2 rounded-full ${isPaused ? 'bg-yellow-500' : 'bg-red-500 animate-pulse'}`} />
+                <span className="text-xs text-gray-400">
+                  {isPaused ? 'En pause' : 'Enregistrement en cours'}
+                </span>
+              </div>
+            </div>
+          )}
 
-                {/* Record button */}
+          {/* Ready state message (before recording) */}
+          {!isRecording && !audioBlob && !isTranscribing && (
+            <div className="text-center mb-3">
+              <span className="text-lg font-medium text-white">
+                Prêt à enregistrer
+              </span>
+              <p className="text-xs text-gray-400 mt-1">
+                Appuyez sur le bouton pour commencer
+              </p>
+            </div>
+          )}
+
+          {/* Processing state message */}
+          {(audioBlob || isTranscribing) && !isRecording && (
+            <div className="text-center mb-3">
+              <span className="text-lg font-medium text-white">
+                {isTranscribing ? 'Transcription...' : 'Enregistrement terminé'}
+              </span>
+              {isTranscribing && (
+                <div className="w-full bg-gray-700 rounded-full h-1.5 mt-2">
+                  <div 
+                    className="bg-gradient-to-r from-purple-500 to-pink-500 h-1.5 rounded-full transition-all"
+                    style={{ width: `${transcriptionProgress}%` }}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Control buttons */}
+          <div className="flex items-center justify-center gap-6">
+            {/* === BEFORE RECORDING === */}
+            {!isRecording && !audioBlob && !isTranscribing && (
+              <>
+                {/* Empty space (left) */}
+                <div className="w-14 h-14" />
+
+                {/* Start Recording button (center) */}
                 <button
                   onClick={handleStartRecording}
                   disabled={pageState !== 'ready'}
-                  className="w-16 h-16 rounded-full flex items-center justify-center transition-all duration-300 active:scale-90 disabled:opacity-50 relative group"
-                  style={{
-                    background: 'linear-gradient(145deg, rgba(255,59,48,0.9) 0%, rgba(255,45,85,0.9) 100%)',
-                    boxShadow: '0 4px 20px rgba(255,59,48,0.4), inset 0 1px 0 rgba(255,255,255,0.3)',
-                  }}
+                  className="w-20 h-20 rounded-full bg-gradient-to-br from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 flex items-center justify-center shadow-2xl transition-all active:scale-95 disabled:opacity-50"
                 >
-                  <div className="absolute inset-0 rounded-full bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <Mic className="w-7 h-7 text-white relative z-10" />
+                  <Mic className="w-8 h-8 text-white" />
                 </button>
-              </div>
+
+                {/* Empty space (right) */}
+                <div className="w-14 h-14" />
+              </>
             )}
 
             {/* === DURING RECORDING === */}
             {isRecording && (
-              <div className="flex items-center gap-4">
-                {/* Pause/Resume */}
+              <>
+                {/* Pause/Resume button (left) */}
                 <button
                   onClick={handlePauseResume}
-                  className="w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 active:scale-90"
-                  style={{
-                    background: 'rgba(255,255,255,0.1)',
-                    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1)',
-                  }}
+                  className="w-14 h-14 rounded-full bg-gray-700 hover:bg-gray-600 flex items-center justify-center transition-all active:scale-95 shadow-lg"
                 >
                   {isPaused ? (
-                    <Play className="w-5 h-5 text-white/90" />
+                    <Play className="w-6 h-6 text-white" />
                   ) : (
-                    <PauseIcon className="w-5 h-5 text-white/90" />
+                    <PauseIcon className="w-6 h-6 text-white" />
                   )}
                 </button>
 
-                {/* Timer & Status */}
-                <div className="flex flex-col items-center min-w-[100px]">
-                  <span className="text-2xl font-mono font-semibold text-white tracking-tight">
-                    {formatTime(duration)}
-                  </span>
-                  <div className="flex items-center gap-1.5 mt-0.5">
-                    <div className={`w-2 h-2 rounded-full ${isPaused ? 'bg-amber-400' : 'bg-red-500 animate-pulse'}`} />
-                    <span className="text-[11px] text-white/60 font-medium">
-                      {isPaused ? 'Pause' : 'REC'}
-                    </span>
-                  </div>
+                {/* Recording indicator (center) */}
+                <div className={`w-20 h-20 rounded-full flex items-center justify-center shadow-2xl ${
+                  isPaused 
+                    ? 'bg-gradient-to-br from-yellow-500 to-orange-600' 
+                    : 'bg-gradient-to-br from-red-500 to-pink-600 animate-pulse'
+                }`}>
+                  <div className="w-8 h-8 bg-white rounded-full opacity-90" />
                 </div>
 
-                {/* Stop */}
+                {/* Stop button (right) */}
                 <button
                   onClick={handleStopRecording}
-                  className="w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 active:scale-90"
-                  style={{
-                    background: 'linear-gradient(145deg, rgba(255,59,48,0.8) 0%, rgba(220,38,38,0.8) 100%)',
-                    boxShadow: '0 2px 12px rgba(255,59,48,0.3), inset 0 1px 0 rgba(255,255,255,0.2)',
-                  }}
+                  className="w-14 h-14 rounded-full bg-red-600 hover:bg-red-700 flex items-center justify-center transition-all active:scale-95 shadow-lg"
                 >
-                  <Square className="w-5 h-5 text-white" />
+                  <Square className="w-6 h-6 text-white" />
                 </button>
-              </div>
+              </>
             )}
 
             {/* === AFTER RECORDING (processing) === */}
             {(audioBlob || isTranscribing) && !isRecording && (
-              <div className="flex items-center gap-4">
-                {/* New recording */}
+              <>
+                {/* New recording button (left) */}
                 <button
                   onClick={() => {
                     resetRecorder();
@@ -1944,50 +2033,27 @@ export default function RecordingScreen() {
                     setSavedMeetingId(null);
                   }}
                   disabled={isTranscribing}
-                  className="w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 active:scale-90 disabled:opacity-40"
-                  style={{
-                    background: 'rgba(255,255,255,0.1)',
-                    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1)',
-                  }}
+                  className="w-14 h-14 rounded-full bg-gray-700 hover:bg-gray-600 flex items-center justify-center transition-all active:scale-95 shadow-lg disabled:opacity-50"
                 >
-                  <RefreshCw className="w-5 h-5 text-white/90" />
+                  <RefreshCw className="w-6 h-6 text-white" />
                 </button>
 
-                {/* Status */}
-                <div className="flex flex-col items-center min-w-[120px]">
-                  <span className="text-sm font-medium text-white/90">
-                    {isTranscribing ? 'Transcription...' : 'Terminé'}
-                  </span>
-                  {isTranscribing && (
-                    <div className="w-full mt-2 h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.1)' }}>
-                      <div 
-                        className="h-full rounded-full transition-all duration-300"
-                        style={{ 
-                          width: `${transcriptionProgress}%`,
-                          background: 'linear-gradient(90deg, rgba(255,255,255,0.6) 0%, rgba(255,255,255,0.9) 100%)'
-                        }}
-                      />
-                    </div>
+                {/* Status indicator (center) */}
+                <div className={`w-20 h-20 rounded-full flex items-center justify-center shadow-2xl ${
+                  isTranscribing 
+                    ? 'bg-gradient-to-br from-blue-500 to-indigo-600 animate-pulse' 
+                    : 'bg-gradient-to-br from-green-500 to-emerald-600'
+                }`}>
+                  {isTranscribing ? (
+                    <Waves className="w-8 h-8 text-white" />
+                  ) : (
+                    <Sparkles className="w-8 h-8 text-white" />
                   )}
                 </div>
 
-                {/* Status icon */}
-                <div 
-                  className={`w-12 h-12 rounded-full flex items-center justify-center ${isTranscribing ? 'animate-pulse' : ''}`}
-                  style={{
-                    background: isTranscribing 
-                      ? 'linear-gradient(145deg, rgba(99,102,241,0.6) 0%, rgba(79,70,229,0.6) 100%)'
-                      : 'linear-gradient(145deg, rgba(34,197,94,0.6) 0%, rgba(22,163,74,0.6) 100%)',
-                    boxShadow: `0 2px 12px ${isTranscribing ? 'rgba(99,102,241,0.3)' : 'rgba(34,197,94,0.3)'}, inset 0 1px 0 rgba(255,255,255,0.2)`,
-                  }}
-                >
-                  {isTranscribing ? (
-                    <Waves className="w-5 h-5 text-white" />
-                  ) : (
-                    <Sparkles className="w-5 h-5 text-white" />
-                  )}
-                </div>
-              </div>
+                {/* Empty space (right) */}
+                <div className="w-14 h-14" />
+              </>
             )}
           </div>
         </div>
