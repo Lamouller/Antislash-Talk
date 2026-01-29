@@ -1841,7 +1841,7 @@ export default function RecordingScreen() {
         </div>
       </div>
 
-      {/* 🫧 LIQUID GLASS FOOTER - Apple-style floating bubble */}
+      {/* LIQUID GLASS FOOTER - Apple-style floating bubble */}
       <div 
         className="fixed bottom-0 left-0 right-0 z-50 flex justify-center pointer-events-none"
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)' }}
