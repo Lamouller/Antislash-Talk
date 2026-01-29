@@ -893,8 +893,10 @@ export default function RecordingScreen() {
     }, 'STOP');
     // #endregion
 
-    // Stop the audio recorder
-    stopRecording();
+    // Stop the audio recorder and wait for blob
+    // 🔧 FIX: stopRecording now returns a Promise with the blob
+    const recordedBlob = await stopRecording();
+    debugLog('record.tsx:handleStopRecording', '🔍 CP0: blob from stopRecording', { hasBlob: !!recordedBlob, blobSize: recordedBlob?.size }, 'CHECKPOINT');
 
     // 🎭 Stop Pyannote Live and clean up PCM callback
     if (liveDiarization.isConnected) {
@@ -978,8 +980,9 @@ export default function RecordingScreen() {
     // #region agent log - DEBUG: Trace autoTranscribe check
     debugLog('record.tsx:handleStopRecording', '🔍 CP8: PRE-CHECK autoTranscribe', {
       autoTranscribeAfterRecording,
-      hasAudioBlob: !!audioBlob,
-      audioBlobSize: audioBlob?.size,
+      hasRecordedBlob: !!recordedBlob,
+      recordedBlobSize: recordedBlob?.size,
+      hasStateAudioBlob: !!audioBlob,
       geminiSegmentsCount: geminiLiveSegments.length
     }, 'CHECKPOINT');
     // #endregion
@@ -1039,16 +1042,16 @@ export default function RecordingScreen() {
         setTitle('');
         setPageState('ready');
 
-        // 🔴 CRITICAL: Capture audioBlob BEFORE navigation (state becomes stale after unmount)
-        const capturedAudioBlob = audioBlob;
+        // 🔴 CRITICAL: Use recordedBlob from stopRecording() Promise (not state which is async)
+        const capturedAudioBlob = recordedBlob; // 🔧 FIX: Use blob from Promise, not state
         const capturedLiveSegments = [...liveSegments]; // Deep copy
         
-        console.log('%c[BG] 🔍 PRE-NAVIGATION STATE', 'color: #f97316; font-weight: bold', {
+        debugLog('record.tsx:handleStopRecording', '🔍 CP12: PRE-NAVIGATION STATE', {
           hasAudioBlob: !!capturedAudioBlob,
           audioBlobSize: capturedAudioBlob?.size,
           liveSegmentsCount: capturedLiveSegments.length,
           meetingId: meetingData.id
-        });
+        }, 'CHECKPOINT');
 
         // Navigate IMMEDIATELY to meeting page
         navigate(`/tabs/meeting/${meetingData.id}`);

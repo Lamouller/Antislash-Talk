@@ -149,6 +149,12 @@ export function useWebAudioRecorder() {
         chunkIndexRef.current = 0;
         onChunkReadyCallbackRef.current = null;
         if (timerRef.current) clearInterval(timerRef.current);
+        
+        // 🔧 FIX: Resolve the Promise if stopRecording was called
+        if (stopResolveRef.current) {
+          stopResolveRef.current(blob);
+          stopResolveRef.current = null;
+        }
       };
       
             // 🔥 CLÉ DU STREAMING LIVE: Chunks toutes les 3 secondes pour temps réel !
@@ -174,23 +180,37 @@ export function useWebAudioRecorder() {
     }
   };
 
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      // 🔧 FIX: Stop all audio tracks to release the microphone
-      if (mediaRecorderRef.current.stream) {
-        mediaRecorderRef.current.stream.getTracks().forEach(track => {
-          track.stop();
-          console.log('[useWebAudioRecorder] 🎤 Microphone track stopped:', track.kind);
-        });
+  // 🔧 FIX: Ref to store Promise resolve function for stopRecording
+  const stopResolveRef = useRef<((blob: Blob | null) => void) | null>(null);
+
+  // 🔧 FIX: stopRecording now returns a Promise that resolves with the blob
+  const stopRecording = (): Promise<Blob | null> => {
+    return new Promise((resolve) => {
+      if (mediaRecorderRef.current && isRecording) {
+        const recorder = mediaRecorderRef.current;
+        
+        // Store resolve function to be called by onstop handler
+        stopResolveRef.current = resolve;
+        
+        // 🔧 FIX: Stop all audio tracks to release the microphone
+        if (recorder.stream) {
+          recorder.stream.getTracks().forEach(track => {
+            track.stop();
+            console.log('[useWebAudioRecorder] 🎤 Microphone track stopped:', track.kind);
+          });
+        }
+        
+        recorder.stop();
+        setIsRecording(false);
+        setIsPaused(false);
+        wasInterruptedRef.current = false;
+        manualPauseRef.current = false;
+        if (timerRef.current) clearInterval(timerRef.current);
+        console.log('[useWebAudioRecorder] ⏹️ Recording stopped and microphone released');
+      } else {
+        resolve(null);
       }
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-      setIsPaused(false);
-      wasInterruptedRef.current = false;
-      manualPauseRef.current = false;
-      if (timerRef.current) clearInterval(timerRef.current);
-      console.log('[useWebAudioRecorder] ⏹️ Recording stopped and microphone released');
-    }
+    });
   };
 
   const pauseRecording = () => {
