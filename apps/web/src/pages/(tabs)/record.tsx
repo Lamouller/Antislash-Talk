@@ -205,10 +205,24 @@ export default function RecordingScreen() {
   // State for Gemini live transcription segments
   const [geminiLiveSegments, setGeminiLiveSegments] = useState<TranscriptSegment[]>([]);
   const geminiWorkflowRef = useRef<{
-    sendChunk: (chunk: ArrayBuffer) => void;
+    sendChunk: (chunk: ArrayBuffer, mimeType?: string) => void;
     stop: () => void;
     finalize: (audioBlob: Blob) => Promise<any>;
   } | null>(null);
+
+  // 🔄 Sync Gemini live segments with UI (for retroactive speaker name updates)
+  useEffect(() => {
+    if (geminiTranscription.liveSegments.length > 0 && userPreferences.transcription_provider === 'google') {
+      // Convert Gemini segments to SpeakerSegment format and update UI
+      const convertedSegments: SpeakerSegment[] = geminiTranscription.liveSegments.map(seg => ({
+        text: seg.text,
+        speaker: seg.speaker,
+        start: typeof seg.start === 'string' ? parseFloat(seg.start.replace(':', '.')) : seg.start,
+        end: typeof seg.end === 'string' ? parseFloat(seg.end.replace(':', '.')) : seg.end
+      }));
+      setLiveTranscriptionSegments(convertedSegments);
+    }
+  }, [geminiTranscription.liveSegments, userPreferences.transcription_provider]);
 
   // State for streaming summary display
   const [streamingSummary, setStreamingSummary] = useState<string>('');
@@ -1689,7 +1703,11 @@ export default function RecordingScreen() {
                       💬 {t('record.liveTranscription')}
                     </h3>
                     <p className="text-xs text-violet-600 dark:text-violet-400">
-                      {t('record.liveSubtitle')}
+                      {userPreferences.transcription_provider === 'google' 
+                        ? '⚡ Transcription temps réel par Gemini Live'
+                        : userPreferences.transcription_provider === 'openai'
+                          ? '⚡ Transcription temps réel par OpenAI Whisper'
+                          : t('record.liveSubtitle')}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">

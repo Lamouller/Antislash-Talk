@@ -75,6 +75,9 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
     const currentSpeakerRef = useRef<string>('Speaker_01');
     const lastTextRef = useRef<string>('');
     
+    // Speaker name mapping: Speaker_XX -> Real name (when detected)
+    const speakerNamesRef = useRef<Map<string, string>>(new Map());
+    
     // PCM Audio capture refs
     const audioContextRef = useRef<AudioContext | null>(null);
     const workletNodeRef = useRef<AudioWorkletNode | null>(null);
@@ -172,9 +175,7 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                         },
                         system_instruction: {
                             parts: [{
-                                text: `Tu es un assistant de transcription temps réel.
-Transcris l'audio en ${language} avec précision.
-Détecte les changements de locuteur.`
+                                text: `TRANSCRIPTION ONLY. Output ONLY the exact words spoken, nothing else. No comments, no formatting, no asterisks, no explanations. Just the spoken words in ${language}.`
                             }]
                         },
                         // Enable input audio transcription - this is the key feature!
@@ -255,17 +256,42 @@ Détecte les changements de locuteur.`
                             currentSpeakerRef.current = `Speaker_${String(speakerNum + 1).padStart(2, '0')}`;
                         }
 
-                        // Detect mentioned names
-                        const nameMatch = text.match(/\(nom détecté:\s*([^)]+)\)/i);
+                        // Detect mentioned names and update speaker mapping
+                        const nameMatch = text.match(/\(nom détecté:\s*([^)]+)\)/i) || 
+                                         text.match(/(?:je suis|c'est|ici)\s+([A-Z][a-zéèêëàâäùûü]+(?:\s+[A-Z][a-zéèêëàâäùûü]+)?)/i);
                         if (nameMatch) {
-                            currentSpeakerRef.current = nameMatch[1].trim();
+                            const detectedName = nameMatch[1].trim();
+                            const oldSpeaker = currentSpeakerRef.current;
+                            
+                            // Store the mapping: Speaker_XX -> Real name
+                            speakerNamesRef.current.set(oldSpeaker, detectedName);
+                            
+                            // Update current speaker to real name
+                            currentSpeakerRef.current = detectedName;
+                            
+                            // Retroactively update ALL previous segments with this speaker
+                            setLiveSegments(prev => prev.map(seg => 
+                                seg.speaker === oldSpeaker ? { ...seg, speaker: detectedName } : seg
+                            ));
+                            
+                            debugLog('useGeminiTranscription:speakerDetected', '👤 NAME DETECTED - UPDATING ALL', {
+                                oldSpeaker,
+                                newName: detectedName,
+                                mappingSize: speakerNamesRef.current.size
+                            }, 'LIVE');
                         }
 
-                        // Clean text
+                        // Clean text - remove metadata and hallucinations
                         const cleanText = text
                             .replace(/\[SPEAKER_CHANGE\]/gi, '')
                             .replace(/\(nom détecté:[^)]+\)/gi, '')
                             .replace(/\(speaker change\)/gi, '')
+                            .replace(/\*\*[^*]+\*\*/g, '') // Remove **bold** patterns (hallucinations)
+                            .replace(/\([^)]*transcri[^)]*\)/gi, '') // Remove (transcription...) patterns
+                            .replace(/\([^)]*clari[^)]*\)/gi, '') // Remove (clarification...) patterns
+                            .replace(/I've successfully.*/gi, '') // Remove assistant-like responses
+                            .replace(/My focus remains.*/gi, '')
+                            .replace(/I'm having trouble.*/gi, '')
                             .trim();
 
                         if (cleanText && isFinal) {
@@ -292,18 +318,34 @@ Détecte les changements de locuteur.`
                         }
                     }
 
-                    // Handle model text output
+                    // Handle model text output - FILTERED to avoid hallucinations
+                    // Only use if it looks like actual transcription (short, no special patterns)
                     if (data.serverContent?.modelTurn?.parts) {
                         for (const part of data.serverContent.modelTurn.parts) {
                             if (part.text) {
-                                const segment: TranscriptSegment = {
-                                    speaker: currentSpeakerRef.current,
-                                    text: part.text.trim(),
-                                    isLive: true,
-                                    confidence: 0.8
-                                };
-                                setLiveSegments(prev => [...prev, segment]);
-                                onSegment?.(segment);
+                                const rawText = part.text.trim();
+                                
+                                // Skip if it looks like a hallucination/comment
+                                const isHallucination = 
+                                    rawText.includes('**') ||
+                                    rawText.includes('I\'ve') ||
+                                    rawText.includes('I\'m') ||
+                                    rawText.includes('My focus') ||
+                                    rawText.includes('transcrib') ||
+                                    rawText.includes('clari') ||
+                                    rawText.includes('audio') ||
+                                    rawText.length > 200; // Too long = probably a comment
+                                
+                                if (!isHallucination && rawText.length > 0) {
+                                    const segment: TranscriptSegment = {
+                                        speaker: currentSpeakerRef.current,
+                                        text: rawText,
+                                        isLive: true,
+                                        confidence: 0.7
+                                    };
+                                    setLiveSegments(prev => [...prev, segment]);
+                                    onSegment?.(segment);
+                                }
                             }
                         }
                     }
@@ -777,6 +819,7 @@ RETOURNE UNIQUEMENT LE JSON, AUCUN AUTRE TEXTE.`;
         audioChunksRef.current = [];
         currentSpeakerRef.current = 'Speaker_01';
         lastTextRef.current = '';
+        speakerNamesRef.current.clear(); // Reset speaker names mapping
     }, []);
 
     return {
