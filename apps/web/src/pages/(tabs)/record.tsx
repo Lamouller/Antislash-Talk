@@ -925,29 +925,53 @@ export default function RecordingScreen() {
       // #endregion
     }
     geminiWorkflowRef.current = null;
+    // #region agent log
+    console.log('%c[BG] 🔍 CHECKPOINT 1: After geminiWorkflowRef.current = null', 'color: #eab308');
+    // #endregion
 
     // 🔓 Release Wake Lock (handles both native and iOS fallback)
     try {
+      // #region agent log
+      console.log('%c[BG] 🔍 CHECKPOINT 2: Before wake lock check', 'color: #eab308', { wakeLockActive });
+      // #endregion
       if (wakeLockActive) {
         await releaseWakeLock();
         console.log('[record] 🔓 Wake Lock released');
       }
+      // #region agent log
+      console.log('%c[BG] 🔍 CHECKPOINT 3: After wake lock', 'color: #eab308');
+      // #endregion
     } catch (wakeLockError) {
       console.warn('[record] Wake lock release error (non-fatal):', wakeLockError);
     }
+
+    // #region agent log
+    console.log('%c[BG] 🔍 CHECKPOINT 4: Before emergency clear', 'color: #eab308');
+    // #endregion
 
     // 🆘 Clear emergency recording data (successful stop = no need for recovery)
     audioChunksForEmergencyRef.current = [];
     try {
       await clearEmergencyRecording();
+      // #region agent log
+      console.log('%c[BG] 🔍 CHECKPOINT 5: After emergency clear', 'color: #eab308');
+      // #endregion
     } catch (emergencyError) {
       console.warn('[record] Emergency recording clear error (non-fatal):', emergencyError);
     }
+
+    // #region agent log
+    console.log('%c[BG] 🔍 CHECKPOINT 6: Before setIsStreamingActive', 'color: #eab308');
+    // #endregion
 
     // Désactiver le mode streaming live (la transcription continue pour les derniers chunks)
     setIsStreamingActive(false);
     console.log(`[record] Live segments received: ${liveTranscriptionSegments.length}`);
     console.log(`[record] Gemini live segments: ${geminiLiveSegments.length}`);
+
+    // #region agent log
+    console.log('%c[BG] 🔍 CHECKPOINT 7: Before toast.success', 'color: #eab308');
+    // #endregion
 
     toast.success('Recording stopped');
 
