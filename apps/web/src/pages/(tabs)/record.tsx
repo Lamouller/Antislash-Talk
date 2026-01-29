@@ -765,7 +765,7 @@ export default function RecordingScreen() {
             }
             // #endregion
             
-            workflow.sendChunk(arrayBuffer, mimeType);
+            await workflow.sendChunk(arrayBuffer, mimeType);
           });
 
         } catch (geminiError) {

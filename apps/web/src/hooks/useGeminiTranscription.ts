@@ -388,58 +388,93 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
         }
     }, [model, language, enableLiveTranscription]);
 
+    // Decode webm/opus to PCM using AudioContext
+    const decodeAudioToPCM = useCallback(async (audioData: ArrayBuffer): Promise<ArrayBuffer | null> => {
+        try {
+            // Create a temporary AudioContext for decoding
+            const audioContext = new AudioContext({ sampleRate: 16000 });
+            
+            // Decode the audio data
+            const audioBuffer = await audioContext.decodeAudioData(audioData.slice(0)); // slice to copy
+            
+            // Get the audio data from the first channel
+            const channelData = audioBuffer.getChannelData(0);
+            
+            // Convert Float32 to Int16 PCM
+            const pcmData = new Int16Array(channelData.length);
+            for (let i = 0; i < channelData.length; i++) {
+                const s = Math.max(-1, Math.min(1, channelData[i]));
+                pcmData[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+            }
+            
+            await audioContext.close();
+            return pcmData.buffer;
+        } catch (error) {
+            // Decoding might fail for partial chunks - this is expected
+            console.debug('[PCM] Decode failed (normal for partial chunks):', error);
+            return null;
+        }
+    }, []);
+
     // Send audio chunk during live recording
-    const sendAudioChunk = useCallback((chunk: ArrayBuffer, mimeType?: string) => {
-        // Store for enhancement phase
+    const sendAudioChunk = useCallback(async (chunk: ArrayBuffer, mimeType?: string) => {
+        // Store original for enhancement phase
         audioChunksRef.current.push(chunk);
         const chunkIndex = audioChunksRef.current.length;
 
         // #region agent log
         if (chunkIndex <= 3) {
-            fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:sendChunk',message:'SENDING_TO_WS',data:{chunkIndex,sizeBytes:chunk.byteLength,mimeType:mimeType||'default',wsState:wsRef.current?.readyState,wsOpen:wsRef.current?.readyState===WebSocket.OPEN},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+            fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:sendChunk',message:'DECODING_CHUNK',data:{chunkIndex,sizeBytes:chunk.byteLength,mimeType:mimeType||'default'},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
         }
         // #endregion
 
-        // Send to live transcription WebSocket
+        // Send to live transcription WebSocket (convert to PCM first)
         if (wsRef.current?.readyState === WebSocket.OPEN) {
-            const base64 = btoa(
-                new Uint8Array(chunk).reduce((data, byte) => data + String.fromCharCode(byte), '')
-            );
-
-            // Use the actual mime type from the recorder
-            const actualMimeType = mimeType || 'audio/webm';
+            // Try to decode webm to PCM
+            const pcmData = await decodeAudioToPCM(chunk);
             
-            // #region agent log
-            if (chunkIndex <= 3) {
-                debugLog('useGeminiTranscription:sendChunk', '📤 SENDING CHUNK TO WS', {
-                    chunkIndex,
-                    mimeType: actualMimeType,
-                    sizeBytes: chunk.byteLength,
-                    wsState: wsRef.current?.readyState
+            if (pcmData) {
+                const base64 = btoa(
+                    new Uint8Array(pcmData).reduce((data, byte) => data + String.fromCharCode(byte), '')
+                );
+
+                // #region agent log
+                if (chunkIndex <= 3) {
+                    fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:sendChunk',message:'SENDING_PCM_TO_WS',data:{chunkIndex,pcmSizeBytes:pcmData.byteLength,wsState:wsRef.current?.readyState},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+                    debugLog('useGeminiTranscription:sendChunk', '📤 SENDING PCM TO WS', {
+                        chunkIndex,
+                        pcmSizeBytes: pcmData.byteLength,
+                        wsState: wsRef.current?.readyState
+                    }, 'LIVE');
+                }
+                // #endregion
+
+                // Send as PCM (required by Gemini Live API)
+                wsRef.current.send(JSON.stringify({
+                    realtimeInput: {
+                        mediaChunks: [{
+                            mimeType: 'audio/pcm;rate=16000',
+                            data: base64
+                        }]
+                    }
+                }));
+            } else {
+                debugLog('useGeminiTranscription:sendChunk', '⚠️ PCM decode failed - chunk stored only', {
+                    chunkIndex
                 }, 'LIVE');
             }
-            // #endregion
-
-            wsRef.current.send(JSON.stringify({
-                realtime_input: {
-                    media_chunks: [{
-                        mime_type: actualMimeType,
-                        data: base64
-                    }]
-                }
-            }));
         } else {
             debugLog('useGeminiTranscription:sendChunk', '⚠️ WS NOT OPEN - chunk stored only', {
                 chunkIndex,
                 wsState: wsRef.current?.readyState
             }, 'LIVE');
         }
-    }, []);
+    }, [decodeAudioToPCM]);
 
     // Stop live transcription
     const stopLiveTranscription = useCallback(() => {
         if (wsRef.current) {
-            wsRef.current.send(JSON.stringify({ client_content: { turn_complete: true } }));
+            wsRef.current.send(JSON.stringify({ clientContent: { turnComplete: true } }));
             setTimeout(() => {
                 wsRef.current?.close();
                 wsRef.current = null;
