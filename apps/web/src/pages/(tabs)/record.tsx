@@ -474,14 +474,22 @@ export default function RecordingScreen() {
         }
       } catch (error) {
         console.error('Error fetching user preferences:', error);
+      } finally {
+        // Mark preferences as loaded so prompt templates can be fetched
+        setPreferencesLoaded(true);
       }
     };
 
     fetchUserPreferences();
   }, []);
 
-  // Fetch prompt templates on component mount
+  // State to track when user preferences are loaded
+  const [preferencesLoaded, setPreferencesLoaded] = useState(false);
+
+  // Fetch prompt templates AFTER user preferences are loaded to avoid race condition
   useEffect(() => {
+    if (!preferencesLoaded) return; // Wait for preferences to load first
+
     const fetchPromptTemplates = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
@@ -508,10 +516,16 @@ export default function RecordingScreen() {
         // Auto-select the starred (favorite) prompt if one exists
         const favoritePrompt = templates.find(t => t.is_favorite);
         if (favoritePrompt) {
-          console.log('⭐ Auto-selecting favorite prompt:', favoritePrompt.name);
+          console.log('⭐ Auto-selecting favorite prompt:', favoritePrompt.name, '| Content:', favoritePrompt.content?.substring(0, 50));
           setSelectedPromptId(favoritePrompt.id);
-          // Apply the favorite prompt immediately
-          setUserPrompts(prev => ({ ...prev, summary: favoritePrompt.content }));
+          // Apply the favorite prompt immediately - this will OVERRIDE the default prompt
+          setUserPrompts(prev => {
+            console.log('📝 OVERRIDING prompt with favorite:', { oldLength: prev.summary?.length, newLength: favoritePrompt.content?.length });
+            return { ...prev, summary: favoritePrompt.content };
+          });
+          // #region agent log - Hypothesis I: Track favorite prompt auto-selection
+          debugLog('record.tsx:fetchPromptTemplates', 'FAVORITE PROMPT AUTO-SELECTED', { promptId: favoritePrompt.id, promptName: favoritePrompt.name, contentLength: favoritePrompt.content?.length, contentPreview: favoritePrompt.content?.substring(0, 100) }, 'I');
+          // #endregion
         }
       } catch (error) {
         console.error('Error fetching prompt templates:', error);
@@ -519,7 +533,7 @@ export default function RecordingScreen() {
     };
 
     fetchPromptTemplates();
-  }, []);
+  }, [preferencesLoaded]);
 
   // Function to apply a prompt template
   const applyPromptTemplate = (templateId: string) => {
