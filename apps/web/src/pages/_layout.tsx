@@ -106,9 +106,9 @@ function GlobalRecordingButton() {
   const navigate = useNavigate();
   const location = useLocation();
   
-  // Don't show on record page (it has its own controls) or auth pages
-  const isRecordPage = location.pathname === '/tabs/record' || location.pathname === '/tabs';
-  const isAuthPage = location.pathname.startsWith('/auth') || location.pathname === '/';
+  // Don't show on record page (it has its own controls) or auth pages only
+  const isRecordPage = location.pathname === '/tabs/record';
+  const isAuthPage = location.pathname.startsWith('/auth');
   
   if (isRecordPage || isAuthPage) return null;
   
@@ -121,11 +121,11 @@ function GlobalRecordingButton() {
         onClick={() => navigate('/tabs/record')}
         className="pointer-events-auto flex items-center gap-3 px-6 py-3 rounded-full transition-all duration-300 active:scale-95"
         style={{
-          background: 'rgba(0,0,0,0.25)',
+          background: 'rgba(0,0,0,0.1)',
           backdropFilter: 'blur(40px) saturate(180%)',
           WebkitBackdropFilter: 'blur(40px) saturate(180%)',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.15), inset 0 -1px 0 rgba(0,0,0,0.2)',
-          border: '1px solid rgba(255,255,255,0.1)',
+          boxShadow: '0 4px 24px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.08)',
+          border: '1px solid rgba(255,255,255,0.06)',
         }}
       >
         <div 
@@ -137,7 +137,7 @@ function GlobalRecordingButton() {
         >
           <Mic className="w-5 h-5 text-white" />
         </div>
-        <span className="text-white/80 text-sm font-medium pr-1">Enregistrer</span>
+        <span className="text-white/70 text-sm font-medium pr-1">Enregistrer</span>
       </button>
     </div>
   );
