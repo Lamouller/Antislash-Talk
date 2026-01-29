@@ -287,27 +287,82 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                             }
                             lastTextRef.current = fullText;
 
-                            // Detect speaker change
+                            // Detect speaker change markers
                             if (fullText.includes('[SPEAKER_CHANGE]') || fullText.includes('(speaker change)')) {
                                 const speakerNum = parseInt(currentSpeakerRef.current.split('_')[1] || '1');
                                 currentSpeakerRef.current = `Speaker_${String(speakerNum + 1).padStart(2, '0')}`;
                             }
 
-                            // Detect mentioned names - CASE SENSITIVE for name capture
+                            // Detect self-introduction patterns (strict - only clear self-introductions)
+                            // Patterns: "je m'appelle X", "moi c'est X", "moi je suis X", "je suis X" (at start)
+                            const COMMON_INTERJECTIONS = ['Ah', 'Oh', 'Eh', 'Oui', 'Non', 'Ben', 'Bah', 'Bon', 'Ok', 'Hein', 'Euh'];
                             const nameMatch = fullText.match(/\(nom détecté:\s*([^)]+)\)/i) || 
-                                             fullText.match(/(?:[Jj]e suis|[Cc]'est|[Ii]ci)\s+([A-Z][a-zéèêëàâäùûü]+(?:\s+[A-Z][a-zéèêëàâäùûü]+)?)/);
+                                             fullText.match(/[Jj]e m'appelle\s+([A-Z][a-zéèêëàâäùûü]+(?:\s+[A-Z][a-zéèêëàâäùûü]+)?)/) ||
+                                             fullText.match(/[Mm]oi (?:c'est|je suis)\s+([A-Z][a-zéèêëàâäùûü]+(?:\s+[A-Z][a-zéèêëàâäùûü]+)?)/) ||
+                                             fullText.match(/^[Jj]e suis\s+([A-Z][a-zéèêëàâäùûü]+(?:\s+[A-Z][a-zéèêëàâäùûü]+)?)/);
+                            
+                            // Detect potential speaker CHANGE (someone else introducing themselves)
+                            // Pattern: "Et moi je m'appelle X" or "Moi c'est X" suggests a different person
+                            const isSpeakerChange = /[Ee]t moi|[Mm]oi (?:c'est|je)/i.test(fullText);
+                            
+                            if (isSpeakerChange && !nameMatch) {
+                                // Increment speaker counter if no name but speaker change pattern detected
+                                const currentSpeakerNum = parseInt(currentSpeakerRef.current.match(/Speaker_(\d+)/)?.[1] || '0');
+                                if (currentSpeakerRef.current.startsWith('Speaker_') || speakerNamesRef.current.size === 0) {
+                                    const newSpeakerNum = Math.max(currentSpeakerNum, speakerNamesRef.current.size) + 1;
+                                    currentSpeakerRef.current = `Speaker_${String(newSpeakerNum).padStart(2, '0')}`;
+                                    debugLog('useGeminiTranscription:speakerChange', '🔄 SPEAKER CHANGE DETECTED', {
+                                        newSpeaker: currentSpeakerRef.current,
+                                        reason: 'pattern_detected'
+                                    }, 'LIVE');
+                                }
+                            }
+                            
                             if (nameMatch) {
                                 const detectedName = nameMatch[1].trim();
-                                if (detectedName.length >= 2 && /^[A-Z]/.test(detectedName)) {
-                                    const oldSpeaker = currentSpeakerRef.current;
-                                    speakerNamesRef.current.set(oldSpeaker, detectedName);
-                                    currentSpeakerRef.current = detectedName;
-                                    setLiveSegments(prev => prev.map(seg => 
-                                        seg.speaker === oldSpeaker ? { ...seg, speaker: detectedName } : seg
-                                    ));
-                                    debugLog('useGeminiTranscription:speakerDetected', '👤 NAME DETECTED', {
-                                        oldSpeaker, newName: detectedName
-                                    }, 'LIVE');
+                                // Validate: at least 3 chars, starts uppercase, not an interjection
+                                const isValidName = detectedName.length >= 3 && 
+                                                   /^[A-Z]/.test(detectedName) && 
+                                                   !COMMON_INTERJECTIONS.includes(detectedName);
+                                
+                                if (isValidName) {
+                                    // Check if this name is already assigned to another speaker
+                                    const existingSpeaker = Array.from(speakerNamesRef.current.entries())
+                                        .find(([_, name]) => name === detectedName)?.[0];
+                                    
+                                    if (existingSpeaker) {
+                                        // Name already known - switch to that speaker
+                                        currentSpeakerRef.current = detectedName;
+                                        debugLog('useGeminiTranscription:speakerDetected', '👤 SWITCHED TO KNOWN SPEAKER', {
+                                            speaker: detectedName
+                                        }, 'LIVE');
+                                    } else {
+                                        // New speaker introducing themselves
+                                        // If pattern suggests change ("Et moi..."), create new speaker ID first
+                                        let oldSpeakerId = currentSpeakerRef.current;
+                                        if (isSpeakerChange && !oldSpeakerId.startsWith('Speaker_')) {
+                                            // Previous speaker had a name, this is definitely a new speaker
+                                            const newNum = speakerNamesRef.current.size + 1;
+                                            oldSpeakerId = `Speaker_${String(newNum).padStart(2, '0')}`;
+                                        }
+                                        
+                                        speakerNamesRef.current.set(oldSpeakerId, detectedName);
+                                        currentSpeakerRef.current = detectedName;
+                                        
+                                        // Only update segments with the generic Speaker_XX format from THIS speaker
+                                        if (oldSpeakerId.startsWith('Speaker_')) {
+                                            setLiveSegments(prev => prev.map(seg => 
+                                                seg.speaker === oldSpeakerId ? { ...seg, speaker: detectedName } : seg
+                                            ));
+                                        }
+                                        
+                                        debugLog('useGeminiTranscription:speakerDetected', '👤 NEW SPEAKER NAME', {
+                                            oldSpeakerId,
+                                            newName: detectedName,
+                                            totalSpeakers: speakerNamesRef.current.size,
+                                            wasSpeakerChange: isSpeakerChange
+                                        }, 'LIVE');
+                                    }
                                 }
                             }
 
