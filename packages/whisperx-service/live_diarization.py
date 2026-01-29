@@ -41,6 +41,7 @@ HUGGINGFACE_TOKEN = os.getenv("HUGGINGFACE_TOKEN")
 
 # Models (lazy loaded)
 _vad_model = None
+_vad_utils = None  # Silero VAD utilities
 _embedding_model = None
 
 
@@ -113,17 +114,17 @@ class LiveDiarizationSession:
 
 def get_vad_model():
     """Load Voice Activity Detection model (lazy loading)"""
-    global _vad_model
+    global _vad_model, _vad_utils
     if _vad_model is None:
         logger.info("🎤 Loading Silero VAD model...")
-        _vad_model, utils = torch.hub.load(
+        _vad_model, _vad_utils = torch.hub.load(
             repo_or_dir='snakers4/silero-vad',
             model='silero_vad',
             force_reload=False
         )
         _vad_model = _vad_model.to(DEVICE)
         logger.info("✅ VAD model loaded")
-    return _vad_model
+    return _vad_model, _vad_utils
 
 
 def get_embedding_model():
@@ -178,7 +179,7 @@ def detect_speech(audio: np.ndarray, sample_rate: int = 16000) -> List[Tuple[flo
     Returns: List of (start_time, end_time) tuples
     """
     try:
-        vad = get_vad_model()
+        vad_model, vad_utils = get_vad_model()
         
         # Convert to tensor
         if isinstance(audio, np.ndarray):
@@ -186,10 +187,11 @@ def detect_speech(audio: np.ndarray, sample_rate: int = 16000) -> List[Tuple[flo
         else:
             waveform = audio
         
-        # Get speech timestamps
-        speech_timestamps = vad.utils.get_speech_timestamps(
+        # Get speech timestamps using the utils
+        get_speech_timestamps = vad_utils[0]  # First element is the function
+        speech_timestamps = get_speech_timestamps(
             waveform,
-            vad,
+            vad_model,
             sampling_rate=sample_rate,
             threshold=0.5,
             min_speech_duration_ms=300,
