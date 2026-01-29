@@ -224,6 +224,8 @@ export interface UseLocalTranscriptionReturn {
   // AI generation (Ollama, OpenAI, Gemini)
   generateTitle: (text: string, customPrompt?: string) => Promise<string>;
   generateSummary: (text: string, customPrompt?: string) => Promise<string>;
+  generateSummaryStream: (text: string, customPrompt?: string, onChunk?: (chunk: string) => void) => Promise<string>; // 🚀 Streaming
+  generateTitleAndSummaryParallel: (transcript: string, titlePrompt?: string, summaryPrompt?: string, onSummaryChunk?: (chunk: string) => void) => Promise<{ title: string; summary: string }>; // ⚡ Parallel
   // Voxtral API key management
   getMistralApiKey: () => string | null;
   storeMistralApiKey: (apiKey: string) => void;
@@ -1300,8 +1302,8 @@ RÉSUMÉ: [résumé des points clés et actions]`
     }
   }, [checkWhisperXAvailability]);
 
-  // Use the unified AI hook for generation
-  const { generate: generateAI } = useAI();
+  // Use the unified AI hook for generation (with streaming support)
+  const { generate: generateAI, generateStream, generateParallel: generateParallelAI } = useAI();
 
   // Wrapper functions pour AI generation avec custom prompts via le provider global
   const generateTitle = async (transcript: string, customPrompt?: string): Promise<string> => {
@@ -1346,6 +1348,72 @@ RÉSUMÉ: [résumé des points clés et actions]`
     }
   };
 
+  // 🚀 STREAMING: Generate summary with real-time updates
+  const generateSummaryStream = async (
+    transcript: string, 
+    customPrompt?: string,
+    onChunk?: (chunk: string) => void
+  ): Promise<string> => {
+    console.log('🚀 Generating summary with STREAMING...');
+
+    const defaultSummaryPrompt = 'Summarize the following meeting transcript in a concise and structured way. Include key points, decisions, and action items.';
+
+    const sysPrompt = "You are an expert meeting assistant. Your task is to summarize the provided transcript.";
+    const userPrompt = `${customPrompt || defaultSummaryPrompt}\n\nTranscript:\n${transcript.substring(0, 15000)}`;
+
+    try {
+      const result = await generateStream({
+        systemPrompt: sysPrompt,
+        userPrompt: userPrompt,
+        callbacks: {
+          onChunk: onChunk,
+          onComplete: (text) => console.log(`✅ Streaming summary complete: ${text.length} chars`)
+        }
+      });
+      return result.trim();
+    } catch (error) {
+      console.error('AI Streaming Summary Error:', error);
+      throw error;
+    }
+  };
+
+  // ⚡ PARALLEL: Generate title AND summary at the same time (2x faster!)
+  const generateTitleAndSummaryParallel = async (
+    transcript: string,
+    titlePrompt?: string,
+    summaryPrompt?: string,
+    onSummaryChunk?: (chunk: string) => void
+  ): Promise<{ title: string; summary: string }> => {
+    console.log('⚡ Starting PARALLEL title + summary generation...');
+    const startTime = Date.now();
+
+    const defaultTitlePrompt = 'Generate a concise, descriptive title (maximum 60 characters) for this meeting. Return ONLY the title.';
+    const defaultSummaryPrompt = 'Summarize this meeting transcript. Include key points, decisions, and action items.';
+
+    const titleSysPrompt = "You are an expert meeting assistant. Generate a concise title.";
+    const summarySysPrompt = "You are an expert meeting assistant. Summarize the transcript.";
+
+    try {
+      const result = await generateParallelAI(
+        transcript,
+        `${titleSysPrompt}\n\n${titlePrompt || defaultTitlePrompt}`,
+        `${summarySysPrompt}\n\n${summaryPrompt || defaultSummaryPrompt}`,
+        onSummaryChunk
+      );
+
+      const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+      console.log(`⚡ Parallel generation complete in ${duration}s`);
+
+      return {
+        title: result.title.replace(/["']/g, '').substring(0, 60).replace(/\n/g, ' ').trim(),
+        summary: result.summary.trim()
+      };
+    } catch (error) {
+      console.error('⚡ Parallel generation error:', error);
+      throw error;
+    }
+  };
+
   return {
     isTranscribing,
     progress,
@@ -1360,6 +1428,8 @@ RÉSUMÉ: [résumé des points clés et actions]`
     // AI generation (Ollama, OpenAI, Gemini) - use configured provider
     generateTitle,
     generateSummary,
+    generateSummaryStream, // 🚀 NEW: Streaming summary generation
+    generateTitleAndSummaryParallel, // ⚡ NEW: Parallel title + summary (2x faster!)
     // Voxtral API key management
     getMistralApiKey,
     storeMistralApiKey,
