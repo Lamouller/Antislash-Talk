@@ -927,12 +927,14 @@ export default function RecordingScreen() {
     geminiWorkflowRef.current = null;
     // #region agent log
     console.log('%c[BG] 🔍 CHECKPOINT 1: After geminiWorkflowRef.current = null', 'color: #eab308');
+    toast('🔍 CP1: workflow null', { duration: 1000 });
     // #endregion
 
     // 🔓 Release Wake Lock (handles both native and iOS fallback)
     try {
       // #region agent log
       console.log('%c[BG] 🔍 CHECKPOINT 2: Before wake lock check', 'color: #eab308', { wakeLockActive });
+      toast('🔍 CP2: wake lock check', { duration: 1000 });
       // #endregion
       if (wakeLockActive) {
         await releaseWakeLock();
@@ -940,13 +942,16 @@ export default function RecordingScreen() {
       }
       // #region agent log
       console.log('%c[BG] 🔍 CHECKPOINT 3: After wake lock', 'color: #eab308');
+      toast('🔍 CP3: wake lock done', { duration: 1000 });
       // #endregion
     } catch (wakeLockError) {
       console.warn('[record] Wake lock release error (non-fatal):', wakeLockError);
+      toast.error('CP2-3 ERROR: ' + (wakeLockError as Error).message);
     }
 
     // #region agent log
     console.log('%c[BG] 🔍 CHECKPOINT 4: Before emergency clear', 'color: #eab308');
+    toast('🔍 CP4: emergency clear', { duration: 1000 });
     // #endregion
 
     // 🆘 Clear emergency recording data (successful stop = no need for recovery)
@@ -955,13 +960,16 @@ export default function RecordingScreen() {
       await clearEmergencyRecording();
       // #region agent log
       console.log('%c[BG] 🔍 CHECKPOINT 5: After emergency clear', 'color: #eab308');
+      toast('🔍 CP5: emergency done', { duration: 1000 });
       // #endregion
     } catch (emergencyError) {
       console.warn('[record] Emergency recording clear error (non-fatal):', emergencyError);
+      toast.error('CP4-5 ERROR: ' + (emergencyError as Error).message);
     }
 
     // #region agent log
     console.log('%c[BG] 🔍 CHECKPOINT 6: Before setIsStreamingActive', 'color: #eab308');
+    toast('🔍 CP6: streaming off', { duration: 1000 });
     // #endregion
 
     // Désactiver le mode streaming live (la transcription continue pour les derniers chunks)
@@ -971,6 +979,7 @@ export default function RecordingScreen() {
 
     // #region agent log
     console.log('%c[BG] 🔍 CHECKPOINT 7: Before toast.success', 'color: #eab308');
+    toast('🔍 CP7: before success', { duration: 1000 });
     // #endregion
 
     toast.success('Recording stopped');
@@ -982,17 +991,21 @@ export default function RecordingScreen() {
       audioBlobSize: audioBlob?.size,
       geminiSegmentsCount: geminiLiveSegments.length
     });
+    toast(`🔍 CP8: autoTranscribe=${autoTranscribeAfterRecording}`, { duration: 2000 });
     // #endregion
 
     // 🚀 EARLY NAVIGATION: Create meeting immediately and navigate
     // Post-processing happens in background on the meeting page
     if (autoTranscribeAfterRecording) {
       console.log('%c[BG] ✅ autoTranscribeAfterRecording is TRUE - entering try block', 'color: #10b981; font-weight: bold');
+      toast('🔍 CP9: autoTranscribe TRUE', { duration: 1500 });
       
       try {
         console.log('%c[BG] 🔑 Getting user...', 'color: #3b82f6');
+        toast('🔍 CP10: getting user...', { duration: 1000 });
         const { data: { user } } = await supabase.auth.getUser();
         console.log('%c[BG] 🔑 User result:', 'color: #3b82f6', { hasUser: !!user, userId: user?.id?.substring(0, 8) });
+        toast(`🔍 CP11: user=${user ? 'OK' : 'NULL'}`, { duration: 1500 });
         if (!user) throw new Error('User not authenticated');
 
         // Get live segments to include in initial save
