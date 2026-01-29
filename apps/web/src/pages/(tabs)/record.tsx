@@ -1046,11 +1046,19 @@ export default function RecordingScreen() {
         const capturedAudioBlob = recordedBlob; // 🔧 FIX: Use blob from Promise, not state
         const capturedLiveSegments = [...liveSegments]; // Deep copy
         
+        // 🔴 CRITICAL: Capture prompts and settings BEFORE navigation (component unmounts after navigate)
+        const capturedUserPrompts = { ...userPrompts };
+        const capturedContextNotes = contextNotes;
+        const capturedAutoGenerateSummary = autoGenerateSummaryAfterStreaming;
+        const capturedGenerateParallel = generateTitleAndSummaryParallel;
+        
         debugLog('record.tsx:handleStopRecording', '🔍 CP12: PRE-NAVIGATION STATE', {
           hasAudioBlob: !!capturedAudioBlob,
           audioBlobSize: capturedAudioBlob?.size,
           liveSegmentsCount: capturedLiveSegments.length,
-          meetingId: meetingData.id
+          meetingId: meetingData.id,
+          autoGenerateSummary: capturedAutoGenerateSummary,
+          hasPrompts: !!capturedUserPrompts.summary
         }, 'CHECKPOINT');
 
         // Navigate IMMEDIATELY to meeting page
@@ -1174,6 +1182,67 @@ export default function RecordingScreen() {
                   // #region agent log - CONSOLE LOG
                   console.log('%c[BG] 💾 Enhanced transcript SAVED to DB', 'color: #22c55e; font-weight: bold', { meetingId: meetingData.id });
                   // #endregion
+                  
+                  // 🤖 AUTO-GENERATE SUMMARY after enhancement (if enabled)
+                  if (capturedAutoGenerateSummary && capturedGenerateParallel) {
+                    console.log('%c[BG] 🤖 AUTO-SUMMARY: Starting generation after enhancement', 'color: #8b5cf6; font-weight: bold');
+                    
+                    try {
+                      // Build transcript text from enhanced segments
+                      const transcriptText = enhancedResult.segments
+                        .map((seg: any) => `${seg.speaker}: ${seg.text}`)
+                        .join('\n');
+                      
+                      // Enrich summary prompt with context notes if provided
+                      let summaryPrompt = capturedUserPrompts.summary;
+                      if (capturedContextNotes) {
+                        const contextSection = `\n\nADDITIONAL CONTEXT NOTES (to include in the summary):\n${capturedContextNotes}`;
+                        summaryPrompt = summaryPrompt ? summaryPrompt + contextSection : `Summarize the following meeting transcript. Pay special attention to the context notes provided.${contextSection}`;
+                      }
+                      
+                      console.log('%c[BG] 🤖 Calling generateParallel...', 'color: #8b5cf6', {
+                        transcriptLength: transcriptText.length,
+                        hasTitlePrompt: !!capturedUserPrompts.title,
+                        hasSummaryPrompt: !!summaryPrompt
+                      });
+                      
+                      // Generate title and summary
+                      const { title: aiTitle, summary: aiSummary } = await capturedGenerateParallel(
+                        transcriptText,
+                        capturedUserPrompts.title || undefined,
+                        summaryPrompt || undefined
+                      );
+                      
+                      console.log('%c[BG] 🤖 Generation complete', 'color: #8b5cf6', {
+                        titleLength: aiTitle?.length,
+                        summaryLength: aiSummary?.length
+                      });
+                      
+                      // Update meeting with generated title and summary
+                      if (aiTitle || aiSummary) {
+                        await supabase
+                          .from('meetings')
+                          .update({
+                            ...(aiTitle && { title: aiTitle }),
+                            ...(aiSummary && { summary: aiSummary })
+                          })
+                          .eq('id', meetingData.id);
+                        
+                        console.log('%c[BG] ✅ AUTO-SUMMARY SAVED to DB', 'color: #22c55e; font-weight: bold', {
+                          meetingId: meetingData.id,
+                          newTitle: aiTitle?.substring(0, 50)
+                        });
+                      }
+                    } catch (summaryError) {
+                      console.error('%c[BG] ❌ AUTO-SUMMARY ERROR', 'color: #ef4444; font-weight: bold', summaryError);
+                      // Don't fail the whole process if summary generation fails
+                    }
+                  } else {
+                    console.log('%c[BG] ⏭️ AUTO-SUMMARY skipped', 'color: #f59e0b', {
+                      autoGenerateEnabled: capturedAutoGenerateSummary,
+                      hasGenerateFunction: !!capturedGenerateParallel
+                    });
+                  }
                 } else {
                   console.log('%c[BG] ⚠️ Enhancement returned no segments - keeping live', 'color: #f59e0b; font-weight: bold', {
                     enhancedResult
