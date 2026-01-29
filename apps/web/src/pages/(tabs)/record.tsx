@@ -1915,19 +1915,19 @@ export default function RecordingScreen() {
         </div>
       </div>
 
-      {/* LIQUID GLASS FOOTER - Apple-style floating bubble */}
+      {/* LIQUID GLASS FOOTER - Apple-style floating pill */}
       <div 
         className="fixed bottom-0 left-0 right-0 z-50 flex justify-center pointer-events-none"
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)' }}
       >
         <div 
-          className="pointer-events-auto mx-4 rounded-[32px] overflow-hidden"
+          className="pointer-events-auto mx-4 rounded-full overflow-hidden"
           style={{
-            background: 'linear-gradient(135deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.05) 50%, rgba(0,0,0,0.2) 100%)',
+            background: 'rgba(0,0,0,0.2)',
             backdropFilter: 'blur(40px) saturate(180%)',
             WebkitBackdropFilter: 'blur(40px) saturate(180%)',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.2), inset 0 -1px 0 rgba(0,0,0,0.3)',
-            border: '1px solid rgba(255,255,255,0.15)',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.1), inset 0 -1px 0 rgba(0,0,0,0.15)',
+            border: '1px solid rgba(255,255,255,0.08)',
           }}
         >
           <div className="px-6 py-4">

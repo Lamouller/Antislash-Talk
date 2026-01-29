@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { Session } from '@supabase/supabase-js';
 import { Toaster } from 'react-hot-toast';
 import { useMarketingPagesConfig } from '../hooks/useMarketingPagesConfig';
+import { Mic } from 'lucide-react';
 
 // #region agent log - Global Debug Logs Panel Component
 function GlobalDebugLogsPanel() {
@@ -100,6 +101,48 @@ function GlobalDebugLogsPanel() {
 }
 // #endregion
 
+// Global Liquid Glass Recording Button
+function GlobalRecordingButton() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Don't show on record page (it has its own controls) or auth pages
+  const isRecordPage = location.pathname === '/tabs/record' || location.pathname === '/tabs';
+  const isAuthPage = location.pathname.startsWith('/auth') || location.pathname === '/';
+  
+  if (isRecordPage || isAuthPage) return null;
+  
+  return (
+    <div 
+      className="fixed bottom-0 left-0 right-0 z-50 flex justify-center pointer-events-none"
+      style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)' }}
+    >
+      <button
+        onClick={() => navigate('/tabs/record')}
+        className="pointer-events-auto flex items-center gap-3 px-6 py-3 rounded-full transition-all duration-300 active:scale-95"
+        style={{
+          background: 'rgba(0,0,0,0.25)',
+          backdropFilter: 'blur(40px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.15), inset 0 -1px 0 rgba(0,0,0,0.2)',
+          border: '1px solid rgba(255,255,255,0.1)',
+        }}
+      >
+        <div 
+          className="w-10 h-10 rounded-full flex items-center justify-center"
+          style={{
+            background: 'linear-gradient(145deg, rgba(255,59,48,0.9) 0%, rgba(255,45,85,0.9) 100%)',
+            boxShadow: '0 2px 12px rgba(255,59,48,0.4)',
+          }}
+        >
+          <Mic className="w-5 h-5 text-white" />
+        </div>
+        <span className="text-white/80 text-sm font-medium pr-1">Enregistrer</span>
+      </button>
+    </div>
+  );
+}
+
 export default function RootLayout() {
   const [session, setSession] = useState<Session | null>(null);
   const [initialized, setInitialized] = useState(false);
@@ -195,6 +238,8 @@ export default function RootLayout() {
         }}
       />
       <Outlet />
+      {/* Global Liquid Glass Recording Button - visible on all pages except record */}
+      <GlobalRecordingButton />
       {/* Global Debug Panel - available on all pages */}
       <GlobalDebugLogsPanel />
     </div>
