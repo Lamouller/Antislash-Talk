@@ -1561,12 +1561,21 @@ export default function SettingsScreen() {
                     </div>
                     <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">
                       {enableStreamingTranscription
-                        ? "⚡ Real-time transcription with live text appearing as you speak (requires WhisperX or whisper.cpp)"
+                        ? preferredTranscriptionProvider === 'google' 
+                          ? "⚡ Real-time transcription with Gemini Live API + diarization enhancement"
+                          : preferredTranscriptionProvider === 'openai'
+                            ? "⚡ Real-time transcription with OpenAI Whisper API"
+                            : "⚡ Real-time transcription with live text appearing as you speak (requires WhisperX or whisper.cpp)"
                         : "📦 Batch transcription after recording ends (standard mode)"
                       }
                     </p>
                     <p className="text-xs text-violet-600 dark:text-violet-400 mt-1">
-                      💡 Streaming gives instant feedback - see text appear live!
+                      {preferredTranscriptionProvider === 'google' 
+                        ? "💡 Gemini Live: Transcription temps réel + amélioration diarization automatique"
+                        : preferredTranscriptionProvider === 'openai'
+                          ? "💡 OpenAI: Transcription cloud rapide et précise"
+                          : "💡 Streaming gives instant feedback - see text appear live!"
+                      }
                     </p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer ml-4">

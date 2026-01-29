@@ -13,12 +13,15 @@ function GlobalDebugLogsPanel() {
   const [isOpen, setIsOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [isMinimized, setIsMinimized] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
   const refreshLogs = () => {
+    setIsRefreshing(true);
     try {
       const stored = JSON.parse(localStorage.getItem('__debug_logs__') || '[]');
       setLogs(stored);
     } catch { setLogs([]); }
+    setTimeout(() => setIsRefreshing(false), 300);
   };
   
   const clearLogs = () => {
@@ -68,7 +71,7 @@ function GlobalDebugLogsPanel() {
     return (
       <button
         onClick={() => { setIsMinimized(false); setIsOpen(true); refreshLogs(); }}
-        className="fixed bottom-20 right-4 z-50 w-12 h-12 bg-gray-900 text-yellow-400 rounded-full shadow-lg flex items-center justify-center text-lg font-bold border-2 border-yellow-400"
+        className="fixed bottom-20 right-4 z-50 w-12 h-12 bg-gray-900 text-yellow-400 rounded-full shadow-lg flex items-center justify-center text-lg font-bold border-2 border-yellow-400 active:scale-95 transition-transform"
         title="Debug Logs"
       >
         🔍
@@ -79,20 +82,38 @@ function GlobalDebugLogsPanel() {
   return (
     <div className="fixed bottom-16 left-0 right-0 z-50 px-2" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
       <div className="bg-gray-900 rounded-t-xl shadow-2xl border border-gray-700 max-w-4xl mx-auto">
-        <div className="flex items-center justify-between px-4 py-2 border-b border-gray-700">
-          <span className="text-yellow-400 font-mono text-sm">🔍 Debug Logs ({logs.length})</span>
-          <div className="flex gap-2">
-            <button onClick={refreshLogs} className="px-2 py-1 bg-blue-600 text-white rounded text-xs">Refresh</button>
-            <button onClick={copyLogs} className={`px-2 py-1 ${copied ? 'bg-green-600' : 'bg-purple-600'} text-white rounded text-xs`}>
-              {copied ? '✓ Copied!' : '📋 Copy'}
+        <div className="flex items-center justify-between px-3 py-2 border-b border-gray-700">
+          <span className="text-yellow-400 font-mono text-xs">🔍 Logs ({logs.length})</span>
+          <div className="flex gap-1">
+            <button 
+              onClick={refreshLogs} 
+              className={`px-3 py-2 ${isRefreshing ? 'bg-green-600' : 'bg-blue-600'} text-white rounded text-xs font-medium active:scale-95 transition-all min-w-[60px]`}
+            >
+              {isRefreshing ? '✓' : '🔄'}
             </button>
-            <button onClick={clearLogs} className="px-2 py-1 bg-red-600 text-white rounded text-xs">Clear</button>
-            <button onClick={() => setIsMinimized(true)} className="px-2 py-1 bg-gray-600 text-white rounded text-xs">—</button>
+            <button 
+              onClick={copyLogs} 
+              className={`px-3 py-2 ${copied ? 'bg-green-600' : 'bg-purple-600'} text-white rounded text-xs font-medium active:scale-95 transition-all`}
+            >
+              {copied ? '✓' : '📋'}
+            </button>
+            <button 
+              onClick={clearLogs} 
+              className="px-3 py-2 bg-red-600 text-white rounded text-xs font-medium active:scale-95 transition-all"
+            >
+              🗑️
+            </button>
+            <button 
+              onClick={() => setIsMinimized(true)} 
+              className="px-3 py-2 bg-gray-600 text-white rounded text-xs font-medium active:scale-95 transition-all"
+            >
+              ➖
+            </button>
           </div>
         </div>
         <div className="max-h-48 overflow-y-auto p-2">
           <pre className="text-green-400 whitespace-pre-wrap font-mono text-[10px]">
-            {logs.length === 0 ? 'No logs yet.' : 
+            {logs.length === 0 ? 'No logs yet. Perform actions to see debug output.' : 
               logs.slice(-50).map((l: any) => `[${l.hypothesisId}] ${new Date(l.timestamp).toLocaleTimeString()} ${l.location}\n  ${l.message}: ${JSON.stringify(l.data)}`).join('\n\n')}
           </pre>
         </div>

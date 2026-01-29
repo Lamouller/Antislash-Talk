@@ -678,6 +678,13 @@ export default function RecordingScreen() {
         // #endregion
 
         try {
+          // #region agent log
+          debugLog('record.tsx:handleStartRecording', '🔌 STARTING GEMINI WORKFLOW...', {
+            model: userPreferences.transcription_model,
+            hasGeminiHook: !!geminiTranscription
+          }, 'GEMINI');
+          // #endregion
+
           // Start Gemini live workflow
           const workflow = await geminiTranscription.startFullWorkflow(
             // Callback for each live segment
@@ -685,9 +692,10 @@ export default function RecordingScreen() {
               console.log(`%c[record] 🎤 GEMINI LIVE SEGMENT`, 'color: #10b981; font-weight: bold', segment);
               
               // #region agent log
-              debugLog('record.tsx:geminiLiveSegment', '📝 LIVE SEGMENT', {
+              debugLog('record.tsx:geminiLiveSegment', '📝 LIVE SEGMENT RECEIVED', {
                 speaker: segment.speaker,
-                textPreview: segment.text.substring(0, 50)
+                textPreview: segment.text.substring(0, 50),
+                timestamp: Date.now()
               }, 'GEMINI');
               // #endregion
               
@@ -714,12 +722,33 @@ export default function RecordingScreen() {
             }
           );
 
+          // #region agent log
+          debugLog('record.tsx:handleStartRecording', '✅ GEMINI WORKFLOW STARTED', {
+            hasWorkflow: !!workflow,
+            hasSendChunk: !!workflow?.sendChunk,
+            hasStop: !!workflow?.stop
+          }, 'GEMINI');
+          // #endregion
+
           geminiWorkflowRef.current = workflow;
 
           // Start audio recording with chunk callback for Gemini
+          let chunkCount = 0;
           await startRecording(async (chunk: Blob, _chunkIndex: number) => {
+            chunkCount++;
             // Convert Blob to ArrayBuffer and send to Gemini
             const arrayBuffer = await chunk.arrayBuffer();
+            
+            // #region agent log
+            if (chunkCount <= 5 || chunkCount % 10 === 0) {
+              debugLog('record.tsx:geminiChunk', '📤 SENDING AUDIO CHUNK', {
+                chunkNumber: chunkCount,
+                chunkSizeBytes: arrayBuffer.byteLength,
+                hasWorkflow: !!geminiWorkflowRef.current
+              }, 'GEMINI');
+            }
+            // #endregion
+            
             workflow.sendChunk(arrayBuffer);
           });
 

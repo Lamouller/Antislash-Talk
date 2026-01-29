@@ -69,14 +69,25 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
     // Get API key
     const getApiKey = async (): Promise<string | null> => {
         const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return null;
+        if (!user) {
+            debugLog('useGeminiTranscription:getApiKey', '❌ NO USER', {}, 'API');
+            return null;
+        }
 
-        const { data } = await supabase
+        const { data, error } = await supabase
             .from('api_keys')
             .select('encrypted_key')
             .eq('user_id', user.id)
             .eq('provider', 'google')
             .single();
+
+        // #region agent log
+        debugLog('useGeminiTranscription:getApiKey', error ? '❌ API KEY ERROR' : '✅ API KEY FOUND', {
+            hasKey: !!data?.encrypted_key,
+            keyLength: data?.encrypted_key?.length || 0,
+            error: error?.message
+        }, 'API');
+        // #endregion
 
         return data?.encrypted_key || null;
     };
