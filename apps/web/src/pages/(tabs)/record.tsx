@@ -1602,8 +1602,47 @@ export default function RecordingScreen() {
               </div>
             </div>
 
-            {/* Action Buttons */}
-            <div className="grid gap-4">
+            {/* 🎯 Prompt Selector BEFORE Recording (visible in auto-transcribe mode) */}
+            {!isRecording && !audioBlob && autoTranscribeAfterRecording && promptTemplates.length > 0 && (
+              <div className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-2xl p-4 mb-4 border border-purple-200 dark:border-purple-700/30">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-sm font-semibold text-purple-900 dark:text-purple-100 flex items-center">
+                    <Sparkles className="w-4 h-4 mr-2 text-purple-600" />
+                    Style de résumé
+                  </h4>
+                  <Button
+                    variant="ghost"
+                    size="small"
+                    onClick={() => navigate('/tabs/prompts')}
+                    className="text-xs"
+                  >
+                    <Plus className="w-3 h-3 mr-1" />
+                    Gérer
+                  </Button>
+                </div>
+                <select
+                  className="w-full px-4 py-3 border border-purple-300 dark:border-purple-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
+                  value={selectedPromptId || ''}
+                  onChange={(e) => applyPromptTemplate(e.target.value)}
+                >
+                  <option value="">Style par défaut</option>
+                  {promptTemplates.map(template => (
+                    <option key={template.id} value={template.id}>
+                      {template.is_favorite && '⭐ '}
+                      {template.name}
+                    </option>
+                  ))}
+                </select>
+                {selectedPromptId && (
+                  <p className="mt-2 text-xs text-purple-600 dark:text-purple-400">
+                    ✓ Ce style sera utilisé pour le résumé automatique
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Action Buttons (hidden on mobile when recording - use footer instead) */}
+            <div className="grid gap-4 md:block hidden">
               {!isRecording && !audioBlob && (
                 <Button
                   onClick={handleStartRecording}
@@ -1615,7 +1654,40 @@ export default function RecordingScreen() {
                 </Button>
               )}
 
+              {isRecording && (
+                <div className="grid grid-cols-2 gap-4">
+                  <Button
+                    onClick={handlePauseResume}
+                    variant="outline"
+                    className="py-4 text-lg font-semibold rounded-xl border-gray-200 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
+                  >
+                    {isPaused ? (
+                      <>
+                        <Play className="w-6 h-6 mr-2" />
+                        {t('record.resume')}
+                      </>
+                    ) : (
+                      <>
+                        <PauseIcon className="w-6 h-6 mr-2" />
+                        {t('record.pause')}
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    onClick={handleStopRecording}
+                    className="bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white py-4 text-lg font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
+                  >
+                    <Square className="w-6 h-6 mr-2" />
+                    {t('record.stop')}
+                  </Button>
+                </div>
+              )}
+            </div>
 
+            {/* Mobile: Start button hidden - using footer instead */}
+
+            {/* Desktop recording controls (hidden on mobile - footer is used instead) */}
+            <div className="hidden md:block">
               {isRecording && (
                 <div className="grid grid-cols-2 gap-4">
                   <Button
@@ -1835,6 +1907,153 @@ export default function RecordingScreen() {
                   </p>
                 </div>
               </div>
+            )}
+
+            {/* Spacer for mobile footer */}
+            <div className="h-40 md:hidden" />
+          </div>
+        </div>
+      </div>
+
+      {/* 📱 MOBILE FOOTER - Persistent recording controls (BEFORE and DURING recording) */}
+      <div 
+        className="md:hidden fixed bottom-0 left-0 right-0 bg-gradient-to-t from-gray-900 via-gray-900/95 to-gray-900/90 backdrop-blur-xl border-t border-gray-700/50 z-40"
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 60px)' }}
+      >
+        <div className="px-4 py-4">
+          {/* Timer display (only during recording) */}
+          {isRecording && (
+            <div className="text-center mb-3">
+              <span className="text-3xl font-mono font-bold text-white">
+                {formatTime(duration)}
+              </span>
+              <div className="flex items-center justify-center gap-2 mt-1">
+                <div className={`w-2 h-2 rounded-full ${isPaused ? 'bg-yellow-500' : 'bg-red-500 animate-pulse'}`} />
+                <span className="text-xs text-gray-400">
+                  {isPaused ? 'En pause' : 'Enregistrement en cours'}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Ready state message (before recording) */}
+          {!isRecording && !audioBlob && !isTranscribing && (
+            <div className="text-center mb-3">
+              <span className="text-lg font-medium text-white">
+                Prêt à enregistrer
+              </span>
+              <p className="text-xs text-gray-400 mt-1">
+                Appuyez sur le bouton pour commencer
+              </p>
+            </div>
+          )}
+
+          {/* Processing state message */}
+          {(audioBlob || isTranscribing) && !isRecording && (
+            <div className="text-center mb-3">
+              <span className="text-lg font-medium text-white">
+                {isTranscribing ? 'Transcription...' : 'Enregistrement terminé'}
+              </span>
+              {isTranscribing && (
+                <div className="w-full bg-gray-700 rounded-full h-1.5 mt-2">
+                  <div 
+                    className="bg-gradient-to-r from-purple-500 to-pink-500 h-1.5 rounded-full transition-all"
+                    style={{ width: `${transcriptionProgress}%` }}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Control buttons */}
+          <div className="flex items-center justify-center gap-6">
+            {/* === BEFORE RECORDING === */}
+            {!isRecording && !audioBlob && !isTranscribing && (
+              <>
+                {/* Empty space (left) */}
+                <div className="w-14 h-14" />
+
+                {/* Start Recording button (center) */}
+                <button
+                  onClick={handleStartRecording}
+                  disabled={pageState !== 'ready'}
+                  className="w-20 h-20 rounded-full bg-gradient-to-br from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 flex items-center justify-center shadow-2xl transition-all active:scale-95 disabled:opacity-50"
+                >
+                  <Mic className="w-8 h-8 text-white" />
+                </button>
+
+                {/* Empty space (right) */}
+                <div className="w-14 h-14" />
+              </>
+            )}
+
+            {/* === DURING RECORDING === */}
+            {isRecording && (
+              <>
+                {/* Pause/Resume button (left) */}
+                <button
+                  onClick={handlePauseResume}
+                  className="w-14 h-14 rounded-full bg-gray-700 hover:bg-gray-600 flex items-center justify-center transition-all active:scale-95 shadow-lg"
+                >
+                  {isPaused ? (
+                    <Play className="w-6 h-6 text-white" />
+                  ) : (
+                    <PauseIcon className="w-6 h-6 text-white" />
+                  )}
+                </button>
+
+                {/* Recording indicator (center) */}
+                <div className={`w-20 h-20 rounded-full flex items-center justify-center shadow-2xl ${
+                  isPaused 
+                    ? 'bg-gradient-to-br from-yellow-500 to-orange-600' 
+                    : 'bg-gradient-to-br from-red-500 to-pink-600 animate-pulse'
+                }`}>
+                  <div className="w-8 h-8 bg-white rounded-full opacity-90" />
+                </div>
+
+                {/* Stop button (right) */}
+                <button
+                  onClick={handleStopRecording}
+                  className="w-14 h-14 rounded-full bg-red-600 hover:bg-red-700 flex items-center justify-center transition-all active:scale-95 shadow-lg"
+                >
+                  <Square className="w-6 h-6 text-white" />
+                </button>
+              </>
+            )}
+
+            {/* === AFTER RECORDING (processing) === */}
+            {(audioBlob || isTranscribing) && !isRecording && (
+              <>
+                {/* New recording button (left) */}
+                <button
+                  onClick={() => {
+                    resetRecorder();
+                    setTitle('');
+                    setPageState('ready');
+                    setSavedMeetingId(null);
+                  }}
+                  disabled={isTranscribing}
+                  className="w-14 h-14 rounded-full bg-gray-700 hover:bg-gray-600 flex items-center justify-center transition-all active:scale-95 shadow-lg disabled:opacity-50"
+                >
+                  <RefreshCw className="w-6 h-6 text-white" />
+                </button>
+
+                {/* Status indicator (center) */}
+                <div className={`w-20 h-20 rounded-full flex items-center justify-center shadow-2xl ${
+                  isTranscribing 
+                    ? 'bg-gradient-to-br from-blue-500 to-indigo-600 animate-pulse' 
+                    : 'bg-gradient-to-br from-green-500 to-emerald-600'
+                }`}>
+                  {isTranscribing ? (
+                    <Waves className="w-8 h-8 text-white" />
+                  ) : (
+                    <Sparkles className="w-8 h-8 text-white" />
+                  )}
+                </div>
+
+                {/* Empty space (right) */}
+                <div className="w-14 h-14" />
+              </>
             )}
           </div>
         </div>
