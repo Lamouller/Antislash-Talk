@@ -309,6 +309,9 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                                 /(?:je\s+suis|je\s+m'appelle|moi\s+c'est)\s+([A-Z][a-zà-ÿ]{2,})/i,
                                 /(?:ici|bonjour)\s+([A-Z][a-zà-ÿ]{2,})(?:\s+ici)?/i,
                                 /([A-Z][a-zà-ÿ]{2,})\s+(?:à l'appareil|au micro)/i,
+                                // Pattern for "[Name] qui parle" without c'est prefix
+                                /^([A-Z][a-zà-ÿ]{2,})\s+qui\s+parle/i,
+                                /,\s*([A-Z][a-zà-ÿ]{2,})\s+qui\s+parle/i,
                             ];
                             
                             // Common words to exclude from name detection (expanded list)

@@ -301,6 +301,8 @@ async def handle_live_diarization(websocket: WebSocket):
                                 if embedding is not None:
                                     # Identify speaker
                                     speaker_id, confidence, is_new = session.get_or_create_speaker(embedding)
+                                    # Convert numpy float32 to Python float for JSON serialization
+                                    confidence = float(confidence)
                                     
                                     # Send speaker info
                                     if speaker_id != session.current_speaker:
