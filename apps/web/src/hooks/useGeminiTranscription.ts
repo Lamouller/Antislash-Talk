@@ -77,6 +77,12 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
     
     // Speaker name mapping: Speaker_XX -> Real name (when detected)
     const speakerNamesRef = useRef<Map<string, string>>(new Map());
+    
+    // PCM Audio capture refs (AudioWorklet for real-time streaming)
+    const audioContextRef = useRef<AudioContext | null>(null);
+    const workletNodeRef = useRef<AudioWorkletNode | null>(null);
+    const mediaStreamRef = useRef<MediaStream | null>(null);
+    const pcmChunkCountRef = useRef<number>(0);
 
     // Get API key
     const getApiKey = async (): Promise<string | null> => {
@@ -207,12 +213,21 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                     const data = JSON.parse(rawData);
 
                     // #region agent log
-                    fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:onmessage',message:'WS_MESSAGE',data:{hasSetupComplete:!!data.setupComplete,hasServerContent:!!data.serverContent,hasError:!!data.error,hasInputTranscription:!!data.serverContent?.inputTranscription,keys:Object.keys(data).slice(0,5)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B,C'})}).catch(()=>{});
+                    const serverContentKeys = data.serverContent ? Object.keys(data.serverContent) : [];
+                    const hasInputTranscription = !!data.serverContent?.inputTranscription;
+                    const hasModelTurn = !!data.serverContent?.modelTurn;
+                    const modelTurnText = data.serverContent?.modelTurn?.parts?.[0]?.text?.substring(0, 50);
+                    const inputTranscriptionText = data.serverContent?.inputTranscription?.text?.substring(0, 50);
+                    
+                    fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:onmessage',message:'WS_MESSAGE_DETAIL',data:{hasInputTranscription,hasModelTurn,inputTranscriptionText,modelTurnText,serverContentKeys},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B,C'})}).catch(()=>{});
                     debugLog('useGeminiTranscription:onMessage', '📥 WS MESSAGE RECEIVED', {
                         hasSetupComplete: !!data.setupComplete,
                         hasServerContent: !!data.serverContent,
-                        hasError: !!data.error,
-                        keys: Object.keys(data).slice(0, 5)
+                        hasInputTranscription,
+                        hasModelTurn,
+                        serverContentKeys,
+                        inputTranscriptionText,
+                        modelTurnText
                     }, 'LIVE');
                     // #endregion
 
@@ -471,8 +486,116 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
         }
     }, [decodeAudioToPCM]);
 
+    // Send raw PCM data directly to WebSocket (used by AudioWorklet)
+    const sendPCMToWebSocket = useCallback((pcmData: ArrayBuffer) => {
+        pcmChunkCountRef.current++;
+        const chunkIndex = pcmChunkCountRef.current;
+        
+        if (wsRef.current?.readyState === WebSocket.OPEN) {
+            const base64 = btoa(
+                new Uint8Array(pcmData).reduce((data, byte) => data + String.fromCharCode(byte), '')
+            );
+            
+            // #region agent log
+            if (chunkIndex <= 5 || chunkIndex % 20 === 0) {
+                fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:sendPCM',message:'SENDING_RAW_PCM',data:{chunkIndex,pcmSizeBytes:pcmData.byteLength},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+                debugLog('useGeminiTranscription:sendPCM', '📤 SENDING RAW PCM', {
+                    chunkIndex,
+                    pcmSizeBytes: pcmData.byteLength
+                }, 'LIVE');
+            }
+            // #endregion
+
+            wsRef.current.send(JSON.stringify({
+                realtimeInput: {
+                    mediaChunks: [{
+                        mimeType: 'audio/pcm;rate=16000',
+                        data: base64
+                    }]
+                }
+            }));
+        }
+    }, []);
+
+    // Start PCM audio capture using AudioWorklet
+    const startPCMCapture = useCallback(async () => {
+        try {
+            pcmChunkCountRef.current = 0;
+            
+            // Request microphone access at 16kHz
+            const stream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    sampleRate: 16000,
+                    channelCount: 1,
+                    echoCancellation: true,
+                    noiseSuppression: true
+                }
+            });
+            mediaStreamRef.current = stream;
+
+            // Create AudioContext at 16kHz (required by Gemini)
+            audioContextRef.current = new AudioContext({ sampleRate: 16000 });
+            
+            // Load PCM processor worklet
+            await audioContextRef.current.audioWorklet.addModule('/pcm-processor.js');
+            
+            // Create source from microphone
+            const source = audioContextRef.current.createMediaStreamSource(stream);
+            
+            // Create worklet node
+            workletNodeRef.current = new AudioWorkletNode(audioContextRef.current, 'pcm-processor');
+            
+            // Handle PCM data from worklet - send directly to WebSocket
+            workletNodeRef.current.port.onmessage = (event) => {
+                if (event.data.type === 'pcm') {
+                    sendPCMToWebSocket(event.data.data);
+                }
+            };
+            
+            // Connect: microphone -> worklet
+            source.connect(workletNodeRef.current);
+            
+            // #region agent log
+            fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:startPCMCapture',message:'PCM_CAPTURE_STARTED',data:{sampleRate:audioContextRef.current.sampleRate},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+            debugLog('useGeminiTranscription:startPCMCapture', '🎤 PCM CAPTURE STARTED', {
+                sampleRate: audioContextRef.current.sampleRate
+            }, 'LIVE');
+            // #endregion
+            
+            return true;
+        } catch (err) {
+            // #region agent log
+            fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:startPCMCapture',message:'PCM_CAPTURE_ERROR',data:{error:(err as Error).message},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+            // #endregion
+            console.error('Failed to start PCM capture:', err);
+            return false;
+        }
+    }, [sendPCMToWebSocket]);
+
+    // Stop PCM capture
+    const stopPCMCapture = useCallback(() => {
+        if (workletNodeRef.current) {
+            workletNodeRef.current.disconnect();
+            workletNodeRef.current = null;
+        }
+        if (audioContextRef.current) {
+            audioContextRef.current.close();
+            audioContextRef.current = null;
+        }
+        if (mediaStreamRef.current) {
+            mediaStreamRef.current.getTracks().forEach(track => track.stop());
+            mediaStreamRef.current = null;
+        }
+        
+        debugLog('useGeminiTranscription:stopPCMCapture', '🔇 PCM CAPTURE STOPPED', {
+            totalPCMChunks: pcmChunkCountRef.current
+        }, 'LIVE');
+    }, []);
+
     // Stop live transcription
     const stopLiveTranscription = useCallback(() => {
+        // Stop PCM capture first
+        stopPCMCapture();
         if (wsRef.current) {
             wsRef.current.send(JSON.stringify({ clientContent: { turnComplete: true } }));
             setTimeout(() => {
@@ -485,10 +608,11 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
         // #region agent log
         debugLog('useGeminiTranscription:stopLive', '🛑 LIVE PHASE STOPPED', {
             totalSegments: liveSegments.length,
-            totalChunks: audioChunksRef.current.length
+            totalChunks: audioChunksRef.current.length,
+            totalPCMChunks: pcmChunkCountRef.current
         }, 'LIVE');
         // #endregion
-    }, [liveSegments.length]);
+    }, [liveSegments.length, stopPCMCapture]);
 
     // ═══════════════════════════════════════════════════════════════════════════
     // PHASE 2: ENHANCEMENT (after recording - better diarization)
@@ -734,9 +858,20 @@ RETOURNE UNIQUEMENT LE JSON, AUCUN AUTRE TEXTE.`;
         
         // Wait for WebSocket to be ready before sending audio
         await new Promise(r => setTimeout(r, 500));
+        
+        // Start PCM capture via AudioWorklet (sends audio directly to WebSocket)
+        const pcmStarted = await startPCMCapture();
+        
+        // #region agent log
+        fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:fullWorkflow',message:'PCM_CAPTURE_STATUS',data:{pcmStarted,wsState:wsRef.current?.readyState},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+        debugLog('useGeminiTranscription:fullWorkflow', '🎤 PCM CAPTURE STATUS', {
+            pcmStarted,
+            wsState: wsRef.current?.readyState
+        }, 'WORKFLOW');
+        // #endregion
 
         return {
-            sendChunk: sendAudioChunk, // Sends chunks to WebSocket + stores for enhancement
+            sendChunk: sendAudioChunk, // Also stores chunks for enhancement phase
             stop: stopLiveTranscription,
             finalize: async (audioBlob: Blob) => {
                 stopLiveTranscription();
@@ -750,7 +885,7 @@ RETOURNE UNIQUEMENT LE JSON, AUCUN AUTRE TEXTE.`;
                 return result;
             }
         };
-    }, [startLiveTranscription, sendAudioChunk, stopLiveTranscription, enhanceTranscription, liveSegments, enableLiveTranscription, enablePostEnhancement]);
+    }, [startLiveTranscription, sendAudioChunk, stopLiveTranscription, enhanceTranscription, liveSegments, enableLiveTranscription, enablePostEnhancement, startPCMCapture]);
 
     // Reset state
     const reset = useCallback(() => {
