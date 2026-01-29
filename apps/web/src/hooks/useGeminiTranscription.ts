@@ -298,14 +298,58 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                             lastTextRef.current = fullText;
 
                             // ═══════════════════════════════════════════════════════════════
-                            // 🎭 SPEAKER IDENTIFICATION
-                            // Priority: 1. External source (Pyannote Live), 2. Default "Live"
+                            // 🎭 SPEAKER IDENTIFICATION (Lightweight)
+                            // Priority: 1. Name from text, 2. External (Pyannote), 3. Default
                             // ═══════════════════════════════════════════════════════════════
                             
-                            // If Pyannote Live is providing speaker info, use it
-                            // Otherwise, use generic "Live" label (diarization in post-processing)
-                            if (externalSpeakerRef.current) {
+                            // 🎯 Lightweight name detection from self-introductions
+                            const textLower = fullText.toLowerCase();
+                            const NAME_PATTERN = /\b([A-Z][a-zà-ÿ]{2,}(?:-[A-Z][a-zà-ÿ]+)?)\b/g;
+                            
+                            // Patterns for self-introduction (detect speaker name)
+                            const selfIntroPatterns = [
+                                /c'est\s+([A-Z][a-zà-ÿ]{2,})\s+(?:qui\s+parle|ici|à l'appareil)/i,
+                                /(?:je\s+suis|je\s+m'appelle|moi\s+c'est)\s+([A-Z][a-zà-ÿ]{2,})/i,
+                                /(?:ici|bonjour)\s+([A-Z][a-zà-ÿ]{2,})(?:\s+ici)?/i,
+                                /([A-Z][a-zà-ÿ]{2,})\s+(?:à l'appareil|au micro)/i,
+                            ];
+                            
+                            // Common words to exclude from name detection
+                            const EXCLUDED_WORDS = new Set([
+                                'bonjour', 'bonsoir', 'salut', 'merci', 'donc', 'voilà', 'alors',
+                                'oui', 'non', 'bien', 'très', 'super', 'parfait', 'exactement',
+                                'effectivement', 'absolument', 'certainement', 'peut', 'être',
+                                'live', 'test', 'tester', 'moment', 'instant', 'section'
+                            ]);
+                            
+                            let detectedName: string | null = null;
+                            
+                            // Try each pattern
+                            for (const pattern of selfIntroPatterns) {
+                                const match = fullText.match(pattern);
+                                if (match && match[1]) {
+                                    const candidateName = match[1];
+                                    // Validate: not a common word, min 3 chars
+                                    if (!EXCLUDED_WORDS.has(candidateName.toLowerCase()) && 
+                                        candidateName.length >= 3) {
+                                        detectedName = candidateName;
+                                        console.log(`%c[GEMINI] 🎭 NAME DETECTED: "${detectedName}"`, 'color: #7c3aed; font-weight: bold');
+                                        break;
+                                    }
+                                }
+                            }
+                            
+                            // Update speaker based on detection
+                            if (detectedName) {
+                                currentSpeakerRef.current = detectedName;
+                                // Store name for future segments
+                                speakerNamesRef.current.set('detected', detectedName);
+                            } else if (externalSpeakerRef.current) {
+                                // Use Pyannote Live if available
                                 currentSpeakerRef.current = externalSpeakerRef.current;
+                            } else if (speakerNamesRef.current.has('detected')) {
+                                // Reuse last detected name
+                                currentSpeakerRef.current = speakerNamesRef.current.get('detected')!;
                             } else {
                                 currentSpeakerRef.current = 'Live';
                             }
