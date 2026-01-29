@@ -134,11 +134,11 @@ function GlobalRecordingButton() {
           onClick={() => navigate('/tabs/record')}
           className="pointer-events-auto flex items-center gap-3 px-5 py-3 rounded-full transition-all duration-300 active:scale-95"
           style={{
-            background: 'rgba(255,255,255,0.03)',
-            backdropFilter: 'blur(50px) saturate(200%)',
-            WebkitBackdropFilter: 'blur(50px) saturate(200%)',
-            boxShadow: '0 2px 20px rgba(0,0,0,0.08), inset 0 0.5px 0 rgba(255,255,255,0.1)',
-            border: '0.5px solid rgba(255,255,255,0.08)',
+            background: 'rgba(30,30,30,0.65)',
+            backdropFilter: 'blur(30px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(30px) saturate(180%)',
+            boxShadow: '0 4px 24px rgba(0,0,0,0.15), inset 0 0.5px 0 rgba(255,255,255,0.08)',
+            border: '0.5px solid rgba(255,255,255,0.1)',
           }}
         >
           {/* Recording indicator */}
@@ -181,23 +181,23 @@ function GlobalRecordingButton() {
         onClick={() => navigate('/tabs/record')}
         className="pointer-events-auto flex items-center gap-3 px-6 py-3 rounded-full transition-all duration-300 active:scale-95"
         style={{
-          background: 'rgba(255,255,255,0.03)',
-          backdropFilter: 'blur(50px) saturate(200%)',
-          WebkitBackdropFilter: 'blur(50px) saturate(200%)',
-          boxShadow: '0 2px 20px rgba(0,0,0,0.08), inset 0 0.5px 0 rgba(255,255,255,0.1)',
-          border: '0.5px solid rgba(255,255,255,0.08)',
+          background: 'rgba(30,30,30,0.65)',
+          backdropFilter: 'blur(30px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(30px) saturate(180%)',
+          boxShadow: '0 4px 24px rgba(0,0,0,0.15), inset 0 0.5px 0 rgba(255,255,255,0.08)',
+          border: '0.5px solid rgba(255,255,255,0.1)',
         }}
       >
         <div 
           className="w-10 h-10 rounded-full flex items-center justify-center"
           style={{
-            background: 'linear-gradient(145deg, rgba(255,59,48,0.85) 0%, rgba(255,45,85,0.85) 100%)',
-            boxShadow: '0 2px 12px rgba(255,59,48,0.3)',
+            background: 'linear-gradient(145deg, rgba(255,59,48,0.9) 0%, rgba(255,45,85,0.9) 100%)',
+            boxShadow: '0 2px 12px rgba(255,59,48,0.35)',
           }}
         >
           <Mic className="w-5 h-5 text-white" />
         </div>
-        <span className="text-white/60 text-sm font-medium pr-1">Enregistrer</span>
+        <span className="text-white/90 text-sm font-medium pr-1">Enregistrer</span>
       </button>
     </div>
   );
