@@ -748,15 +748,8 @@ export default function RecordingScreen() {
               // #endregion
               
               setGeminiLiveSegments(prev => [...prev, segment]);
-              
-              // Also update the main live transcription for UI
-              const speakerSegment: SpeakerSegment = {
-                text: segment.text,
-                speaker: segment.speaker,
-                start: typeof segment.start === 'string' ? parseFloat(segment.start.replace(':', '.')) : segment.start,
-                end: typeof segment.end === 'string' ? parseFloat(segment.end.replace(':', '.')) : segment.end
-              };
-              setLiveTranscriptionSegments(prev => [...prev, speakerSegment]);
+              // NOTE: liveTranscriptionSegments is synced via useEffect from geminiTranscription.liveSegments
+              // Do NOT update setLiveTranscriptionSegments here to avoid duplication!
             },
             // Callback when enhancement is complete
             (result) => {

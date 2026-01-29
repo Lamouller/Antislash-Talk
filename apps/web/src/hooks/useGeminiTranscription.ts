@@ -453,6 +453,8 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                                 });
 
                                 // Callback with full segment info for UI
+                                // NOTE: Only use onSegmentCallbackRef (from startFullWorkflow), NOT onSegment
+                                // to avoid duplicate callbacks
                                 const segment: TranscriptSegment = {
                                     speaker: newSpeaker,
                                     text: cleanText,
@@ -460,7 +462,6 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                                     confidence: isFinal ? 0.9 : 0.75
                                 };
                                 onSegmentCallbackRef.current?.(segment);
-                                onSegment?.(segment);
                             }
                             
                             // Reset for next segment
