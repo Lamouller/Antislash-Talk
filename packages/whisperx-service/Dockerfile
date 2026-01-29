@@ -24,14 +24,17 @@ RUN pip install --no-cache-dir \
     torch \
     torchaudio \
     pyannote.audio \
+    scipy \
+    websockets \
     && rm -rf /root/.cache/pip
 
 # Create models directory
 RUN mkdir -p /app/models
 
-# Copy API server and streaming module
+# Copy API server and modules
 COPY server.py /app/server.py
 COPY streaming_endpoint.py /app/streaming_endpoint.py
+COPY live_diarization.py /app/live_diarization.py
 
 # Expose port
 EXPOSE 8082

@@ -31,7 +31,14 @@ interface UseLiveDiarizationOptions {
     onError?: (error: string) => void;
 }
 
-const WHISPERX_WS_URL = import.meta.env.VITE_WHISPERX_WS_URL || 'ws://localhost:8082';
+// Derive WebSocket URL from VITE_WHISPERX_URL (HTTP -> WS)
+const getWebSocketUrl = (): string => {
+    const httpUrl = import.meta.env.VITE_WHISPERX_URL || 'http://localhost:8082';
+    // Convert http(s):// to ws(s)://
+    return httpUrl.replace(/^https:\/\//, 'wss://').replace(/^http:\/\//, 'ws://');
+};
+
+const WHISPERX_WS_URL = getWebSocketUrl();
 
 export function useLiveDiarization(options: UseLiveDiarizationOptions = {}) {
     const {
