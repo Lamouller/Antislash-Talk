@@ -876,7 +876,7 @@ export default function MeetingDetail() {
 
       debugLog('meeting:handleRetryEnhancement', '✅ ENHANCEMENT COMPLETE', {
         segmentsCount: enhancedResult.segments.length,
-        speakers: enhancedResult.speakers
+        language: enhancedResult.language
       }, 'ENHANCE');
 
       if (enhancedResult && enhancedResult.segments.length > 0) {
