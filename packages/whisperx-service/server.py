@@ -47,6 +47,27 @@ logger.info(f"🚀 WhisperX initialized on {DEVICE} with {COMPUTE_TYPE}")
 logger.info(f"🔑 HuggingFace token: {'✅ Found' if HUGGINGFACE_TOKEN else '❌ Not set'}")
 
 
+@app.on_event("startup")
+async def preload_models():
+    """Preload Pyannote models at startup for faster first use"""
+    try:
+        logger.info("🔄 Preloading Pyannote models...")
+        from live_diarization import get_vad_model, get_embedding_model
+        
+        # Load VAD model
+        logger.info("🎤 Preloading VAD model...")
+        get_vad_model()
+        
+        # Load embedding model
+        logger.info("🧠 Preloading speaker embedding model...")
+        get_embedding_model()
+        
+        logger.info("✅ All Pyannote models preloaded successfully!")
+    except Exception as e:
+        logger.warning(f"⚠️ Could not preload Pyannote models: {e}")
+        logger.warning("Models will be loaded on first use instead.")
+
+
 def get_or_load_model(model_name: str = "base"):
     """Load or retrieve cached WhisperX model"""
     if model_name in MODEL_CACHE:
