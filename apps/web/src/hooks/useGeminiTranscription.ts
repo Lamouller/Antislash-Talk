@@ -349,17 +349,36 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                                 }
                             }
                             
-                            // Update speaker based on detection
+                            // 🎭 SPEAKER NAME MEMORY SYSTEM
+                            // Priority: 1. Detected name, 2. Mapped name from Pyannote ID, 3. Raw Pyannote ID, 4. Fallback
+                            const pyannoteSpeaker = externalSpeakerRef.current; // e.g., "SPEAKER_01"
+                            
                             if (detectedName) {
+                                // Name detected in text - use it and map to Pyannote speaker if available
                                 currentSpeakerRef.current = detectedName;
-                                // Store name for future segments
-                                speakerNamesRef.current.set('detected', detectedName);
-                            } else if (externalSpeakerRef.current) {
-                                // Use Pyannote Live if available
-                                currentSpeakerRef.current = externalSpeakerRef.current;
-                            } else if (speakerNamesRef.current.has('detected')) {
-                                // Reuse last detected name
-                                currentSpeakerRef.current = speakerNamesRef.current.get('detected')!;
+                                
+                                if (pyannoteSpeaker) {
+                                    // 🔗 Associate name with Pyannote speaker ID for future use
+                                    speakerNamesRef.current.set(pyannoteSpeaker, detectedName);
+                                    console.log(`%c[SPEAKER MEMORY] 🧠 MAPPED: ${pyannoteSpeaker} → "${detectedName}"`, 'color: #8b5cf6; font-weight: bold');
+                                }
+                                // Also store as last detected for fallback
+                                speakerNamesRef.current.set('_lastDetected', detectedName);
+                            } else if (pyannoteSpeaker) {
+                                // No name detected, but we have Pyannote speaker
+                                // Check if this Pyannote ID has a mapped name
+                                const mappedName = speakerNamesRef.current.get(pyannoteSpeaker);
+                                if (mappedName) {
+                                    // Use the previously mapped name for this voice
+                                    currentSpeakerRef.current = mappedName;
+                                    console.log(`%c[SPEAKER MEMORY] 🔄 REUSED: ${pyannoteSpeaker} → "${mappedName}"`, 'color: #06b6d4');
+                                } else {
+                                    // No mapping yet - use raw Pyannote ID
+                                    currentSpeakerRef.current = pyannoteSpeaker;
+                                }
+                            } else if (speakerNamesRef.current.has('_lastDetected')) {
+                                // Fallback: reuse last detected name (no Pyannote available)
+                                currentSpeakerRef.current = speakerNamesRef.current.get('_lastDetected')!;
                             } else {
                                 currentSpeakerRef.current = 'Live';
                             }
@@ -1088,6 +1107,15 @@ RETOURNE UNIQUEMENT LE JSON, AUCUN AUTRE TEXTE.`;
         setOnPCMChunk,
         
         // Get best available segments
-        getBestSegments: () => enhancedSegments.length > 0 ? enhancedSegments : liveSegments
+        getBestSegments: () => enhancedSegments.length > 0 ? enhancedSegments : liveSegments,
+        
+        // 🧠 Speaker name memory - get current mappings
+        getSpeakerNameMap: () => Object.fromEntries(speakerNamesRef.current),
+        
+        // 🧠 Manually set a speaker name (for UI-based assignment)
+        setSpeakerName: (speakerId: string, name: string) => {
+            speakerNamesRef.current.set(speakerId, name);
+            console.log(`%c[SPEAKER MEMORY] ✏️ MANUAL SET: ${speakerId} → "${name}"`, 'color: #f59e0b; font-weight: bold');
+        }
     };
 }
