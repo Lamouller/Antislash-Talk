@@ -78,6 +78,21 @@ const formatDuration = (seconds: number) => {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 };
 
+// Helper to safely format segment timestamps (handles strings, NaN, undefined)
+const formatSegmentTime = (value: any): string | null => {
+  if (value === undefined || value === null || value === '') return null;
+  const num = typeof value === 'string' ? parseFloat(value) : value;
+  if (isNaN(num)) return null;
+  return `${Math.floor(num)}s`;
+};
+
+const formatSegmentTimeRange = (start: any, end: any): string | null => {
+  const startStr = formatSegmentTime(start);
+  const endStr = formatSegmentTime(end);
+  if (!startStr || !endStr) return null;
+  return `${startStr} - ${endStr}`;
+};
+
 const formatDate = (dateString: string, locale: string = 'en') => {
   return new Date(dateString).toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-US', {
     year: 'numeric',
@@ -1508,9 +1523,9 @@ export default function MeetingDetail() {
                           <div className={`w-12 h-12 rounded-full bg-gradient-to-r ${speakerColor} flex items-center justify-center text-white shadow-lg`}>
                             <User className="w-6 h-6" />
                           </div>
-                          {segment.start !== undefined && (
+                          {formatSegmentTime(segment.start) && (
                             <div className="text-[10px] text-center text-gray-500 dark:text-gray-400 mt-1">
-                              {Math.floor(segment.start)}s
+                              {formatSegmentTime(segment.start)}
                             </div>
                           )}
                         </div>
@@ -1554,9 +1569,9 @@ export default function MeetingDetail() {
                                 <Edit2 className="w-3 h-3 opacity-0 group-hover/edit:opacity-100 transition-opacity" />
                               </button>
                             )}
-                            {segment.start !== undefined && segment.end !== undefined && (
+                            {formatSegmentTimeRange(segment.start, segment.end) && (
                               <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-600 px-2 py-1 rounded-full">
-                                {Math.floor(segment.start)}s - {Math.floor(segment.end)}s
+                                {formatSegmentTimeRange(segment.start, segment.end)}
                               </span>
                             )}
                           </div>
