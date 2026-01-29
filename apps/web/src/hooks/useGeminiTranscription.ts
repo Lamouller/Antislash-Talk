@@ -817,7 +817,14 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
         existingSegments?: TranscriptSegment[],
         onProgress?: (progress: number) => void
     ): Promise<GeminiTranscriptionResult> => {
+        // #region agent log
+        fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription:enhance:entry',message:'enhanceTranscription CALLED',data:{enablePostEnhancement,audioBlobSize:audioBlob?.size,existingSegmentsCount:existingSegments?.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4'})}).catch(()=>{});
+        // #endregion
+        
         if (!enablePostEnhancement) {
+            // #region agent log
+            fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription:enhance:disabled',message:'Enhancement DISABLED - returning early',data:{enablePostEnhancement},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4'})}).catch(()=>{});
+            // #endregion
             return {
                 text: (existingSegments || liveSegments).map(s => s.text).join(' '),
                 segments: existingSegments || liveSegments,
