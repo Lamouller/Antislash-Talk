@@ -311,12 +311,20 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                                 /([A-Z][a-zà-ÿ]{2,})\s+(?:à l'appareil|au micro)/i,
                             ];
                             
-                            // Common words to exclude from name detection
+                            // Common words to exclude from name detection (expanded list)
                             const EXCLUDED_WORDS = new Set([
+                                // Greetings & common expressions
                                 'bonjour', 'bonsoir', 'salut', 'merci', 'donc', 'voilà', 'alors',
                                 'oui', 'non', 'bien', 'très', 'super', 'parfait', 'exactement',
                                 'effectivement', 'absolument', 'certainement', 'peut', 'être',
-                                'live', 'test', 'tester', 'moment', 'instant', 'section'
+                                'live', 'test', 'tester', 'moment', 'instant', 'section',
+                                // Negations & common words that could be mistaken for names
+                                'pas', 'plus', 'jamais', 'rien', 'personne', 'quelqu', 'tout',
+                                'ici', 'parle', 'parler', 'dit', 'dire', 'fait', 'faire',
+                                'suis', 'appelle', 'présent', 'présente', 'juste', 'encore',
+                                // Common French words starting with capital when at sentence start
+                                'quand', 'comme', 'avec', 'pour', 'dans', 'mais', 'cette',
+                                'votre', 'notre', 'leur', 'vous', 'nous', 'elles', 'ils'
                             ]);
                             
                             let detectedName: string | null = null;
