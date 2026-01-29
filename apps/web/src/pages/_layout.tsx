@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase';
 import { Session } from '@supabase/supabase-js';
 import { Toaster } from 'react-hot-toast';
 import { useMarketingPagesConfig } from '../hooks/useMarketingPagesConfig';
-import { Mic, Pause as PauseIcon, Square } from 'lucide-react';
+import { Mic } from 'lucide-react';
 import { RecordingProvider, useRecordingState } from '../contexts/RecordingContext';
 
 // #region agent log - Global Debug Logs Panel Component
