@@ -432,39 +432,36 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
     }, []);
 
     // Send audio chunk during live recording
-    const sendAudioChunk = useCallback(async (chunk: ArrayBuffer, mimeType?: string) => {
-        // Store original for enhancement phase
+    // NOTE: When AudioWorklet is active (pcmChunkCountRef > 0), don't send to WebSocket
+    // because AudioWorklet is already streaming PCM directly
+    const sendAudioChunk = useCallback(async (chunk: ArrayBuffer, _mimeType?: string) => {
+        // Store original for enhancement phase (always do this)
         audioChunksRef.current.push(chunk);
         const chunkIndex = audioChunksRef.current.length;
 
-        // #region agent log
-        if (chunkIndex <= 3) {
-            fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:sendChunk',message:'DECODING_CHUNK',data:{chunkIndex,sizeBytes:chunk.byteLength,mimeType:mimeType||'default'},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+        // If AudioWorklet is active, don't try to send - it's already handling WebSocket streaming
+        if (pcmChunkCountRef.current > 0) {
+            // #region agent log
+            if (chunkIndex <= 3) {
+                debugLog('useGeminiTranscription:sendChunk', '💾 CHUNK STORED (AudioWorklet active)', {
+                    chunkIndex,
+                    sizeBytes: chunk.byteLength,
+                    pcmChunksActive: pcmChunkCountRef.current
+                }, 'LIVE');
+            }
+            // #endregion
+            return; // AudioWorklet is handling the streaming
         }
-        // #endregion
 
-        // Send to live transcription WebSocket (convert to PCM first)
+        // Fallback: If AudioWorklet not active, try to decode and send
+        // (This shouldn't happen normally but provides a fallback)
         if (wsRef.current?.readyState === WebSocket.OPEN) {
-            // Try to decode webm to PCM
             const pcmData = await decodeAudioToPCM(chunk);
             
             if (pcmData) {
                 const base64 = btoa(
                     new Uint8Array(pcmData).reduce((data, byte) => data + String.fromCharCode(byte), '')
                 );
-
-                // #region agent log
-                if (chunkIndex <= 3) {
-                    fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:sendChunk',message:'SENDING_PCM_TO_WS',data:{chunkIndex,pcmSizeBytes:pcmData.byteLength,wsState:wsRef.current?.readyState},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
-                    debugLog('useGeminiTranscription:sendChunk', '📤 SENDING PCM TO WS', {
-                        chunkIndex,
-                        pcmSizeBytes: pcmData.byteLength,
-                        wsState: wsRef.current?.readyState
-                    }, 'LIVE');
-                }
-                // #endregion
-
-                // Send as PCM (required by Gemini Live API)
                 wsRef.current.send(JSON.stringify({
                     realtimeInput: {
                         mediaChunks: [{
@@ -473,16 +470,7 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                         }]
                     }
                 }));
-            } else {
-                debugLog('useGeminiTranscription:sendChunk', '⚠️ PCM decode failed - chunk stored only', {
-                    chunkIndex
-                }, 'LIVE');
             }
-        } else {
-            debugLog('useGeminiTranscription:sendChunk', '⚠️ WS NOT OPEN - chunk stored only', {
-                chunkIndex,
-                wsState: wsRef.current?.readyState
-            }, 'LIVE');
         }
     }, [decodeAudioToPCM]);
 
