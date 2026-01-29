@@ -23,6 +23,8 @@ export function useWebAudioRecorder() {
   const mimeTypeRef = useRef<string>('audio/webm');
   // 📞 Track if pause was caused by system interruption (like phone call)
   const wasInterruptedRef = useRef<boolean>(false);
+  // 🔧 FIX: Track if pause was initiated manually (to prevent auto-resume)
+  const manualPauseRef = useRef<boolean>(false);
 
   useEffect(() => {
     // Clean up audio blob URL
@@ -66,12 +68,26 @@ export function useWebAudioRecorder() {
       
       // #region agent log - Hypothesis A,B,E: Monitor MediaRecorder state changes and track status
       mediaRecorderRef.current.onpause = () => {
-        debugLog('useWebAudioRecorder.ts:onpause', 'MediaRecorder PAUSED by system', { state: mediaRecorderRef.current?.state, tracksState: stream.getTracks().map(t => ({ kind: t.kind, enabled: t.enabled, readyState: t.readyState, muted: t.muted })) }, 'A');
-        // 📞 Mark as interrupted for auto-resume
-        wasInterruptedRef.current = true;
+        // #region agent log - FIX VERIFICATION: Check if manual pause
+        debugLog('useWebAudioRecorder.ts:onpause', 'MediaRecorder PAUSED', { state: mediaRecorderRef.current?.state, manualPause: manualPauseRef.current, tracksState: stream.getTracks().map(t => ({ kind: t.kind, enabled: t.enabled, readyState: t.readyState, muted: t.muted })) }, 'A');
+        // #endregion
+        
+        // 🔧 FIX: Only mark as interrupted if NOT a manual pause
+        if (!manualPauseRef.current) {
+          // 📞 System-initiated pause (phone call, etc.) - mark for auto-resume
+          wasInterruptedRef.current = true;
+          console.log('[useWebAudioRecorder] 📞 Recording interrupted by SYSTEM (likely phone call) - will auto-resume');
+        } else {
+          // 👆 Manual pause - do NOT mark for auto-resume
+          wasInterruptedRef.current = false;
+          console.log('[useWebAudioRecorder] ⏸️ Recording paused MANUALLY by user');
+        }
+        
+        // Reset the manual pause flag after processing
+        manualPauseRef.current = false;
+        
         setIsPaused(true);
         if (timerRef.current) clearInterval(timerRef.current);
-        console.log('[useWebAudioRecorder] 📞 Recording interrupted (likely phone call) - will auto-resume');
       };
       mediaRecorderRef.current.onresume = () => {
         debugLog('useWebAudioRecorder.ts:onresume', 'MediaRecorder RESUMED', { state: mediaRecorderRef.current?.state }, 'A');
@@ -173,13 +189,15 @@ export function useWebAudioRecorder() {
     debugLog('useWebAudioRecorder.ts:pauseRecording', 'PAUSE called', { isRecording, isPaused, wasInterrupted: wasInterruptedRef.current, mediaRecorderState: mediaRecorderRef.current?.state, timestamp: Date.now() }, 'A');
     // #endregion
     if (mediaRecorderRef.current && isRecording && !isPaused) {
+      // 🔧 FIX: Set manual pause flag BEFORE calling pause() so onpause knows it's manual
+      manualPauseRef.current = true;
       mediaRecorderRef.current.pause();
       setIsPaused(true);
       if (timerRef.current) clearInterval(timerRef.current);
       // Manual pause, not interruption
       wasInterruptedRef.current = false;
       // #region agent log - Hypothesis A,B,E: Confirm pause executed
-      debugLog('useWebAudioRecorder.ts:pauseRecording:done', 'PAUSE executed', { newIsPaused: true, wasInterruptedNow: false, mediaRecorderState: mediaRecorderRef.current?.state }, 'A');
+      debugLog('useWebAudioRecorder.ts:pauseRecording:done', 'PAUSE executed', { newIsPaused: true, wasInterruptedNow: false, manualPause: true, mediaRecorderState: mediaRecorderRef.current?.state }, 'A');
       // #endregion
     } else {
       // #region agent log - Hypothesis A,B,E: Pause was blocked
@@ -223,6 +241,7 @@ export function useWebAudioRecorder() {
     setIsPaused(false);
     setDuration(0);
     wasInterruptedRef.current = false;
+    manualPauseRef.current = false; // 🔧 FIX: Reset manual pause flag
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
