@@ -365,21 +365,46 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                                 .trim();
 
                             if (cleanText) {
-                                const segment: TranscriptSegment = {
-                                    speaker: currentSpeakerRef.current,
-                                    text: cleanText,
-                                    isLive: true,
-                                    confidence: isFinal ? 0.9 : 0.75
-                                };
+                                const newSpeaker = currentSpeakerRef.current;
 
                                 debugLog('useGeminiTranscription:onSegment', '📝 SEGMENT CREATED', {
                                     reason,
-                                    speaker: segment.speaker,
+                                    speaker: newSpeaker,
                                     textPreview: cleanText.substring(0, 40),
                                     length: cleanText.length
                                 }, 'LIVE');
 
-                                setLiveSegments(prev => [...prev, segment]);
+                                // 🔄 AGGREGATE: Merge with previous segment if same speaker
+                                setLiveSegments(prev => {
+                                    if (prev.length > 0) {
+                                        const lastSegment = prev[prev.length - 1];
+                                        // Same speaker? Append to last segment
+                                        if (lastSegment.speaker === newSpeaker) {
+                                            const updatedSegments = [...prev];
+                                            updatedSegments[prev.length - 1] = {
+                                                ...lastSegment,
+                                                text: lastSegment.text + ' ' + cleanText,
+                                                confidence: isFinal ? 0.9 : 0.75
+                                            };
+                                            return updatedSegments;
+                                        }
+                                    }
+                                    // Different speaker or first segment: create new
+                                    return [...prev, {
+                                        speaker: newSpeaker,
+                                        text: cleanText,
+                                        isLive: true,
+                                        confidence: isFinal ? 0.9 : 0.75
+                                    }];
+                                });
+
+                                // Callback with full segment info for UI
+                                const segment: TranscriptSegment = {
+                                    speaker: newSpeaker,
+                                    text: cleanText,
+                                    isLive: true,
+                                    confidence: isFinal ? 0.9 : 0.75
+                                };
                                 onSegmentCallbackRef.current?.(segment);
                                 onSegment?.(segment);
                             }
