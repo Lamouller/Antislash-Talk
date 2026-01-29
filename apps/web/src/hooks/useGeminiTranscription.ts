@@ -74,6 +74,11 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
     const audioChunksRef = useRef<ArrayBuffer[]>([]);
     const currentSpeakerRef = useRef<string>('Speaker_01');
     const lastTextRef = useRef<string>('');
+    
+    // PCM Audio capture refs
+    const audioContextRef = useRef<AudioContext | null>(null);
+    const workletNodeRef = useRef<AudioWorkletNode | null>(null);
+    const mediaStreamRef = useRef<MediaStream | null>(null);
 
     // Get API key
     const getApiKey = async (): Promise<string | null> => {
@@ -108,7 +113,16 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
     const startLiveTranscription = useCallback(async (
         onSegment?: (segment: TranscriptSegment) => void
     ) => {
-        if (!enableLiveTranscription) return;
+        // #region agent log
+        fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:startLive',message:'START_LIVE_CALLED',data:{enableLiveTranscription,liveModel:LIVE_MODEL,enhancementModel:model,language},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,D'})}).catch(()=>{});
+        // #endregion
+
+        if (!enableLiveTranscription) {
+            // #region agent log
+            fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:startLive',message:'LIVE_DISABLED_EARLY_RETURN',data:{enableLiveTranscription},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
+            // #endregion
+            return;
+        }
 
         // #region agent log
         debugLog('useGeminiTranscription:startLive', '🎙️ STARTING LIVE PHASE', { 
@@ -137,6 +151,7 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
 
             wsRef.current.onopen = () => {
                 // #region agent log
+                fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:onopen',message:'WS_CONNECTED',data:{liveModel:LIVE_MODEL},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
                 debugLog('useGeminiTranscription:startLive', '✅ WEBSOCKET CONNECTED', {}, 'LIVE');
                 // #endregion
 
@@ -196,6 +211,7 @@ Détecte les changements de locuteur.`
                     const data = JSON.parse(rawData);
 
                     // #region agent log
+                    fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:onmessage',message:'WS_MESSAGE',data:{hasSetupComplete:!!data.setupComplete,hasServerContent:!!data.serverContent,hasError:!!data.error,hasInputTranscription:!!data.serverContent?.inputTranscription,keys:Object.keys(data).slice(0,5)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B,C'})}).catch(()=>{});
                     debugLog('useGeminiTranscription:onMessage', '📥 WS MESSAGE RECEIVED', {
                         hasSetupComplete: !!data.setupComplete,
                         hasServerContent: !!data.serverContent,
@@ -206,11 +222,17 @@ Détecte les changements de locuteur.`
 
                     // Check for setup completion
                     if (data.setupComplete) {
+                        // #region agent log
+                        fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:onmessage',message:'SETUP_COMPLETE',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
+                        // #endregion
                         debugLog('useGeminiTranscription:onMessage', '✅ SETUP COMPLETE - Ready for audio', {}, 'LIVE');
                     }
 
                     // Check for errors
                     if (data.error) {
+                        // #region agent log
+                        fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:onmessage',message:'SERVER_ERROR',data:{errorMsg:data.error?.message||'unknown'},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
+                        // #endregion
                         debugLog('useGeminiTranscription:onMessage', '❌ SERVER ERROR', {
                             error: data.error
                         }, 'LIVE');
@@ -253,6 +275,10 @@ Détecte les changements de locuteur.`
                                 isLive: true,
                                 confidence: 0.85
                             };
+
+                            // #region agent log
+                            fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:segment',message:'SEGMENT_CREATED',data:{speaker:segment.speaker,textPreview:cleanText.substring(0,30),hasCallback:!!onSegment},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+                            // #endregion
 
                             setLiveSegments(prev => [...prev, segment]);
                             onSegment?.(segment);
@@ -299,6 +325,7 @@ Détecte les changements de locuteur.`
 
             wsRef.current.onclose = (event) => {
                 // #region agent log
+                fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:onclose',message:'WS_CLOSED',data:{code:event.code,reason:event.reason||'none',wasClean:event.wasClean},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
                 debugLog('useGeminiTranscription:startLive', '🔌 WEBSOCKET CLOSED', {
                     segmentsCount: liveSegments.length,
                     code: event.code,
@@ -324,26 +351,29 @@ Détecte les changements de locuteur.`
         }
     }, [model, language, enableLiveTranscription]);
 
-    // Send audio chunk during live recording
-    const sendAudioChunk = useCallback((chunk: ArrayBuffer, mimeType?: string) => {
-        // Store for enhancement phase
-        audioChunksRef.current.push(chunk);
+    // Send PCM audio chunk during live recording
+    // IMPORTANT: Gemini Live API only accepts audio/pcm (16-bit, 16kHz, mono)
+    const sendPCMChunk = useCallback((pcmData: ArrayBuffer) => {
+        const chunkIndex = audioChunksRef.current.length + 1;
 
-        // Send to live transcription
+        // #region agent log
+        if (chunkIndex <= 3) {
+            fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:sendPCMChunk',message:'SENDING_PCM',data:{chunkIndex,sizeBytes:pcmData.byteLength,wsState:wsRef.current?.readyState,wsOpen:wsRef.current?.readyState===WebSocket.OPEN},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+        }
+        // #endregion
+
+        // Send to live transcription - MUST be audio/pcm for Gemini Live
         if (wsRef.current?.readyState === WebSocket.OPEN) {
             const base64 = btoa(
-                new Uint8Array(chunk).reduce((data, byte) => data + String.fromCharCode(byte), '')
+                new Uint8Array(pcmData).reduce((data, byte) => data + String.fromCharCode(byte), '')
             );
-
-            // Use the actual mime type from the recorder (usually audio/webm or audio/mp4)
-            const actualMimeType = mimeType || 'audio/webm';
             
             // #region agent log
-            if (audioChunksRef.current.length <= 3) {
-                debugLog('useGeminiTranscription:sendChunk', '📤 SENDING CHUNK', {
-                    chunkIndex: audioChunksRef.current.length,
-                    mimeType: actualMimeType,
-                    sizeBytes: chunk.byteLength,
+            if (chunkIndex <= 3) {
+                debugLog('useGeminiTranscription:sendPCMChunk', '📤 SENDING PCM CHUNK', {
+                    chunkIndex,
+                    mimeType: 'audio/pcm',
+                    sizeBytes: pcmData.byteLength,
                     wsState: wsRef.current?.readyState
                 }, 'LIVE');
             }
@@ -352,7 +382,7 @@ Détecte les changements de locuteur.`
             wsRef.current.send(JSON.stringify({
                 realtime_input: {
                     media_chunks: [{
-                        mime_type: actualMimeType,
+                        mime_type: 'audio/pcm',
                         data: base64
                     }]
                 }
@@ -360,8 +390,94 @@ Détecte les changements de locuteur.`
         }
     }, []);
 
+    // Store audio chunk for enhancement phase (keeps original format)
+    const sendAudioChunk = useCallback((chunk: ArrayBuffer, mimeType?: string) => {
+        // Store for enhancement phase (original format)
+        audioChunksRef.current.push(chunk);
+        
+        // Note: Don't send to WebSocket here - PCM streaming handles that
+        debugLog('useGeminiTranscription:sendChunk', '💾 STORED CHUNK FOR ENHANCEMENT', {
+            chunkIndex: audioChunksRef.current.length,
+            mimeType: mimeType || 'unknown',
+            sizeBytes: chunk.byteLength
+        }, 'LIVE');
+    }, []);
+
+    // Start PCM audio capture using AudioWorklet (for Gemini Live)
+    const startPCMCapture = useCallback(async () => {
+        try {
+            // Request microphone access
+            const stream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    sampleRate: 16000,
+                    channelCount: 1,
+                    echoCancellation: true,
+                    noiseSuppression: true
+                }
+            });
+            mediaStreamRef.current = stream;
+
+            // Create AudioContext at 16kHz (required by Gemini)
+            audioContextRef.current = new AudioContext({ sampleRate: 16000 });
+            
+            // Load PCM processor worklet
+            await audioContextRef.current.audioWorklet.addModule('/pcm-processor.js');
+            
+            // Create source from microphone
+            const source = audioContextRef.current.createMediaStreamSource(stream);
+            
+            // Create worklet node
+            workletNodeRef.current = new AudioWorkletNode(audioContextRef.current, 'pcm-processor');
+            
+            // Handle PCM data from worklet
+            workletNodeRef.current.port.onmessage = (event) => {
+                if (event.data.type === 'pcm') {
+                    sendPCMChunk(event.data.data);
+                }
+            };
+            
+            // Connect: microphone -> worklet
+            source.connect(workletNodeRef.current);
+            
+            // #region agent log
+            fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:startPCMCapture',message:'PCM_CAPTURE_STARTED',data:{sampleRate:audioContextRef.current.sampleRate},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+            debugLog('useGeminiTranscription:startPCMCapture', '🎤 PCM CAPTURE STARTED', {
+                sampleRate: audioContextRef.current.sampleRate
+            }, 'LIVE');
+            // #endregion
+            
+        } catch (err) {
+            // #region agent log
+            fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:startPCMCapture',message:'PCM_CAPTURE_ERROR',data:{error:(err as Error).message},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+            // #endregion
+            console.error('Failed to start PCM capture:', err);
+            throw err;
+        }
+    }, [sendPCMChunk]);
+
+    // Stop PCM capture
+    const stopPCMCapture = useCallback(() => {
+        if (workletNodeRef.current) {
+            workletNodeRef.current.disconnect();
+            workletNodeRef.current = null;
+        }
+        if (audioContextRef.current) {
+            audioContextRef.current.close();
+            audioContextRef.current = null;
+        }
+        if (mediaStreamRef.current) {
+            mediaStreamRef.current.getTracks().forEach(track => track.stop());
+            mediaStreamRef.current = null;
+        }
+        
+        debugLog('useGeminiTranscription:stopPCMCapture', '🔇 PCM CAPTURE STOPPED', {}, 'LIVE');
+    }, []);
+
     // Stop live transcription
     const stopLiveTranscription = useCallback(() => {
+        // Stop PCM capture first
+        stopPCMCapture();
+        
         if (wsRef.current) {
             wsRef.current.send(JSON.stringify({ client_content: { turn_complete: true } }));
             setTimeout(() => {
@@ -377,7 +493,7 @@ Détecte les changements de locuteur.`
             totalChunks: audioChunksRef.current.length
         }, 'LIVE');
         // #endregion
-    }, [liveSegments.length]);
+    }, [liveSegments.length, stopPCMCapture]);
 
     // ═══════════════════════════════════════════════════════════════════════════
     // PHASE 2: ENHANCEMENT (after recording - better diarization)
@@ -618,11 +734,25 @@ RETOURNE UNIQUEMENT LE JSON, AUCUN AUTRE TEXTE.`;
         }, 'WORKFLOW');
         // #endregion
 
-        // Start live phase
+        // Start live WebSocket connection
         await startLiveTranscription(onLiveSegment);
+        
+        // Wait for WebSocket to be ready, then start PCM capture
+        // The WebSocket needs to receive setupComplete before we send audio
+        await new Promise(r => setTimeout(r, 500));
+        
+        // Start PCM audio capture (this sends audio directly to WebSocket)
+        try {
+            await startPCMCapture();
+            // #region agent log
+            fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:fullWorkflow',message:'PCM_CAPTURE_READY',data:{wsState:wsRef.current?.readyState},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+            // #endregion
+        } catch (pcmError) {
+            console.error('PCM capture failed:', pcmError);
+        }
 
         return {
-            sendChunk: sendAudioChunk,
+            sendChunk: sendAudioChunk, // Still available for storing chunks for enhancement
             stop: stopLiveTranscription,
             finalize: async (audioBlob: Blob) => {
                 stopLiveTranscription();
@@ -636,7 +766,7 @@ RETOURNE UNIQUEMENT LE JSON, AUCUN AUTRE TEXTE.`;
                 return result;
             }
         };
-    }, [startLiveTranscription, sendAudioChunk, stopLiveTranscription, enhanceTranscription, liveSegments, enableLiveTranscription, enablePostEnhancement]);
+    }, [startLiveTranscription, sendAudioChunk, stopLiveTranscription, enhanceTranscription, liveSegments, enableLiveTranscription, enablePostEnhancement, startPCMCapture]);
 
     // Reset state
     const reset = useCallback(() => {
