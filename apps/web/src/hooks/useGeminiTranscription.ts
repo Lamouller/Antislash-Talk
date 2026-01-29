@@ -376,8 +376,23 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                                 
                                 if (pyannoteSpeaker) {
                                     // 🔗 Associate name with Pyannote speaker ID for future use
+                                    const previousMapping = speakerNamesRef.current.get(pyannoteSpeaker);
                                     speakerNamesRef.current.set(pyannoteSpeaker, detectedName);
                                     console.log(`%c[SPEAKER MEMORY] 🧠 MAPPED: ${pyannoteSpeaker} → "${detectedName}"`, 'color: #8b5cf6; font-weight: bold');
+                                    
+                                    // 🔄 RETROACTIVE UPDATE: Update all past segments with this Pyannote ID
+                                    if (!previousMapping || previousMapping !== detectedName) {
+                                        setLiveSegments(prev => {
+                                            const updated = prev.map(seg => {
+                                                if (seg.speaker === pyannoteSpeaker) {
+                                                    console.log(`%c[SPEAKER MEMORY] ✏️ RETROACTIVE: "${seg.speaker}" → "${detectedName}" for: "${seg.text.substring(0, 30)}..."`, 'color: #f59e0b');
+                                                    return { ...seg, speaker: detectedName };
+                                                }
+                                                return seg;
+                                            });
+                                            return updated;
+                                        });
+                                    }
                                 }
                                 // Also store as last detected for fallback
                                 speakerNamesRef.current.set('_lastDetected', detectedName);
