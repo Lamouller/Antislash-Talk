@@ -327,7 +327,9 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                                 'suis', 'appelle', 'présent', 'présente', 'juste', 'encore',
                                 // Common French words starting with capital when at sentence start
                                 'quand', 'comme', 'avec', 'pour', 'dans', 'mais', 'cette',
-                                'votre', 'notre', 'leur', 'vous', 'nous', 'elles', 'ils'
+                                'votre', 'notre', 'leur', 'vous', 'nous', 'elles', 'ils',
+                                // Adjectives/words that sound like names (transcription errors)
+                                'triste', 'content', 'heureux', 'désolé', 'certain', 'vrai'
                             ]);
                             
                             let detectedName: string | null = null;

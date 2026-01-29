@@ -72,7 +72,7 @@ class LiveDiarizationSession:
         self.speaker_count = 0
         self.audio_buffer = np.array([], dtype=np.float32)
         self.min_speech_duration = 0.3  # Minimum seconds to consider speech
-        self.embedding_threshold = 0.4  # Cosine distance threshold for same speaker
+        self.embedding_threshold = 0.65  # Cosine distance threshold for same speaker (increased for better clustering)
         
     def get_or_create_speaker(self, embedding: np.ndarray) -> Tuple[str, float, bool]:
         """
