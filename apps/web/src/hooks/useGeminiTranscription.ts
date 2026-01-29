@@ -338,6 +338,8 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                                 'pas', 'plus', 'jamais', 'rien', 'personne', 'quelqu', 'tout',
                                 'ici', 'parle', 'parler', 'dit', 'dire', 'fait', 'faire',
                                 'suis', 'appelle', 'présent', 'présente', 'juste', 'encore',
+                                // Pronouns (CRITICAL - "moi", "toi" etc. are NOT names!)
+                                'moi', 'toi', 'lui', 'elle', 'eux', 'celui', 'celle', 'ceux',
                                 // Common French words starting with capital when at sentence start
                                 'quand', 'comme', 'avec', 'pour', 'dans', 'mais', 'cette',
                                 'votre', 'notre', 'leur', 'vous', 'nous', 'elles', 'ils',
