@@ -927,14 +927,22 @@ export default function RecordingScreen() {
     geminiWorkflowRef.current = null;
 
     // 🔓 Release Wake Lock (handles both native and iOS fallback)
-    if (wakeLockActive) {
-      await releaseWakeLock();
-      console.log('[record] 🔓 Wake Lock released');
+    try {
+      if (wakeLockActive) {
+        await releaseWakeLock();
+        console.log('[record] 🔓 Wake Lock released');
+      }
+    } catch (wakeLockError) {
+      console.warn('[record] Wake lock release error (non-fatal):', wakeLockError);
     }
 
     // 🆘 Clear emergency recording data (successful stop = no need for recovery)
     audioChunksForEmergencyRef.current = [];
-    await clearEmergencyRecording();
+    try {
+      await clearEmergencyRecording();
+    } catch (emergencyError) {
+      console.warn('[record] Emergency recording clear error (non-fatal):', emergencyError);
+    }
 
     // Désactiver le mode streaming live (la transcription continue pour les derniers chunks)
     setIsStreamingActive(false);
@@ -943,13 +951,24 @@ export default function RecordingScreen() {
 
     toast.success('Recording stopped');
 
+    // #region agent log - DEBUG: Trace autoTranscribe check
+    console.log('%c[BG] 🔍 PRE-CHECK autoTranscribeAfterRecording', 'color: #f97316; font-weight: bold', {
+      autoTranscribeAfterRecording,
+      hasAudioBlob: !!audioBlob,
+      audioBlobSize: audioBlob?.size,
+      geminiSegmentsCount: geminiLiveSegments.length
+    });
+    // #endregion
+
     // 🚀 EARLY NAVIGATION: Create meeting immediately and navigate
     // Post-processing happens in background on the meeting page
     if (autoTranscribeAfterRecording) {
-      console.log('🚀 Early navigation mode: Creating meeting and navigating immediately...');
+      console.log('%c[BG] ✅ autoTranscribeAfterRecording is TRUE - entering try block', 'color: #10b981; font-weight: bold');
       
       try {
+        console.log('%c[BG] 🔑 Getting user...', 'color: #3b82f6');
         const { data: { user } } = await supabase.auth.getUser();
+        console.log('%c[BG] 🔑 User result:', 'color: #3b82f6', { hasUser: !!user, userId: user?.id?.substring(0, 8) });
         if (!user) throw new Error('User not authenticated');
 
         // Get live segments to include in initial save
@@ -1172,11 +1191,20 @@ export default function RecordingScreen() {
         })();
 
       } catch (error) {
+        // #region agent log
+        console.log('%c[BG] ❌ EARLY NAVIGATION CATCH ERROR', 'color: #ef4444; font-weight: bold', {
+          error: (error as Error).message,
+          stack: (error as Error).stack
+        });
+        // #endregion
         console.error('❌ Early navigation failed:', error);
         toast.error('Failed to create meeting');
         setPageState('error');
       }
     } else {
+      // #region agent log
+      console.log('%c[BG] ❌ autoTranscribeAfterRecording is FALSE - manual mode', 'color: #ef4444; font-weight: bold');
+      // #endregion
       console.log('🎙️ Auto-processing disabled, showing manual options');
       setPageState('ready');
     }
