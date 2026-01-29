@@ -1258,8 +1258,70 @@ export default function RecordingScreen() {
                 });
                 // #endregion
                 console.error('❌ Enhancement failed:', enhanceError);
-                // Keep live segments, just mark as completed
-                await supabase.from('meetings').update({ status: 'completed' }).eq('id', meetingData.id);
+                
+                // 🤖 FALLBACK: Generate summary from LIVE segments even if enhancement fails
+                if (capturedAutoGenerateSummary && capturedGenerateParallel && capturedLiveSegments.length > 0) {
+                  console.log('%c[BG] 🤖 FALLBACK AUTO-SUMMARY: Using live segments after enhancement failure', 'color: #f59e0b; font-weight: bold');
+                  
+                  try {
+                    // Build transcript from live segments
+                    const transcriptText = capturedLiveSegments
+                      .map((seg: any) => `${seg.speaker}: ${seg.text}`)
+                      .join('\n');
+                    
+                    // Enrich summary prompt with context notes if provided
+                    let summaryPrompt = capturedUserPrompts.summary;
+                    if (capturedContextNotes) {
+                      const contextSection = `\n\nADDITIONAL CONTEXT NOTES (to include in the summary):\n${capturedContextNotes}`;
+                      summaryPrompt = summaryPrompt ? summaryPrompt + contextSection : `Summarize the following meeting transcript. Pay special attention to the context notes provided.${contextSection}`;
+                    }
+                    
+                    console.log('%c[BG] 🤖 FALLBACK: Calling generateParallel with live segments...', 'color: #f59e0b', {
+                      transcriptLength: transcriptText.length,
+                      segmentsCount: capturedLiveSegments.length
+                    });
+                    
+                    const { title: aiTitle, summary: aiSummary } = await capturedGenerateParallel(
+                      transcriptText,
+                      capturedUserPrompts.title || undefined,
+                      summaryPrompt || undefined
+                    );
+                    
+                    console.log('%c[BG] 🤖 FALLBACK: Generation complete', 'color: #f59e0b', {
+                      titleLength: aiTitle?.length,
+                      summaryLength: aiSummary?.length
+                    });
+                    
+                    if (aiTitle || aiSummary) {
+                      await supabase
+                        .from('meetings')
+                        .update({
+                          status: 'completed',
+                          ...(aiTitle && { title: aiTitle }),
+                          ...(aiSummary && { summary: aiSummary })
+                        })
+                        .eq('id', meetingData.id);
+                      
+                      console.log('%c[BG] ✅ FALLBACK AUTO-SUMMARY SAVED to DB', 'color: #22c55e; font-weight: bold', {
+                        meetingId: meetingData.id,
+                        newTitle: aiTitle?.substring(0, 50)
+                      });
+                    } else {
+                      await supabase.from('meetings').update({ status: 'completed' }).eq('id', meetingData.id);
+                    }
+                  } catch (fallbackError) {
+                    console.error('%c[BG] ❌ FALLBACK AUTO-SUMMARY ERROR', 'color: #ef4444; font-weight: bold', fallbackError);
+                    await supabase.from('meetings').update({ status: 'completed' }).eq('id', meetingData.id);
+                  }
+                } else {
+                  // No fallback, just mark as completed
+                  console.log('%c[BG] ⏭️ FALLBACK skipped (no auto-generate or no live segments)', 'color: #f59e0b', {
+                    autoGenerateEnabled: capturedAutoGenerateSummary,
+                    hasGenerateFunction: !!capturedGenerateParallel,
+                    liveSegmentsCount: capturedLiveSegments.length
+                  });
+                  await supabase.from('meetings').update({ status: 'completed' }).eq('id', meetingData.id);
+                }
               }
             } else {
               // Non-Google provider: trigger webhook or mark completed
