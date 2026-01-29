@@ -321,6 +321,10 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                                 /(?:^|[.!?]\s*)(?:bon|alors|ok|bien|oui|donc)\s*,?\s*c'est\s+([A-Z][a-zà-ÿ]{2,})/i,
                                 // NEW: "c'est [Name] [SecondName]," - compound names like "Jean Fabien"
                                 /c'est\s+([A-Z][a-zà-ÿ]{2,})\s+([A-Z][a-zà-ÿ]{2,})\s*,/i,
+                                // NEW: "c'est bien/vraiment [Name]." - with filler word and period/end
+                                /c'est\s+(?:bien|vraiment)\s+([A-Z][a-zà-ÿ]{2,})[.,!?]?$/i,
+                                // NEW: Simple "c'est [Name]" at end of sentence
+                                /c'est\s+([A-Z][a-zà-ÿ]{2,})[.,!?]?\s*$/i,
                             ];
                             
                             // Common words to exclude from name detection (expanded list)
