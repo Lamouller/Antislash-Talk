@@ -1960,10 +1960,18 @@ export default function RecordingScreen() {
                         key={idx}
                         className="animate-in fade-in slide-in-from-bottom-2 duration-200"
                       >
-                        {/* Clean text bubble - no speaker name, just the text */}
+                        {/* Speaker bubble with name and text */}
                         <div className="flex items-start gap-2">
-                          {/* Small dot indicator */}
-                          <div className="w-2 h-2 mt-2 rounded-full bg-violet-400 dark:bg-violet-500 flex-shrink-0 opacity-60"></div>
+                          {/* Speaker badge */}
+                          <div className="flex-shrink-0 mt-1">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                              segment.speaker && segment.speaker !== 'Live' && !segment.speaker.startsWith('SPEAKER_')
+                                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400'
+                                : 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-400'
+                            }`}>
+                              {segment.speaker || 'Speaker'}
+                            </span>
+                          </div>
                           <p className="flex-1 text-sm text-gray-800 dark:text-gray-200 leading-relaxed bg-white/40 dark:bg-gray-700/40 px-3 py-2 rounded-xl">
                             {segment.text}
                           </p>
