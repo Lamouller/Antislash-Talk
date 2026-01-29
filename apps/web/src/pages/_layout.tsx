@@ -197,8 +197,9 @@ export default function RootLayout() {
       const isOfflineRoute = location.pathname === '/offline';
       const isRootRoute = location.pathname === '/';
       
-      if (session && isAuthRoute) {
-        // Utilisateur connecté sur une page auth → rediriger vers /tabs
+      if (session && (isAuthRoute || isRootRoute)) {
+        // Utilisateur connecté sur une page auth OU page marketing → rediriger vers /tabs
+        console.log('✅ Utilisateur connecté - redirection vers /tabs');
         navigate('/tabs', { replace: true });
       } else if (!session && !isAuthRoute && !isOfflineRoute && !isRootRoute) {
         // Utilisateur NON connecté sur une page protégée → rediriger vers / (page d'accueil)
