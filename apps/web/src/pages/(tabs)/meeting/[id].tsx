@@ -208,9 +208,13 @@ export default function MeetingDetail() {
 
   const fetchPromptTemplates = useCallback(async () => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
       const { data, error } = await supabase
         .from('prompt_templates')
         .select('*')
+        .eq('user_id', user.id)
         .order('name', { ascending: true });
 
       if (error) throw error;

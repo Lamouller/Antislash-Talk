@@ -270,14 +270,24 @@ services:
     container_name: antislash-talk-edge-runtime
     restart: unless-stopped
     environment:
+      # Core Supabase configuration
       JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-token-with-at-least-32-characters-long}
       SUPABASE_URL: http://kong:8000
       SUPABASE_ANON_KEY: ${ANON_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNjc5MDg2OTIwLCJleHAiOjE5OTQ2NjI5MjB9.VWXx6e0Gi-rHC0Gv7O2M38LAoIrBYsGLtC0TBvuRx6k}
       SUPABASE_SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJvbGUiOiJzZXJ2aWNlX3JvbGUiLCJpYXQiOjE2NzkwODY5MjAsImV4cCI6MTk5NDY2MjkyMH0.mFqWJEQz3pR2AyhqJqXVvNqlRVGVPLhV2J0W-7LGvpw}
       SUPABASE_DB_URL: postgresql://postgres:${POSTGRES_PASSWORD:-your-super-secret-and-long-postgres-password}@db:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-postgres}
       VERIFY_JWT: "true"
-    # Servir transcribe-with-gemini (la fonction appelée par l'app web)
-    # La transcription locale (navigateur) fonctionne indépendamment sans edge functions
+      # Optional: Netlify webhook for production async transcription (omit for local mode)
+      NETLIFY_WEBHOOK_URL: ${NETLIFY_WEBHOOK_URL:-}
+      # Optional: PyTorch service URL (only needed if using local PyTorch transcription)
+      PYTORCH_SERVICE_URL: ${PYTORCH_SERVICE_URL:-http://transcription-pytorch:8000}
+    # Main router handles all 6 Edge Functions:
+    # - transcribe-with-gemini (AI transcription with Gemini/OpenAI)
+    # - start-transcription (async transcription starter)
+    # - enhance-local-transcription (post-process browser transcription)
+    # - upload-async-file (server-side file upload)
+    # - prepare-next-meeting (AI-powered meeting prep)
+    # - cleanup-expired-audio (scheduled cleanup job)
     command:
       - start
       - --port

@@ -22,6 +22,42 @@ import { Button } from '../../components/ui/Button';
 import { MarkdownRenderer } from '../../components/ui/MarkdownRenderer';
 import { useTranslation, Trans } from 'react-i18next';
 
+// Retry utility with exponential backoff
+async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  options: {
+    maxRetries?: number;
+    initialDelay?: number;
+    maxDelay?: number;
+    onRetry?: (attempt: number, error: Error) => void;
+  } = {}
+): Promise<T> {
+  const { maxRetries = 2, initialDelay = 1000, maxDelay = 10000, onRetry } = options;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      const isLastAttempt = attempt === maxRetries;
+
+      if (isLastAttempt) {
+        throw error;
+      }
+
+      // Calculate delay with exponential backoff
+      const delay = Math.min(initialDelay * Math.pow(2, attempt), maxDelay);
+
+      onRetry?.(attempt + 1, error as Error);
+
+      // Wait before retrying
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+
+  // This should never be reached, but TypeScript needs it
+  throw new Error('Retry logic error');
+}
+
 // IndexedDB helper for emergency recording backup
 const EMERGENCY_DB_NAME = 'antislash-talk-emergency';
 const EMERGENCY_STORE_NAME = 'recordings';
@@ -157,6 +193,11 @@ export default function RecordingScreen() {
   // Prompt templates state
   const [promptTemplates, setPromptTemplates] = useState<PromptTemplate[]>([]);
   const [selectedPromptId, setSelectedPromptId] = useState<string | null>(null);
+  const [selectedTitlePromptId, setSelectedTitlePromptId] = useState<string | null>(null);
+
+  // Refs to store default profile prompts (for reverting on deselection)
+  const defaultProfileSummaryRef = useRef<string>('');
+  const defaultProfileTitleRef = useRef<string>('');
 
   // Recording behavior state - restored auto-processing logic
   const [autoTranscribeAfterRecording, setAutoTranscribeAfterRecording] = useState(true);
@@ -516,6 +557,10 @@ export default function RecordingScreen() {
 
           setUserPrompts(adaptivePrompts);
 
+          // Store default profile prompts for reverting on deselection
+          defaultProfileSummaryRef.current = adaptivePrompts.summary || '';
+          defaultProfileTitleRef.current = adaptivePrompts.title || '';
+
           console.log('🎯 Loaded user preferences:', {
             transcription_provider: profile.preferred_transcription_provider,
             transcription_model: profile.preferred_transcription_model,
@@ -562,12 +607,12 @@ export default function RecordingScreen() {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
 
-        // Only fetch summary and custom prompts (those applicable to summary generation)
+        // Fetch summary, title, and custom prompts (those applicable to generation)
         const { data, error } = await supabase
           .from('prompt_templates')
           .select('*')
           .eq('user_id', user.id)
-          .in('category', ['summary', 'custom'])
+          .in('category', ['summary', 'custom', 'title'])
           .order('is_favorite', { ascending: false })
           .order('created_at', { ascending: false });
 
@@ -578,21 +623,29 @@ export default function RecordingScreen() {
 
         const templates = data || [];
         setPromptTemplates(templates);
-        console.log('📝 Loaded summary prompt templates:', templates.length);
+        console.log('📝 Loaded prompt templates:', templates.length);
 
-        // Auto-select the starred (favorite) prompt if one exists
-        const favoritePrompt = templates.find(t => t.is_favorite);
-        if (favoritePrompt) {
-          console.log('⭐ Auto-selecting favorite prompt:', favoritePrompt.name, '| Content:', favoritePrompt.content?.substring(0, 50));
-          setSelectedPromptId(favoritePrompt.id);
+        // Auto-select the starred (favorite) summary/custom prompt if one exists
+        const favoriteSummaryPrompt = templates.find(t => t.is_favorite && (t.category === 'summary' || t.category === 'custom'));
+        if (favoriteSummaryPrompt) {
+          console.log('⭐ Auto-selecting favorite summary prompt:', favoriteSummaryPrompt.name, '| Content:', favoriteSummaryPrompt.content?.substring(0, 50));
+          setSelectedPromptId(favoriteSummaryPrompt.id);
           // Apply the favorite prompt immediately - this will OVERRIDE the default prompt
           setUserPrompts(prev => {
-            console.log('📝 OVERRIDING prompt with favorite:', { oldLength: prev.summary?.length, newLength: favoritePrompt.content?.length });
-            return { ...prev, summary: favoritePrompt.content };
+            console.log('📝 OVERRIDING summary prompt with favorite:', { oldLength: prev.summary?.length, newLength: favoriteSummaryPrompt.content?.length });
+            return { ...prev, summary: favoriteSummaryPrompt.content };
           });
           // #region agent log - Hypothesis I: Track favorite prompt auto-selection
-          debugLog('record.tsx:fetchPromptTemplates', 'FAVORITE PROMPT AUTO-SELECTED', { promptId: favoritePrompt.id, promptName: favoritePrompt.name, contentLength: favoritePrompt.content?.length, contentPreview: favoritePrompt.content?.substring(0, 100) }, 'I');
+          debugLog('record.tsx:fetchPromptTemplates', 'FAVORITE SUMMARY PROMPT AUTO-SELECTED', { promptId: favoriteSummaryPrompt.id, promptName: favoriteSummaryPrompt.name, contentLength: favoriteSummaryPrompt.content?.length, contentPreview: favoriteSummaryPrompt.content?.substring(0, 100) }, 'I');
           // #endregion
+        }
+
+        // Auto-select the starred (favorite) title prompt if one exists
+        const favoriteTitlePrompt = templates.find(t => t.is_favorite && t.category === 'title');
+        if (favoriteTitlePrompt) {
+          console.log('⭐ Auto-selecting favorite title prompt:', favoriteTitlePrompt.name);
+          setSelectedTitlePromptId(favoriteTitlePrompt.id);
+          setUserPrompts(prev => ({ ...prev, title: favoriteTitlePrompt.content }));
         }
       } catch (error) {
         console.error('Error fetching prompt templates:', error);
@@ -602,12 +655,13 @@ export default function RecordingScreen() {
     fetchPromptTemplates();
   }, [preferencesLoaded]);
 
-  // Function to apply a prompt template
+  // Function to apply a summary prompt template
   const applyPromptTemplate = (templateId: string) => {
-    // Handle deselection (empty value)
+    // Handle deselection (empty value) — revert to profile default
     if (!templateId) {
       setSelectedPromptId(null);
-      console.log('🔄 Prompt deselected, reverting to default');
+      setUserPrompts(prev => ({ ...prev, summary: defaultProfileSummaryRef.current }));
+      console.log('🔄 Summary prompt deselected, reverting to profile default');
       return;
     }
 
@@ -635,6 +689,29 @@ export default function RecordingScreen() {
 
     setSelectedPromptId(templateId);
     toast.success(`Prompt "${template.name}" appliqué ✨`);
+  };
+
+  // Function to apply a title prompt template
+  const applyTitlePromptTemplate = (templateId: string) => {
+    // Handle deselection (empty value) — revert to profile default
+    if (!templateId) {
+      setSelectedTitlePromptId(null);
+      setUserPrompts(prev => ({ ...prev, title: defaultProfileTitleRef.current }));
+      console.log('🔄 Title prompt deselected, reverting to profile default');
+      return;
+    }
+
+    const template = promptTemplates.find(t => t.id === templateId);
+    if (!template) {
+      console.warn('❌ Title template not found:', templateId);
+      return;
+    }
+
+    console.log('✨ Applying title prompt template:', template.name, 'Content length:', template.content?.length);
+
+    setUserPrompts(prev => ({ ...prev, title: template.content }));
+    setSelectedTitlePromptId(templateId);
+    toast.success(`Prompt titre "${template.name}" appliqué ✨`);
   };
 
 
@@ -1000,7 +1077,11 @@ export default function RecordingScreen() {
 
         // Get live segments to include in initial save
         const liveSegments = geminiLiveSegments.length > 0 ? geminiLiveSegments : liveTranscriptionSegments;
-        
+
+        // Calculate participant count from unique speakers
+        const uniqueSpeakers = new Set(liveSegments.map(seg => seg.speaker).filter(Boolean));
+        const participantCount = Math.max(1, uniqueSpeakers.size);
+
         // Create meeting entry immediately with status 'processing'
         const meetingPayload = {
           user_id: user.id,
@@ -1009,7 +1090,7 @@ export default function RecordingScreen() {
           status: 'processing', // Will be updated after background processing
           transcription_provider: userPreferences.transcription_provider,
           transcription_model: userPreferences.transcription_model,
-          participant_count: 1,
+          participant_count: participantCount,
           // Save live transcription if available
           transcript: liveSegments.length > 0 ? liveSegments.map((seg, idx) => ({
             text: seg.text,
@@ -1123,7 +1204,7 @@ export default function RecordingScreen() {
             
             if (userPreferences.transcription_provider === 'google') {
               console.log('%c[BG] 🔄 STARTING ENHANCEMENT', 'color: #10b981; font-weight: bold', { liveSegmentsCount: capturedLiveSegments.length, blobSize: blob.size });
-              
+
               try {
                 // Convert SpeakerSegment[] to TranscriptSegment[] (ensure speaker is always string)
                 // Use captured segments (state becomes stale after unmount)
@@ -1134,7 +1215,7 @@ export default function RecordingScreen() {
                   end: seg.end?.toString(),
                   isLive: true
                 }));
-                
+
                 // #region agent log - CONSOLE LOG
                 console.log('%c[BG] 📤 CALLING enhanceTranscription', 'color: #8b5cf6; font-weight: bold', {
                   segmentCount: transcriptSegments.length,
@@ -1142,12 +1223,29 @@ export default function RecordingScreen() {
                   blobSize: blob.size
                 });
                 // #endregion
-                
-                // Call enhancement with the audio blob and existing live segments
-                const enhancedResult = await geminiTranscription.enhanceTranscription(
-                  blob,
-                  transcriptSegments, // Pass converted segments
-                  (progress) => console.log(`%c[BG] Enhancement progress: ${progress}%`, 'color: #a855f7')
+
+                // Call enhancement with retry logic (max 2 retries with exponential backoff)
+                const enhancedResult = await retryWithBackoff(
+                  () => geminiTranscription.enhanceTranscription(
+                    blob,
+                    transcriptSegments,
+                    (progress) => console.log(`%c[BG] Enhancement progress: ${progress}%`, 'color: #a855f7')
+                  ),
+                  {
+                    maxRetries: 2,
+                    initialDelay: 2000,
+                    maxDelay: 8000,
+                    onRetry: (attempt, error) => {
+                      console.log(`%c[BG] ⏳ Enhancement retry ${attempt}/2`, 'color: #f59e0b; font-weight: bold', {
+                        error: error.message,
+                        nextRetryIn: `${Math.min(2000 * Math.pow(2, attempt - 1), 8000)}ms`
+                      });
+                      toast.loading(`Retrying transcription (${attempt}/2)...`, {
+                        id: 'enhancement-retry',
+                        duration: 2000
+                      });
+                    }
+                  }
                 );
 
                 // #region agent log - CONSOLE LOG
@@ -1164,17 +1262,24 @@ export default function RecordingScreen() {
                     segmentCount: enhancedResult.segments.length,
                     meetingId: meetingData.id
                   });
-                  
-                  // Update meeting with enhanced transcription
+
+                  // Calculate participant count from enhanced segments
+                  const enhancedUniqueSpeakers = new Set(
+                    enhancedResult.segments.map(seg => seg.speaker).filter(Boolean)
+                  );
+                  const enhancedParticipantCount = Math.max(1, enhancedUniqueSpeakers.size);
+
+                  // Update meeting with enhanced transcription and participant count
                   await supabase
                     .from('meetings')
-                    .update({ 
+                    .update({
                       transcript: enhancedResult.segments.map((seg, idx) => ({
                         text: seg.text,
                         speaker: seg.speaker,
                         start: seg.start || idx * 5,
                         end: seg.end || (idx + 1) * 5
                       })),
+                      participant_count: enhancedParticipantCount,
                       status: 'completed'
                     })
                     .eq('id', meetingData.id);
@@ -1267,10 +1372,20 @@ export default function RecordingScreen() {
                   await supabase.from('meetings').update({ status: 'completed' }).eq('id', meetingData.id);
                 }
               } catch (enhanceError) {
-                debugLog('record.tsx:bg:enhancement', '❌ ENHANCEMENT ERROR', {
+                console.error('%c[BG] ❌ ENHANCEMENT FAILED AFTER RETRIES', 'color: #ef4444; font-weight: bold', {
+                  error: (enhanceError as Error).message,
+                  meetingId: meetingData.id
+                });
+                debugLog('record.tsx:bg:enhancement', '❌ ENHANCEMENT ERROR (all retries exhausted)', {
                   error: (enhanceError as Error).message
                 }, 'BG');
-                
+
+                // Show user-friendly error notification
+                toast.error('Transcription enhancement failed. Using live transcription instead.', {
+                  duration: 5000,
+                  id: 'enhancement-failed'
+                });
+
                 // 🤖 FALLBACK: Generate summary from LIVE segments even if enhancement fails
                 if (capturedAutoGenerateSummary && capturedGenerateParallel && capturedLiveSegments.length > 0) {
                   debugLog('record.tsx:bg:fallback', '🤖 FALLBACK: Using live segments', {
@@ -2401,7 +2516,7 @@ export default function RecordingScreen() {
                   onChange={(e) => applyPromptTemplate(e.target.value)}
                 >
                   <option value="">Style par défaut</option>
-                  {promptTemplates.map(template => (
+                  {promptTemplates.filter(t => t.category === 'summary' || t.category === 'custom').map(template => (
                     <option key={template.id} value={template.id}>
                       {template.is_favorite && '⭐ '}
                       {template.name}
@@ -2412,6 +2527,34 @@ export default function RecordingScreen() {
                   <p className="mt-2 text-xs text-gray-500">
                     ✓ Ce style sera utilisé pour le résumé automatique
                   </p>
+                )}
+
+                {/* Title template selector */}
+                {promptTemplates.filter(t => t.category === 'title').length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-gray-200/50">
+                    <h4 className="text-sm font-semibold text-black flex items-center mb-2">
+                      <FileAudio className="w-4 h-4 mr-2 text-gray-700" />
+                      Style de titre
+                    </h4>
+                    <select
+                      className="w-full px-4 py-3 bg-white/80 backdrop-blur-sm border-2 border-gray-200 rounded-xl text-gray-900 focus:border-black focus:bg-white focus:shadow-lg focus:shadow-black/5 outline-none transition-all"
+                      value={selectedTitlePromptId || ''}
+                      onChange={(e) => applyTitlePromptTemplate(e.target.value)}
+                    >
+                      <option value="">Titre par défaut</option>
+                      {promptTemplates.filter(t => t.category === 'title').map(template => (
+                        <option key={template.id} value={template.id}>
+                          {template.is_favorite && '⭐ '}
+                          {template.name}
+                        </option>
+                      ))}
+                    </select>
+                    {selectedTitlePromptId && (
+                      <p className="mt-2 text-xs text-gray-500">
+                        ✓ Ce style sera utilisé pour le titre automatique
+                      </p>
+                    )}
+                  </div>
                 )}
               </div>
             )}
@@ -2500,7 +2643,7 @@ export default function RecordingScreen() {
                       {t('record.processingOptions')}
                     </h3>
 
-                    {/* Prompt Template Selector */}
+                    {/* Prompt Template Selector — Summary */}
                     <div className="bg-white/40 rounded-xl p-4 mb-4 border border-gray-200/50">
                       <div className="flex items-center justify-between mb-3">
                         <h4 className="text-sm font-semibold text-black flex items-center">
@@ -2518,7 +2661,7 @@ export default function RecordingScreen() {
                         </Button>
                       </div>
 
-                      {promptTemplates.length > 0 ? (
+                      {promptTemplates.filter(t => t.category === 'summary' || t.category === 'custom').length > 0 ? (
                         <>
                           <select
                             className="w-full px-4 py-3 bg-white/80 backdrop-blur-sm border-2 border-gray-200 rounded-xl text-gray-900 focus:border-black focus:bg-white focus:shadow-lg focus:shadow-black/5 outline-none transition-all"
@@ -2527,7 +2670,7 @@ export default function RecordingScreen() {
                             disabled={isTranscribing}
                           >
                             <option value="">{t('record.selectPrompt')}</option>
-                            {promptTemplates.map(template => (
+                            {promptTemplates.filter(t => t.category === 'summary' || t.category === 'custom').map(template => (
                               <option key={template.id} value={template.id}>
                                 {template.is_favorite && '⭐ '}
                                 {template.name}
@@ -2550,6 +2693,35 @@ export default function RecordingScreen() {
                           >
                             {t('record.createFirst')}
                           </Button>
+                        </div>
+                      )}
+
+                      {/* Title template selector */}
+                      {promptTemplates.filter(t => t.category === 'title').length > 0 && (
+                        <div className="mt-3 pt-3 border-t border-gray-200/50">
+                          <h4 className="text-sm font-semibold text-black flex items-center mb-2">
+                            <FileAudio className="w-4 h-4 mr-2 text-gray-700" />
+                            Style de titre
+                          </h4>
+                          <select
+                            className="w-full px-4 py-3 bg-white/80 backdrop-blur-sm border-2 border-gray-200 rounded-xl text-gray-900 focus:border-black focus:bg-white focus:shadow-lg focus:shadow-black/5 outline-none transition-all"
+                            value={selectedTitlePromptId || ''}
+                            onChange={(e) => applyTitlePromptTemplate(e.target.value)}
+                            disabled={isTranscribing}
+                          >
+                            <option value="">Titre par défaut</option>
+                            {promptTemplates.filter(t => t.category === 'title').map(template => (
+                              <option key={template.id} value={template.id}>
+                                {template.is_favorite && '⭐ '}
+                                {template.name}
+                              </option>
+                            ))}
+                          </select>
+                          {selectedTitlePromptId && (
+                            <p className="mt-2 text-xs text-gray-500">
+                              ✓ Prompt sélectionné pour le titre
+                            </p>
+                          )}
                         </div>
                       )}
                     </div>

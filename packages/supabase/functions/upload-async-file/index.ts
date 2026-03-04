@@ -19,7 +19,7 @@ export const handler = async (req: Request) => {
     const { data: { user } } = await userSupabaseClient.auth.getUser();
     if (!user) throw new Error('User not found');
 
-    const { title, duration, audio_blob } = await req.json();
+    const { title, duration, audio_blob, prompt_title, prompt_summary, prompt_transcript } = await req.json();
     if (!audio_blob) throw new Error("Missing audio_blob in request body");
 
     const audioBlob = await (await fetch(audio_blob)).blob();
@@ -31,14 +31,22 @@ export const handler = async (req: Request) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     );
 
+    // Build the insert object dynamically to include optional prompt fields
+    const meetingData: any = {
+      user_id: user.id,
+      title: meetingTitle,
+      duration: duration,
+      status: 'uploading'
+    };
+
+    // Add optional prompt fields if provided
+    if (prompt_title) meetingData.prompt_title = prompt_title;
+    if (prompt_summary) meetingData.prompt_summary = prompt_summary;
+    if (prompt_transcript) meetingData.prompt_transcript = prompt_transcript;
+
     const { data: meeting, error: meetingError } = await serviceSupabaseClient
       .from('meetings')
-      .insert({
-        user_id: user.id,
-        title: meetingTitle,
-        duration: duration,
-        status: 'uploading'
-      })
+      .insert(meetingData)
       .select('id')
       .single();
 
