@@ -963,8 +963,16 @@ export default function RecordingScreen() {
   };
 
   const handleStopRecording = async () => {
+    // Anti-hallucination: block recordings shorter than 2 seconds
+    if (duration < 2) {
+      toast.error('Enregistrement trop court (minimum 2 secondes)');
+      resetRecorder();
+      setPageState('ready');
+      return;
+    }
+
     console.log('%c[record] ⏹️ STOPPING RECORDING', 'color: #dc2626; font-weight: bold');
-    
+
     // #region agent log
     debugLog('record.tsx:handleStopRecording', '⏹️ STOPPING', {
       hasGeminiWorkflow: !!geminiWorkflowRef.current,

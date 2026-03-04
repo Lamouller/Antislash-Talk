@@ -26,7 +26,7 @@ export default function TabsLayout() {
         />
 
         {/* Main content with safe area margins and bottom padding for tab bar */}
-        <main className="flex-1 px-safe pb-20 md:pb-0 overflow-y-auto overscroll-none">
+        <main className="flex-1 px-safe pb-28 md:pb-0 overflow-y-auto overscroll-none">
           <Outlet />
         </main>
       </div>

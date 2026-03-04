@@ -37,6 +37,28 @@ declare global {
   }
 }
 
+// Known Whisper hallucination phrases (lowercased for comparison)
+const HALLUCINATION_PHRASES = [
+  'merci d\'avoir regardé',
+  'merci de votre attention',
+  'sous-titres réalisés',
+  'sous-titrage',
+  'thanks for watching',
+  'thank you for watching',
+  'please subscribe',
+  'like and subscribe',
+  'don\'t forget to subscribe',
+  'n\'oubliez pas de vous abonner',
+  'abonnez-vous',
+  'see you next time',
+  'à la prochaine',
+  'rendez-vous au prochain épisode',
+  'sous-titres par',
+  'subtitles by',
+  'copyright',
+  'all rights reserved',
+];
+
 // Post-process to remove repetitive patterns (hallucinations)
 const cleanHallucinations = (text: string): string => {
   if (!text) return '';
@@ -50,10 +72,31 @@ const cleanHallucinations = (text: string): string => {
     const normalized = sentence.toLowerCase().replace(/[^\w\s]/g, '').trim();
     const lastNormalized = lastSentence.toLowerCase().replace(/[^\w\s]/g, '').trim();
 
-    if (normalized !== lastNormalized) {
-      cleanSentences.push(sentence);
-      lastSentence = sentence;
+    // Skip repeated sentences
+    if (normalized === lastNormalized) {
+      continue;
     }
+
+    // Skip known hallucination phrases
+    if (HALLUCINATION_PHRASES.some(phrase => normalized.includes(phrase))) {
+      console.warn(`🚨 Hallucination phrase filtered: "${sentence}"`);
+      continue;
+    }
+
+    // Skip segments containing music symbols
+    if (/[♪♫🎵🎶🎤🎧]/.test(sentence)) {
+      console.warn(`🚨 Music symbol segment filtered: "${sentence}"`);
+      continue;
+    }
+
+    // Skip segments that are just punctuation, ellipsis, or single characters
+    const strippedText = sentence.replace(/[.\s,;:!?\-…]/g, '').trim();
+    if (strippedText.length < 2) {
+      continue;
+    }
+
+    cleanSentences.push(sentence);
+    lastSentence = sentence;
   }
 
   // If we removed too much (>90% repetition), it's likely a hallucination
@@ -737,6 +780,8 @@ export function useLocalTranscription(): UseLocalTranscriptionReturn {
               repetition_penalty: 1.2, // Penalize repetitions
               length_penalty: 1.0,     // Neutral length preference
               num_beams: 1,           // Greedy decoding for consistency
+              no_speech_threshold: 0.6, // Output nothing if speech probability < 60%
+              condition_on_previous_text: false, // Prevent hallucination propagation between chunks
             });
 
             setProgress(90);
@@ -804,7 +849,8 @@ export function useLocalTranscription(): UseLocalTranscriptionReturn {
                 console.log('✅ Model reloaded with WASM, retrying transcription...');
 
                 // Retry transcription with WASM
-                const result = await transcriber(audioData, {
+                // Note: Cast to any because @huggingface/transformers types don't include all valid Whisper params
+                const result = await (transcriber as any)(audioData, {
                   return_timestamps: true,
                   language: 'french',
                   task: 'transcribe',
@@ -816,6 +862,8 @@ export function useLocalTranscription(): UseLocalTranscriptionReturn {
                   repetition_penalty: 1.2,
                   length_penalty: 1.0,
                   num_beams: 1,
+                  no_speech_threshold: 0.6, // Output nothing if speech probability < 60%
+                  condition_on_previous_text: false, // Prevent hallucination propagation between chunks
                 });
 
                 setProgress(90);

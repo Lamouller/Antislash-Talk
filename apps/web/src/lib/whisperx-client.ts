@@ -53,6 +53,29 @@ export interface WhisperXHealthStatus {
 const WHISPERX_URL = import.meta.env.VITE_WHISPERX_URL || 'http://localhost:8082';
 
 /**
+ * Post-processing: filter out low-confidence and empty segments
+ * Anti-hallucination measure for WhisperX results
+ */
+function filterLowQualitySegments(segments: WhisperXSegment[]): WhisperXSegment[] {
+  return segments.filter(segment => {
+    // Filter out segments with very short text (< 3 characters after trim)
+    if (segment.text.trim().length < 3) {
+      console.warn(`[WhisperX] Filtered short segment: "${segment.text}"`);
+      return false;
+    }
+
+    // Filter out segments with low confidence (< 0.3) when confidence is available
+    const segmentAny = segment as any;
+    if (segmentAny.confidence !== undefined && segmentAny.confidence < 0.3) {
+      console.warn(`[WhisperX] Filtered low-confidence segment (${segmentAny.confidence}): "${segment.text}"`);
+      return false;
+    }
+
+    return true;
+  });
+}
+
+/**
  * Vérifie si le service WhisperX est disponible
  */
 export async function checkWhisperXAvailability(): Promise<boolean> {
@@ -215,7 +238,19 @@ export async function transcribeWithWhisperX(
     const speakers = new Set(result.segments.map(s => s.speaker).filter(s => s));
     console.log(`[WhisperX] 👥 Speakers detected: ${speakers.size}`);
   }
-  
+
+  // Anti-hallucination: filter out low-quality segments
+  if (result.segments) {
+    const originalCount = result.segments.length;
+    result.segments = filterLowQualitySegments(result.segments);
+    const filteredCount = originalCount - result.segments.length;
+    if (filteredCount > 0) {
+      console.log(`[WhisperX] 🧹 Filtered ${filteredCount} low-quality segments (${originalCount} → ${result.segments.length})`);
+      // Rebuild full text from filtered segments
+      result.text = result.segments.map(s => s.text).join(' ').trim();
+    }
+  }
+
   return result;
 }
 
@@ -415,17 +450,28 @@ export async function transcribeWithWhisperXStreaming(
   }
   
   // 4. Retourner le résultat complet
+  const indexedSegments = segments.map((s, id) => ({ ...s, id }));
+
+  // Anti-hallucination: filter out low-quality segments
+  const filteredSegments = filterLowQualitySegments(indexedSegments);
+  const filteredCount = indexedSegments.length - filteredSegments.length;
+  if (filteredCount > 0) {
+    console.log(`[WhisperX] 🧹 Filtered ${filteredCount} low-quality segments from streaming results`);
+  }
+
+  const filteredText = filteredSegments.map(s => s.text).join(' ').trim();
+
   const result: WhisperXTranscriptionResult = {
-    text: fullText,
-    segments: segments.map((s, id) => ({ ...s, id })),
+    text: filteredText,
+    segments: filteredSegments,
     language: options?.language || 'fr',
     diarization_enabled: options?.diarization !== false,
   };
-  
+
   console.log(`%c[WhisperX] 🎉 STREAMING COMPLETE!`, 'color: #16a34a; font-weight: bold; font-size: 16px');
   console.log(`[WhisperX] 📝 Final text length: ${result.text.length} chars`);
   console.log(`[WhisperX] 🎯 Final segments: ${result.segments?.length || 0}`);
-  
+
   return result;
 }
 

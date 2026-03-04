@@ -56,7 +56,7 @@ export default function NavBar() {
     <>
       {/* Top bar - simplified, just the page title (mobile only) */}
       <nav
-        className="bg-white/80 backdrop-blur-xl border-b border-gray-200/50 md:hidden fixed top-0 left-0 right-0 z-40"
+        className="bg-white/20 backdrop-blur-xl border-b border-gray-200/50 md:hidden fixed top-0 left-0 right-0 z-40"
         style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
       >
         <div
@@ -84,7 +84,7 @@ export default function NavBar() {
 
       {/* Bottom tab bar (mobile only) */}
       <div
-        className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-white/80 backdrop-blur-xl border-t border-gray-200/50"
+        className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-white/20 backdrop-blur-xl border-t border-gray-200/50"
         style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
       >
         <div>
