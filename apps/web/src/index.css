@@ -7,9 +7,9 @@
   line-height: 1.5;
   font-weight: 400;
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  color-scheme: dark;
+  color: rgba(255, 255, 255, 0.90);
+  background-color: #0a0a0a;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -21,7 +21,7 @@
   --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
   --safe-area-inset-left: env(safe-area-inset-left, 0px);
   --safe-area-inset-right: env(safe-area-inset-right, 0px);
-  
+
   /* Minimum padding for status bar (fallback if env not supported) */
   --min-status-bar-height: 44px;
   --min-bottom-bar-height: 34px;
@@ -29,28 +29,22 @@
 
 a {
   font-weight: 500;
-  color: #646cff;
+  color: rgba(255, 255, 255, 0.90);
   text-decoration: inherit;
 }
 a:hover {
-  color: #535bf2;
+  color: rgba(255, 255, 255, 1);
 }
 
 html {
   /* Ensure full height on mobile browsers */
   height: 100%;
   height: -webkit-fill-available;
-  /* Prevent white band on iOS overscroll */
-  background: linear-gradient(to bottom right, #f8fafc, #eff6ff, #eef2ff);
+  /* Liquid Glass black background */
+  background: #0a0a0a;
   /* Disable overscroll bounce effect */
   overscroll-behavior: none;
   -webkit-overflow-scrolling: touch;
-}
-
-@media (prefers-color-scheme: dark) {
-  html {
-    background: linear-gradient(to bottom right, #111827, #1e293b, #111827);
-  }
 }
 
 body {
@@ -58,16 +52,10 @@ body {
   min-width: 320px;
   min-height: 100vh;
   min-height: -webkit-fill-available;
-  /* Match app gradient background for overscroll */
-  background: linear-gradient(to bottom right, #f8fafc, #eff6ff, #eef2ff);
+  /* Liquid Glass black background */
+  background: #0a0a0a;
   /* Disable overscroll bounce effect */
   overscroll-behavior: none;
-}
-
-@media (prefers-color-scheme: dark) {
-  body {
-    background: linear-gradient(to bottom right, #111827, #1e293b, #111827);
-  }
 }
 
 /* ===========================================
@@ -209,34 +197,109 @@ h1 {
 
 button {
   border-radius: 8px;
-  border: 1px solid transparent;
+  border: 1px solid rgba(255, 255, 255, 0.10);
   padding: 0.6em 1.2em;
   font-size: 1em;
   font-weight: 500;
   font-family: inherit;
   cursor: pointer;
-  transition: border-color 0.25s;
+  transition: border-color 0.25s, background-color 0.25s;
+  background-color: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.90);
 }
 button:hover {
-  border-color: #646cff;
+  border-color: rgba(255, 255, 255, 0.15);
+  background-color: rgba(255, 255, 255, 0.08);
 }
 button:focus,
 button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+  outline: 2px solid rgba(255, 255, 255, 0.20);
+  outline-offset: 2px;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    /* Use gradient instead of white to match app */
-    background: linear-gradient(to bottom right, #f8fafc, #eff6ff, #eef2ff);
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
+/* ===========================================
+   Liquid Glass Design System Utilities
+   =========================================== */
+
+/* Glass Card Variants */
+.glass-card {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 16px;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.glass-card:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+}
+
+.glass-card-strong {
+  background: rgba(255, 255, 255, 0.10);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+}
+
+/* Glass Button Variants */
+.glass-button {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  color: rgba(255, 255, 255, 0.90);
+  transition: all 0.25s ease;
+  cursor: pointer;
+}
+
+.glass-button:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.15);
+  transform: translateY(-1px);
+}
+
+.glass-button:active {
+  transform: translateY(0);
+}
+
+.glass-button-primary {
+  background: rgba(255, 255, 255, 0.90);
+  color: #0a0a0a;
+  border: 1px solid rgba(255, 255, 255, 1);
+}
+
+.glass-button-primary:hover {
+  background: rgba(255, 255, 255, 1);
+  box-shadow: 0 4px 24px rgba(255, 255, 255, 0.15);
+}
+
+/* Glass Input */
+.glass-input {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  color: rgba(255, 255, 255, 0.90);
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  transition: all 0.25s ease;
+}
+
+.glass-input:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.20);
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.05);
+}
+
+.glass-input::placeholder {
+  color: rgba(255, 255, 255, 0.40);
 }
 
 /* Custom Scrollbar Styles for Meeting Details */
@@ -249,10 +312,10 @@ button:focus-visible {
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(156, 163, 175, 0.5);
+  background: rgba(255, 255, 255, 0.15);
   border-radius: 3px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(156, 163, 175, 0.7);
+  background: rgba(255, 255, 255, 0.25);
 }

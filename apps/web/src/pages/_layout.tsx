@@ -302,10 +302,10 @@ export default function RootLayout() {
 
   if (!initialized) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-gray-900 dark:via-slate-800 dark:to-gray-900">
+      <div className="min-h-screen flex items-center justify-center bg-black">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-300">Initialisation...</p>
+          <div className="w-16 h-16 border-4 border-white/20 border-t-white/90 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-white/60">Initialisation...</p>
         </div>
       </div>
     );
@@ -313,11 +313,19 @@ export default function RootLayout() {
 
   return (
     <RecordingProvider>
-      <div className="min-h-screen">
-        <Toaster 
+      <div className="min-h-screen bg-black">
+        <Toaster
           position="top-center"
           containerStyle={{
             top: 'max(env(safe-area-inset-top, 0px), 20px)',
+          }}
+          toastOptions={{
+            style: {
+              background: 'rgba(255, 255, 255, 0.10)',
+              backdropFilter: 'blur(16px)',
+              color: 'rgba(255, 255, 255, 0.90)',
+              border: '1px solid rgba(255, 255, 255, 0.15)',
+            },
           }}
         />
         <Outlet />
