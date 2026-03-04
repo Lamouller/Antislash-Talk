@@ -128,7 +128,7 @@ export default function HomeScreen() {
       <footer className="border-t border-gray-200 py-8">
         <div className="max-w-7xl mx-auto px-6 text-center">
           <div className="flex items-center justify-center space-x-2 text-gray-400 text-sm">
-            <span>2024 Antislash Studio</span>
+            <span>2026 Antislash Studio</span>
             <span>-</span>
             <span>Made by the Community</span>
             <span>-</span>

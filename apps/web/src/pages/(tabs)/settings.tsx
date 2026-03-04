@@ -9,7 +9,7 @@ import { useLocalTranscription } from '../../hooks/useLocalTranscription';
 import { useOllama } from '../../hooks/useOllama';
 import { useLicense } from '../../lib/licensing';
 import { FeatureGate, FeatureComparison } from '../../components/ui/FeatureGate';
-import { Settings, Server as ServerIcon, Globe as GlobeIcon } from 'lucide-react';
+import { Settings, Server as ServerIcon, Globe as GlobeIcon, ChevronDown, ChevronUp } from 'lucide-react';
 import { checkWhisperXAvailability } from '../../lib/whisperx-client';
 import { useTranslation } from 'react-i18next';
 
@@ -452,6 +452,50 @@ const ollamaModels: Model[] = [
     languages: 'French, English, multilingual'
   }
 ];
+
+// Composant pour sections collapsibles
+interface CollapsibleSectionProps {
+  title: string;
+  icon?: string;
+  description?: string;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+}
+
+function CollapsibleSection({ title, icon, description, children, defaultOpen = false }: CollapsibleSectionProps) {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+
+  return (
+    <Card>
+      <div
+        className="p-6 cursor-pointer flex items-center justify-between"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <div>
+          <h2 className="text-xl font-bold flex items-center gap-2">
+            {icon && <span>{icon}</span>}
+            {title}
+          </h2>
+          {description && (
+            <p className="mt-1 text-sm text-gray-500">{description}</p>
+          )}
+        </div>
+        <div className="transition-transform duration-300">
+          {isOpen ? <ChevronUp size={24} className="text-gray-500" /> : <ChevronDown size={24} className="text-gray-500" />}
+        </div>
+      </div>
+      <div
+        className={`transition-all duration-300 overflow-hidden ${
+          isOpen ? 'max-h-[10000px] opacity-100' : 'max-h-0 opacity-0'
+        }`}
+      >
+        <div className="p-6 pt-0">
+          {children}
+        </div>
+      </div>
+    </Card>
+  );
+}
 
 export default function SettingsScreen() {
   const navigate = useNavigate();
@@ -1038,12 +1082,14 @@ export default function SettingsScreen() {
               )}
             </div>
 
-            {/* Existing Transcription Settings */}
-            <Card>
-              <div className="p-6">
-                <h2 className="text-xl font-bold">🎙️ Model Settings</h2>
-                <p className="mt-1 text-sm text-gray-500">Choose the AI models for different tasks.</p>
-
+            {/* Transcription */}
+            <CollapsibleSection
+              title="Transcription"
+              icon="🎙️"
+              description="Choix du provider et modèle de transcription."
+              defaultOpen={true}
+            >
+              <div className="space-y-4">
                 {/* Show enterprise status */}
                 <div className="mt-4 mb-6 p-3 bg-gray-50/30 rounded-lg">
                   <div className="flex items-center justify-between">
@@ -1475,7 +1521,17 @@ export default function SettingsScreen() {
                     </div>
                   )}
                 </div>
+              </div>
+            </CollapsibleSection>
 
+            {/* Génération IA */}
+            <CollapsibleSection
+              title="Génération IA"
+              icon="🤖"
+              description="Choix des modèles LLM pour la génération de titres et résumés."
+              defaultOpen={false}
+            >
+              <div className="space-y-4">
                 {/* LLM with enterprise gating */}
                 <FeatureGate feature="cloudAIProviders" showUpgradePrompt={false}>
                   <SettingSelectRow
@@ -1502,15 +1558,16 @@ export default function SettingsScreen() {
                   />
                 </FeatureGate>
               </div>
-            </Card>
+            </CollapsibleSection>
 
-            {/* Recording Behavior Settings */}
-            <Card>
-              <div className="p-6">
-                <h2 className="text-xl font-bold">🎬 Recording Behavior</h2>
-                <p className="mt-1 text-sm text-gray-500">Control how the app behaves after recording audio.</p>
-              </div>
-              <div className="p-6 pt-0">
+            {/* Preferences */}
+            <CollapsibleSection
+              title="Préférences"
+              icon="⚙️"
+              description="Comportements d'enregistrement, langue et options de l'application."
+              defaultOpen={false}
+            >
+              <div className="space-y-4">
                 <div className="flex items-center justify-between p-4 bg-gray-50/50 rounded-xl border border-gray-200/30">
                   <div className="flex-1">
                     <h3 className="text-sm font-medium text-gray-900">
@@ -1669,7 +1726,7 @@ export default function SettingsScreen() {
                   </label>
                 </div>
               </div>
-            </Card>
+            </CollapsibleSection>
 
             {/* Enterprise Features */}
             <FeatureGate feature="advancedAnalytics">
@@ -1731,12 +1788,13 @@ export default function SettingsScreen() {
             </Card>
 
             {/* API Keys */}
-            <Card>
-              <div className="p-6">
-                <h2 className="text-xl font-bold">API Keys</h2>
-                <p className="mt-1 text-sm text-gray-500">Keys are stored securely and never exposed on the client-side.</p>
-              </div>
-              <div className="p-6 pt-0 space-y-4">
+            <CollapsibleSection
+              title="Clés API"
+              icon="🔑"
+              description="Clés stockées de manière sécurisée."
+              defaultOpen={false}
+            >
+              <div className="space-y-4">
                 {Object.keys(apiKeyInputs).map(p =>
                   <ApiKeyInputRow
                     key={p}
@@ -1748,7 +1806,7 @@ export default function SettingsScreen() {
                   />
                 )}
               </div>
-            </Card>
+            </CollapsibleSection>
 
             {/* Device Performance Section */}
             {preferredTranscriptionProvider === 'local' && (

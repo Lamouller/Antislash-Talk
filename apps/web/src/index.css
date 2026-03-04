@@ -309,7 +309,7 @@ html.ios,
   color: hsl(var(--foreground));
   border-radius: 12px;
   padding: 0.75rem 1rem;
-  font-size: 0.875rem;
+  font-size: 1rem;
   transition: all 0.2s ease;
 }
 
@@ -322,6 +322,13 @@ html.ios,
 
 .glass-input::placeholder {
   color: hsl(var(--muted-foreground));
+}
+
+/* Prevent iOS zoom on input focus */
+input,
+textarea,
+select {
+  font-size: 16px;
 }
 
 /* ===========================================

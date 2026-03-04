@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { Home, ListMusic, FilePlus, Settings, LogOut, User, Mic, Sparkles, Upload } from 'lucide-react';
+import { Home, ListMusic, Mic, Settings, LogOut, User, Sparkles, Upload } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { Button } from '../ui/Button';
 import { useTranslation } from 'react-i18next';
@@ -14,7 +14,7 @@ export default function SideBar() {
   const navItems = [
     { href: '/tabs', label: t('nav.home'), icon: Home, exact: true },
     { href: '/tabs/meetings', label: t('nav.meetings'), icon: ListMusic, exact: false },
-    { href: '/tabs/record', label: t('nav.record'), icon: FilePlus, exact: true },
+    { href: '/tabs/record', label: t('nav.record'), icon: Mic, exact: true },
     { href: '/tabs/upload', label: t('nav.upload'), icon: Upload, exact: true },
     { href: '/tabs/prompts', label: t('nav.prompts') || 'Atelier Prompts', icon: Sparkles, exact: true },
     { href: '/tabs/settings', label: t('nav.settings'), icon: Settings, exact: true },

@@ -19,19 +19,16 @@ export default function TabsLayout() {
         {/* Mobile Navigation with Safe Area - Fixed position */}
         <NavBar />
         
-        {/* Spacer for fixed navbar on mobile */}
-        <div 
+        {/* Spacer for fixed top bar on mobile (h-12 = 3rem) */}
+        <div
           className="md:hidden flex-shrink-0"
-          style={{ height: 'calc(env(safe-area-inset-top, 0px) + 4rem)' }}
+          style={{ height: 'calc(env(safe-area-inset-top, 0px) + 3rem)' }}
         />
-        
-        {/* Main content with safe area margins */}
-        <main className="flex-1 px-safe">
+
+        {/* Main content with safe area margins and bottom padding for tab bar */}
+        <main className="flex-1 px-safe pb-20 md:pb-0">
           <Outlet />
         </main>
-        
-        {/* Bottom safe area spacer for iOS home indicator */}
-        <div className="md:hidden h-[env(safe-area-inset-bottom,0px)] bg-transparent" />
       </div>
     </div>
   );

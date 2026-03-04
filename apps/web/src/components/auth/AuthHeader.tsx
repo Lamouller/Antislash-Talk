@@ -13,7 +13,7 @@ export default function AuthHeader({ title, description }: { title: string, desc
           className="inline-flex items-center text-gray-500 hover:text-black transition-colors"
         >
           <ArrowLeft size={20} className="mr-2" />
-          <span className="text-sm font-medium">Back</span>
+          <span className="text-sm font-medium">Retour</span>
         </button>
       </div>
 

@@ -55,7 +55,6 @@ const router = createBrowserRouter([
           { path: 'meetings', element: <MeetingsScreen /> },
           { path: 'record', element: <RecordScreen /> },
           { path: 'upload', element: <UploadScreen /> },
-          { path: 'upload', element: <UploadScreen /> },
           { path: 'prompts', element: <PromptWorkshopScreen /> },
           { path: 'settings', element: <SettingsScreen /> },
           { path: 'meeting/:id', element: <MeetingDetailPage /> },

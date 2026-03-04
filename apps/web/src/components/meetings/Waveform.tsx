@@ -33,14 +33,14 @@ const Waveform: React.FC<WaveformProps> = ({
     wavesurfer.current = WaveSurfer.create({
       container: waveformRef.current,
       waveColor: '#A8A8A8',
-      progressColor: '#6E41E2',
+      progressColor: '#000',
       url: audioUrl,
       barWidth: 3,
       barGap: 3,
       barRadius: 3,
       height: 100,
       cursorWidth: 1,
-      cursorColor: '#6E41E2',
+      cursorColor: '#000',
     });
 
     wavesurfer.current.on('ready', () => {
@@ -99,7 +99,7 @@ const Waveform: React.FC<WaveformProps> = ({
   };
 
   return (
-    <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+    <div className="border border-gray-200 rounded-lg p-4 bg-gray-100">
       <div ref={waveformRef} className="mb-4" />
       
       {/* 🔧 Fallback HTML5 audio player for iOS/Safari (WebM not supported) */}
@@ -122,27 +122,27 @@ const Waveform: React.FC<WaveformProps> = ({
           {!isPlaying ? (
             <button
               onClick={handlePlay}
-              className="p-3 bg-indigo-600 text-white rounded-full hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              className="p-3 bg-black text-white rounded-full hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900"
             >
               <Play size={20} />
             </button>
           ) : (
             <button
               onClick={handlePause}
-              className="p-3 bg-indigo-600 text-white rounded-full hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              className="p-3 bg-black text-white rounded-full hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900"
             >
               <Pause size={20} />
             </button>
           )}
         </div>
-        <div className="text-sm text-gray-500 dark:text-gray-400 font-mono">
+        <div className="text-sm text-gray-500 font-mono">
           {formatTime(currentTime)} / {formatTime(duration)}
         </div>
       </div>
-      
+
       {/* Info message for iOS users */}
-      <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-        📱 iOS users: Use the HTML5 player above if waveform doesn't work
+      <p className="text-xs text-gray-500 mt-2">
+        Si la waveform ne fonctionne pas, utilisez le lecteur HTML5 ci-dessus
       </p>
     </div>
   );
