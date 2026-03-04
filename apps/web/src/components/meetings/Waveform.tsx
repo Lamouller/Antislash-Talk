@@ -15,6 +15,7 @@ const Waveform: React.FC<WaveformProps> = ({
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [wavesurferReady, setWavesurferReady] = useState(false);
 
   useEffect(() => {
     if (!waveformRef.current || !audioUrl) return;
@@ -27,6 +28,9 @@ const Waveform: React.FC<WaveformProps> = ({
       wavesurfer.current.destroy();
       wavesurfer.current = null;
     }
+
+    // Reset ready state when reinitializing
+    setWavesurferReady(false);
 
     // Let WaveSurfer create and manage its own AudioContext
     // (more reliable on mobile than manually managing it)
@@ -46,6 +50,7 @@ const Waveform: React.FC<WaveformProps> = ({
     wavesurfer.current.on('ready', () => {
       if (wavesurfer.current) {
         setDuration(wavesurfer.current.getDuration());
+        setWavesurferReady(true);
         console.log('[Waveform] ✅ Audio ready, duration:', wavesurfer.current.getDuration());
       }
     });
@@ -102,13 +107,12 @@ const Waveform: React.FC<WaveformProps> = ({
     <div className="border border-gray-200 rounded-lg p-4 bg-gray-100">
       <div ref={waveformRef} className="mb-4" />
       
-      {/* 🔧 Fallback HTML5 audio player for iOS/Safari (WebM not supported) */}
-      {audioUrl && (
-        <audio 
-          controls 
+      {/* 🔧 Fallback HTML5 audio player for iOS/Safari (only shown if WaveSurfer fails) */}
+      {!wavesurferReady && audioUrl && (
+        <audio
+          controls
           className="w-full mb-4"
           preload="metadata"
-          style={{ display: 'block' }}
         >
           <source src={audioUrl} type="audio/webm" />
           <source src={audioUrl} type="audio/mp4" />
@@ -117,33 +121,37 @@ const Waveform: React.FC<WaveformProps> = ({
         </audio>
       )}
       
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-2">
-          {!isPlaying ? (
-            <button
-              onClick={handlePlay}
-              className="p-3 bg-black text-white rounded-full hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900"
-            >
-              <Play size={20} />
-            </button>
-          ) : (
-            <button
-              onClick={handlePause}
-              className="p-3 bg-black text-white rounded-full hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900"
-            >
-              <Pause size={20} />
-            </button>
-          )}
+      {wavesurferReady && (
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            {!isPlaying ? (
+              <button
+                onClick={handlePlay}
+                className="p-3 bg-black text-white rounded-full hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900"
+              >
+                <Play size={20} />
+              </button>
+            ) : (
+              <button
+                onClick={handlePause}
+                className="p-3 bg-black text-white rounded-full hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900"
+              >
+                <Pause size={20} />
+              </button>
+            )}
+          </div>
+          <div className="text-sm text-gray-500 font-mono">
+            {formatTime(currentTime)} / {formatTime(duration)}
+          </div>
         </div>
-        <div className="text-sm text-gray-500 font-mono">
-          {formatTime(currentTime)} / {formatTime(duration)}
-        </div>
-      </div>
+      )}
 
-      {/* Info message for iOS users */}
-      <p className="text-xs text-gray-500 mt-2">
-        Si la waveform ne fonctionne pas, utilisez le lecteur HTML5 ci-dessus
-      </p>
+      {/* Info message only shown when fallback is active */}
+      {!wavesurferReady && audioUrl && (
+        <p className="text-xs text-gray-500 mt-2">
+          Lecteur HTML5 de secours (WaveSurfer non disponible)
+        </p>
+      )}
     </div>
   );
 };

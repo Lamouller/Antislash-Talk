@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
-import { Mail, ArrowRight, CheckCircle, Mic2, Users, Code, Heart, Github, Star, Eye, EyeOff, Lock, AlertCircle, User } from 'lucide-react';
+import { Mail, ArrowRight, CheckCircle, Mic, Eye, EyeOff, AlertCircle, Github, Star, Code, Heart, Users } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 // Composant pour le formulaire d'inscription fonctionnel (mode client)
@@ -69,21 +69,18 @@ function FunctionalRegisterForm() {
 
   if (success) {
     return (
-      <div
-        className="min-h-screen flex items-center justify-center px-4"
-        style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
-      >
-        <div className="w-full max-w-md bg-white/90 backdrop-blur-xl border border-gray-300/30 rounded-2xl shadow-2xl shadow-black/10 p-8">
+      <div className="min-h-screen flex items-center justify-center px-4 bg-white">
+        <div className="w-full max-w-md p-8">
           <div className="text-center">
-            <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <CheckCircle size={40} className="text-green-600" />
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <CheckCircle size={32} className="text-green-600" />
             </div>
-            <h2 className="text-2xl font-bold text-black mb-4">{t('auth.welcome')}</h2>
+            <h2 className="text-2xl font-semibold text-black mb-4">Welcome!</h2>
             <p className="text-gray-500 mb-6">
-              {t('auth.accountCreated')}
+              Your account has been created successfully.
             </p>
             <p className="text-sm text-gray-400">
-              {t('auth.redirecting')}
+              Redirecting to login...
             </p>
           </div>
         </div>
@@ -92,120 +89,94 @@ function FunctionalRegisterForm() {
   }
 
   return (
-    <div className="min-h-screen">
-      {/* Navigation with safe area for Dynamic Island */}
-      <nav
-        className="fixed left-0 right-0 z-50 px-4 lg:px-8 py-4 bg-white/20 backdrop-blur-xl border-b border-gray-300/20"
-        style={{ top: 0, paddingTop: 'env(safe-area-inset-top, 0px)' }}
-      >
-        <div className="w-full flex items-center justify-between">
-          <Link to="/" className="flex items-center space-x-3 group">
-            <div className="bg-black p-2 rounded-xl shadow-lg shadow-black/10 group-hover:shadow-xl transition-shadow">
-              <Mic2 size={24} className="text-white" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold text-black">Antislash Talk</h1>
-              <div className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                <span className="w-1.5 h-1.5 bg-gray-400 rounded-full mr-1.5"></span>
-                {t('auth.communityEdition')}
-              </div>
-            </div>
-          </Link>
-          <Link
-            to="/auth/login"
-            className="px-4 py-2 bg-black text-white rounded-xl font-medium hover:bg-gray-800 transition-colors shadow-lg shadow-black/10"
-          >
-            {t('auth.signIn')}
-          </Link>
-        </div>
-      </nav>
-
-      {/* Main Content */}
-      <main className="min-h-screen flex items-center justify-center px-4 lg:px-8 py-20">
-        <div className="w-full max-w-md bg-white/90 backdrop-blur-xl border border-gray-300/30 rounded-2xl shadow-2xl shadow-black/10 p-8">
-
-          {/* Header */}
-          <div className="text-center mb-8">
-            <h2 className="text-2xl font-bold text-black mb-3">{t('auth.createAccountTitle')}</h2>
-            <p className="text-sm text-gray-500">{t('auth.joinToday')}</p>
+    <div className="min-h-screen flex flex-col lg:flex-row">
+      {/* Left Panel - Branding */}
+      <div className="hidden lg:flex lg:w-1/2 bg-black text-white flex-col items-center justify-center p-12">
+        <div className="max-w-md text-center">
+          <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-8">
+            <Mic className="w-8 h-8 text-black" />
           </div>
+          <h1 className="text-4xl font-bold mb-4">Antislash Talk</h1>
+          <p className="text-gray-400 text-lg">Join thousands of professionals who trust Antislash Talk for their meetings.</p>
+        </div>
+      </div>
+
+      {/* Right Panel - Form */}
+      <div className="flex-1 flex items-center justify-center p-6 lg:p-12 bg-white">
+        <div className="w-full max-w-md">
+          {/* Mobile logo */}
+          <div className="lg:hidden flex justify-center mb-8">
+            <div className="w-12 h-12 bg-black rounded-xl flex items-center justify-center">
+              <Mic className="w-6 h-6 text-white" />
+            </div>
+          </div>
+
+          <h2 className="text-2xl font-semibold text-center mb-2">Create Account</h2>
+          <p className="text-gray-500 text-sm text-center mb-8">Start your journey today</p>
 
           {/* Error Message */}
           {error && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-start">
-              <AlertCircle size={20} className="text-red-600 mr-3 flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-red-600">{error}</p>
+            <div className="mb-6 p-3 bg-red-50 text-red-600 rounded-lg flex items-start">
+              <AlertCircle size={18} className="mr-2 flex-shrink-0 mt-0.5" />
+              <p className="text-sm">{error}</p>
             </div>
           )}
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-5">
             {/* Full Name */}
             <div>
               <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 mb-2">
-                {t('auth.fullName')}
+                Full Name
               </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <User size={20} className="text-gray-400" />
-                </div>
-                <input
-                  id="fullName"
-                  type="text"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  className="w-full h-12 pl-12 pr-4 bg-white/80 backdrop-blur-sm border-2 border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:border-black focus:bg-white focus:shadow-lg focus:shadow-black/5 focus:outline-none transition-all"
-                  placeholder="John Doe"
-                  required
-                />
-              </div>
+              <input
+                id="fullName"
+                type="text"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                className="w-full h-11 px-4 border border-gray-200 rounded-lg text-sm focus:border-black focus:ring-1 focus:ring-black outline-none transition-colors"
+                placeholder="John Doe"
+                required
+              />
             </div>
 
             {/* Email */}
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                {t('auth.email')}
+                Email
               </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <Mail size={20} className="text-gray-400" />
-                </div>
-                <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full h-12 pl-12 pr-4 bg-white/80 backdrop-blur-sm border-2 border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:border-black focus:bg-white focus:shadow-lg focus:shadow-black/5 focus:outline-none transition-all"
-                  placeholder="you@example.com"
-                  required
-                />
-              </div>
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full h-11 px-4 border border-gray-200 rounded-lg text-sm focus:border-black focus:ring-1 focus:ring-black outline-none transition-colors"
+                placeholder="you@example.com"
+                required
+              />
             </div>
 
             {/* Password */}
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                {t('auth.password')}
+                Password
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <Lock size={20} className="text-gray-400" />
-                </div>
                 <input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full h-12 pl-12 pr-12 bg-white/80 backdrop-blur-sm border-2 border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:border-black focus:bg-white focus:shadow-lg focus:shadow-black/5 focus:outline-none transition-all"
+                  className="w-full h-11 px-4 pr-10 border border-gray-200 rounded-lg text-sm focus:border-black focus:ring-1 focus:ring-black outline-none transition-colors"
                   placeholder="--------"
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
                 >
-                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
             </div>
@@ -213,62 +184,69 @@ function FunctionalRegisterForm() {
             {/* Confirm Password */}
             <div>
               <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
-                {t('auth.confirmPassword')}
+                Confirm Password
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <Lock size={20} className="text-gray-400" />
-                </div>
                 <input
                   id="confirmPassword"
                   type={showConfirmPassword ? 'text' : 'password'}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full h-12 pl-12 pr-12 bg-white/80 backdrop-blur-sm border-2 border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:border-black focus:bg-white focus:shadow-lg focus:shadow-black/5 focus:outline-none transition-all"
+                  className="w-full h-11 px-4 pr-10 border border-gray-200 rounded-lg text-sm focus:border-black focus:ring-1 focus:ring-black outline-none transition-colors"
                   placeholder="--------"
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
                 >
-                  {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
             </div>
+
+            {/* Password Requirements */}
+            {password && (
+              <div className="p-3 bg-gray-50 rounded-lg">
+                <p className="text-xs text-gray-600 mb-1">Password requirements:</p>
+                <ul className="text-xs text-gray-500 space-y-0.5">
+                  <li className={password.length >= 6 ? 'text-green-600' : ''}>
+                    {password.length >= 6 ? '✓' : '•'} At least 6 characters
+                  </li>
+                  <li className={password === confirmPassword && password ? 'text-green-600' : ''}>
+                    {password === confirmPassword && password ? '✓' : '•'} Passwords match
+                  </li>
+                </ul>
+              </div>
+            )}
 
             {/* Submit Button */}
             <button
               type="submit"
               disabled={loading}
-              className="w-full h-12 bg-black text-white rounded-xl font-medium hover:bg-gray-800 active:scale-[0.98] transition-all shadow-lg shadow-black/10 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+              className="w-full h-11 bg-black text-white rounded-lg font-medium hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
             >
               {loading ? (
                 <>
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                  {t('auth.creatingAccount')}
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                  Creating account...
                 </>
               ) : (
-                <>
-                  {t('auth.createAccountTitle')}
-                  <ArrowRight size={20} className="ml-2" />
-                </>
+                'Create Account'
               )}
             </button>
           </form>
 
           {/* Footer */}
-          <div className="mt-8 text-center">
-            <p className="text-sm text-gray-600">
-              {t('auth.alreadyHaveAccount')}{' '}
-              <Link to="/auth/login" className="text-black font-medium hover:underline">
-                {t('auth.signInHere')}
-              </Link>
-            </p>
+          <div className="text-center mt-6">
+            <span className="text-sm text-gray-500">Already have an account? </span>
+            <Link to="/auth/login" className="text-sm font-medium text-black hover:underline">
+              Sign in
+            </Link>
           </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 }
@@ -286,7 +264,7 @@ function ComingSoonRegister() {
         <div className="w-full flex items-center justify-between">
           <Link to="/" className="flex items-center space-x-3 group">
             <div className="bg-black p-2 rounded-xl shadow-lg shadow-black/10 group-hover:shadow-xl transition-shadow">
-              <Mic2 size={24} className="text-white" />
+              <Mic size={24} className="text-white" />
             </div>
             <div>
               <h1 className="text-xl font-bold text-black">Antislash Talk</h1>

@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Mic2, ArrowRight, Github, Star, Zap, Shield, Globe, Users } from 'lucide-react';
+import { Mic, ArrowRight, Github, Star, Shield, Globe, Users } from 'lucide-react';
 
 export default function HomeScreen() {
   return (
@@ -12,7 +12,7 @@ export default function HomeScreen() {
         <div className="w-full flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <div className="bg-black p-2 rounded-xl shadow-lg shadow-black/10">
-              <Mic2 size={24} className="text-white" />
+              <Mic size={24} className="text-white" />
             </div>
             <div>
               <h1 className="text-xl font-bold text-black">Antislash Talk</h1>
@@ -49,7 +49,7 @@ export default function HomeScreen() {
           <div className="mb-16">
             <div className="inline-flex items-center px-4 py-2 rounded-full bg-gray-100 text-gray-600 text-sm font-medium mb-8">
               <Star size={16} className="mr-2" />
-              Free & Open Source -- MIT License -- 100% Privacy
+              AI-Powered Meeting Intelligence
             </div>
 
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-black tracking-tight mb-6">
@@ -59,9 +59,9 @@ export default function HomeScreen() {
             </h1>
 
             <p className="text-lg text-gray-500 max-w-2xl mx-auto leading-relaxed mb-12">
-              Transform your meetings with <strong className="text-black">100% local AI processing</strong>. No cloud, no privacy concerns.
+              Record, transcribe, and analyze your meetings with AI-powered insights.
               <br className="hidden sm:block" />
-              Open source, free forever, and blazingly fast.
+              Multi-language support, speaker identification, and secure cloud storage.
             </p>
 
             {/* CTA Buttons */}
@@ -91,34 +91,34 @@ export default function HomeScreen() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 w-full">
             <div className="bg-white/20 backdrop-blur-xl border border-gray-300/30 rounded-2xl p-6 shadow-lg shadow-black/5">
               <div className="p-2.5 bg-gray-100/80 rounded-xl w-fit mx-auto mb-4">
-                <Shield size={24} className="text-black" />
+                <Mic size={24} className="text-black" />
               </div>
-              <h3 className="font-semibold text-black mb-2">100% Local</h3>
-              <p className="text-sm text-gray-500">Your conversations never leave your device. Complete privacy guaranteed.</p>
-            </div>
-
-            <div className="bg-white/20 backdrop-blur-xl border border-gray-300/30 rounded-2xl p-6 shadow-lg shadow-black/5">
-              <div className="p-2.5 bg-gray-100/80 rounded-xl w-fit mx-auto mb-4">
-                <Globe size={24} className="text-black" />
-              </div>
-              <h3 className="font-semibold text-black mb-2">Open Source</h3>
-              <p className="text-sm text-gray-500">MIT licensed, transparent, and built by the community for everyone.</p>
+              <h3 className="font-semibold text-black mb-2">AI Transcription</h3>
+              <p className="text-sm text-gray-500">Automatic speech-to-text with high accuracy across multiple languages.</p>
             </div>
 
             <div className="bg-white/20 backdrop-blur-xl border border-gray-300/30 rounded-2xl p-6 shadow-lg shadow-black/5">
               <div className="p-2.5 bg-gray-100/80 rounded-xl w-fit mx-auto mb-4">
                 <Users size={24} className="text-black" />
               </div>
-              <h3 className="font-semibold text-black mb-2">Community Driven</h3>
-              <p className="text-sm text-gray-500">Join thousands of developers building the future of AI transcription.</p>
+              <h3 className="font-semibold text-black mb-2">Speaker Identification</h3>
+              <p className="text-sm text-gray-500">Automatically identify and label different speakers in your meetings.</p>
             </div>
 
             <div className="bg-white/20 backdrop-blur-xl border border-gray-300/30 rounded-2xl p-6 shadow-lg shadow-black/5">
               <div className="p-2.5 bg-gray-100/80 rounded-xl w-fit mx-auto mb-4">
-                <Zap size={24} className="text-black" />
+                <Globe size={24} className="text-black" />
               </div>
-              <h3 className="font-semibold text-black mb-2">Lightning Fast</h3>
-              <p className="text-sm text-gray-500">WebGPU acceleration delivers real-time transcription performance.</p>
+              <h3 className="font-semibold text-black mb-2">Multi-Language</h3>
+              <p className="text-sm text-gray-500">Support for multiple languages with real-time translation capabilities.</p>
+            </div>
+
+            <div className="bg-white/20 backdrop-blur-xl border border-gray-300/30 rounded-2xl p-6 shadow-lg shadow-black/5">
+              <div className="p-2.5 bg-gray-100/80 rounded-xl w-fit mx-auto mb-4">
+                <Shield size={24} className="text-black" />
+              </div>
+              <h3 className="font-semibold text-black mb-2">Secure Storage</h3>
+              <p className="text-sm text-gray-500">Your meeting data is encrypted and securely stored in the cloud.</p>
             </div>
           </div>
         </div>
@@ -128,10 +128,10 @@ export default function HomeScreen() {
       <footer className="border-t border-gray-200 py-8">
         <div className="max-w-7xl mx-auto px-6 text-center">
           <div className="flex items-center justify-center space-x-2 text-gray-400 text-sm">
-            <span>2026 Antislash Studio</span>
-            <span>-</span>
-            <span>Made by the Community</span>
-            <span>-</span>
+            <span>© 2026 Antislash Talk</span>
+            <span>·</span>
+            <span>Antislash Studio</span>
+            <span>·</span>
             <a href="https://github.com/Lamouller/Antislash-Talk" className="hover:text-black transition-colors">
               MIT License
             </a>

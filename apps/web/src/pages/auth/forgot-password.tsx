@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Link } from 'react-router-dom';
-import { Mail, ArrowRight, CheckCircle, AlertCircle, ArrowLeft, Mic2 } from 'lucide-react';
+import { ArrowRight, CheckCircle, AlertCircle, ArrowLeft, Mic } from 'lucide-react';
 
 export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState('');
@@ -34,30 +34,47 @@ export default function ForgotPasswordScreen() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        {/* Back link */}
-        <div className="mb-6">
-          <Link to="/auth/login" className="inline-flex items-center text-gray-500 hover:text-black transition-colors">
-            <ArrowLeft size={18} className="mr-1.5" />
-            <span className="text-sm font-medium">Back to login</span>
-          </Link>
+    <div className="min-h-screen flex flex-col lg:flex-row">
+      {/* Left Panel - Branding (Desktop only) */}
+      <div className="hidden lg:flex lg:w-1/2 bg-black text-white flex-col items-center justify-center p-12">
+        <div className="max-w-md text-center">
+          <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-8">
+            <Mic className="w-8 h-8 text-black" />
+          </div>
+          <h1 className="text-4xl font-bold mb-4">Antislash Talk</h1>
+          <p className="text-gray-400 text-lg">Don't worry, we'll help you get back on track.</p>
         </div>
+      </div>
 
-        {/* Card */}
-        <div className="bg-white/90 backdrop-blur-xl border border-gray-300/30 rounded-2xl shadow-2xl shadow-black/10 p-8">
-          {/* Header */}
-          <div className="text-center mb-8">
-            <div className="w-14 h-14 bg-black rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-black/10">
-              <Mic2 size={28} className="text-white" />
+      {/* Right Panel - Form */}
+      <div className="flex-1 flex items-center justify-center p-4 lg:p-12 bg-white">
+        <div className="w-full max-w-md">
+          {/* Back link */}
+          <div className="mb-6">
+            <Link to="/auth/login" className="inline-flex items-center text-gray-500 hover:text-black transition-colors">
+              <ArrowLeft size={18} className="mr-1.5" />
+              <span className="text-sm font-medium">Back to login</span>
+            </Link>
+          </div>
+
+          {/* Mobile Logo */}
+          <div className="lg:hidden text-center mb-8">
+            <div className="w-14 h-14 bg-black rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <Mic size={28} className="text-white" />
             </div>
             <h2 className="text-2xl font-bold text-black mb-2">Forgot Password</h2>
             <p className="text-sm text-gray-500">Enter your email to receive a password reset link.</p>
           </div>
 
+          {/* Desktop Header */}
+          <div className="hidden lg:block mb-8">
+            <h2 className="text-3xl font-bold text-black mb-2">Forgot Password</h2>
+            <p className="text-gray-600">Enter your email to receive a password reset link.</p>
+          </div>
+
           {/* Message */}
           {message && (
-            <div className={`mb-6 p-4 rounded-xl border flex items-center ${
+            <div className={`mb-6 p-4 rounded-lg border flex items-center ${
               isSuccess
                 ? 'bg-green-50 border-green-200'
                 : 'bg-red-50 border-red-200'
@@ -79,21 +96,16 @@ export default function ForgotPasswordScreen() {
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
                 Email Address
               </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <Mail size={20} className="text-gray-400" />
-                </div>
-                <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
-                  autoCapitalize="none"
-                  required
-                  className="w-full h-12 pl-12 pr-4 bg-white/80 backdrop-blur-sm border-2 border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:border-black focus:bg-white focus:shadow-lg focus:shadow-black/5 focus:outline-none transition-all"
-                />
-              </div>
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                autoCapitalize="none"
+                required
+                className="w-full h-11 px-4 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:border-black focus:ring-black focus:outline-none transition-all"
+              />
               <p className="mt-2 text-xs text-gray-500">
                 We'll send you a secure link to reset your password.
               </p>
@@ -102,7 +114,7 @@ export default function ForgotPasswordScreen() {
             <button
               type="submit"
               disabled={loading || !email}
-              className="w-full h-12 bg-black text-white rounded-xl font-medium hover:bg-gray-800 active:scale-[0.98] transition-all shadow-lg shadow-black/10 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+              className="w-full h-11 bg-black text-white rounded-lg font-medium hover:bg-gray-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
             >
               {loading ? (
                 <div className="flex items-center">
@@ -111,7 +123,6 @@ export default function ForgotPasswordScreen() {
                 </div>
               ) : (
                 <div className="flex items-center">
-                  <Mail size={16} className="mr-2" />
                   Send Reset Link
                   <ArrowRight size={16} className="ml-2" />
                 </div>
@@ -133,7 +144,7 @@ export default function ForgotPasswordScreen() {
           </div>
 
           {/* Security Notice */}
-          <div className="mt-6 p-4 bg-white/40 backdrop-blur-sm border border-gray-200 rounded-xl">
+          <div className="mt-6 p-4 bg-gray-50 border border-gray-200 rounded-lg">
             <div className="text-center">
               <h4 className="text-sm font-semibold text-black mb-1">
                 Security Notice

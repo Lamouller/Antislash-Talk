@@ -134,10 +134,10 @@ export default function AuthIndex() {
       <footer className="border-t border-gray-200 py-8">
         <div className="w-full px-6 text-center">
           <div className="flex items-center justify-center space-x-2 text-gray-400 text-sm">
-            <span>2024 Antislash Studio</span>
-            <span>-</span>
-            <span>Made by the Community</span>
-            <span>-</span>
+            <span>© 2026 Antislash Talk</span>
+            <span>·</span>
+            <span>Antislash Studio</span>
+            <span>·</span>
             <a href="https://github.com/Lamouller/Antislash-Talk" className="hover:text-black transition-colors">
               MIT License
             </a>
