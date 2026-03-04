@@ -19,11 +19,17 @@ dist-ssr
 .env.test.local
 .env.production.local
 .env.*.local
+.env.bak
+.env.*.bak
+.env.monorepo
+.env.monorepo.*
+jwt-keys.env
 
 # API Keys and sensitive data
 *.key
 *.pem
 *.p12
+*.p8
 secrets/
 config/secrets.json
 
