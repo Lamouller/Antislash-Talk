@@ -924,41 +924,27 @@ export default function SettingsScreen() {
   if (loading) return <div className="p-8 text-center">Loading settings...</div>;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-gray-900 dark:via-slate-800 dark:to-gray-900">
-      <div 
-        className="relative overflow-hidden pb-16"
-        style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 2rem)' }}
-      >
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-600/10 via-purple-600/10 to-indigo-600/10"></div>
-        <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 space-y-8"
+      style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 1.5rem)' }}
+    >
           {/* Header */}
-          <div className="text-center mb-12">
-            <div className="inline-flex items-center px-4 py-2 rounded-full bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-gray-200/50 dark:border-gray-700/50 shadow-lg mb-6">
-              <Settings className="w-5 h-5 text-blue-500 mr-2" />
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Application Settings</span>
-            </div>
-            <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-purple-800 dark:from-white dark:via-blue-200 dark:to-purple-200 bg-clip-text text-transparent mb-4">
+          <div>
+            <h1 className="text-2xl font-bold text-black tracking-tight flex items-center">
+              <div className="p-2.5 bg-gray-100/80 rounded-xl mr-4">
+                <Settings className="w-6 h-6 text-gray-700" />
+              </div>
               {t('settings.title')}
             </h1>
-            <div className="flex items-center justify-center gap-3">
-              {isEnterprise() ? (
-                <span className="inline-flex items-center px-4 py-2 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-sm font-medium shadow-lg">
-                  🚀 Enterprise Edition
-                </span>
-              ) : (
-                <span className="inline-flex items-center px-4 py-2 rounded-full bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 text-gray-800 dark:text-gray-200 text-sm font-medium shadow-lg">
-                  🆓 Community Edition
-                </span>
-              )}
-            </div>
+            <p className="text-gray-500 text-sm mt-1 ml-14">
+              {isEnterprise() ? 'Enterprise Edition' : 'Community Edition'}
+            </p>
           </div>
 
           <div className="space-y-8">
 
             {/* Language Selector (New Placement) */}
             <Card className="p-6">
-              <h2 className="text-xl font-bold mb-4 flex items-center gap-2 dark:text-white">
+              <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
                 <GlobeIcon className="w-5 h-5" />
                 {t('settings.language')}
               </h2>
@@ -966,8 +952,8 @@ export default function SettingsScreen() {
                 <button
                   onClick={() => changeLanguage('fr')}
                   className={`p-4 rounded-lg border-2 text-left transition-all ${i18n.language === 'fr'
-                    ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20 dark:border-indigo-400 dark:text-white'
-                    : 'border-slate-200 hover:border-indigo-300 dark:border-slate-700 dark:text-slate-300'
+                    ? 'border-black bg-gray-50'
+                    : 'border-gray-200 hover:border-gray-400'
                     }`}
                 >
                   <div className="font-medium">Français</div>
@@ -976,8 +962,8 @@ export default function SettingsScreen() {
                 <button
                   onClick={() => changeLanguage('en')}
                   className={`p-4 rounded-lg border-2 text-left transition-all ${i18n.language === 'en'
-                    ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20 dark:border-indigo-400 dark:text-white'
-                    : 'border-slate-200 hover:border-indigo-300 dark:border-slate-700 dark:text-slate-300'
+                    ? 'border-black bg-gray-50'
+                    : 'border-gray-200 hover:border-gray-400'
                     }`}
                 >
                   <div className="font-medium">English</div>
@@ -987,19 +973,19 @@ export default function SettingsScreen() {
             </Card>
 
             {!isEnterprise() && (
-              <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200 dark:border-blue-700/50 rounded-lg">
+              <div className="mb-6 p-4 bg-white/40 border border-gray-200 rounded-lg">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                    <h3 className="text-sm font-medium text-gray-800">
                       🚀 Want more features?
                     </h3>
-                    <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+                    <p className="text-xs text-gray-600 mt-1">
                       Upgrade to Enterprise for cloud AI, team collaboration, and priority support
                     </p>
                   </div>
                   <button
                     onClick={() => window.open(upgradeUrl, '_blank')}
-                    className="px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white text-sm font-medium rounded-lg transition-colors"
+                    className="px-4 py-2 bg-black hover:bg-gray-800 text-white text-sm font-medium rounded-lg transition-colors"
                   >
                     Upgrade
                   </button>
@@ -1008,43 +994,43 @@ export default function SettingsScreen() {
             )}
 
             {/* License Information */}
-            <div className="mb-8 p-6 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-xl border border-gray-200/50 dark:border-gray-700/50 shadow-xl">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+            <div className="mb-8 p-6 bg-white/80 backdrop-blur-sm rounded-xl border border-gray-200/50 shadow-xl">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">
                 📄 License Information
               </h2>
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">License Type</div>
-                  <div className="font-medium text-gray-900 dark:text-white">
+                  <div className="text-sm text-gray-600">License Type</div>
+                  <div className="font-medium text-gray-900">
                     {license.type === 'enterprise' ? '💼 Enterprise' : '🆓 Community (MIT)'}
                   </div>
                 </div>
                 <div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">Support Level</div>
-                  <div className="font-medium text-gray-900 dark:text-white">
+                  <div className="text-sm text-gray-600">Support Level</div>
+                  <div className="font-medium text-gray-900">
                     {license.metadata?.supportLevel === 'premium' ? '🚀 Priority Support' : '👥 Community Support'}
                   </div>
                 </div>
                 {license.metadata?.organizationId && (
                   <div>
-                    <div className="text-sm text-gray-600 dark:text-gray-400">Organization</div>
-                    <div className="font-medium text-gray-900 dark:text-white">{license.metadata.organizationId}</div>
+                    <div className="text-sm text-gray-600">Organization</div>
+                    <div className="font-medium text-gray-900">{license.metadata.organizationId}</div>
                   </div>
                 )}
                 {license.metadata?.licenseKey && (
                   <div>
-                    <div className="text-sm text-gray-600 dark:text-gray-400">License Key</div>
-                    <div className="font-mono text-sm text-gray-700 dark:text-gray-300">
+                    <div className="text-sm text-gray-600">License Key</div>
+                    <div className="font-mono text-sm text-gray-700">
                       {license.metadata.licenseKey.slice(0, 8)}...{license.metadata.licenseKey.slice(-4)}
                     </div>
                   </div>
                 )}
               </div>
               {!isEnterprise() && (
-                <div className="mt-4 pt-4 border-t border-gray-200/50 dark:border-gray-700/50">
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                <div className="mt-4 pt-4 border-t border-gray-200/50">
+                  <div className="text-sm text-gray-600">
                     📋 Want to see what Enterprise includes?
-                    <a href={upgradeUrl} target="_blank" rel="noopener noreferrer" className="ml-1 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium">
+                    <a href={upgradeUrl} target="_blank" rel="noopener noreferrer" className="ml-1 text-gray-600 hover:text-gray-600 font-medium">
                       View comparison →
                     </a>
                   </div>
@@ -1059,20 +1045,20 @@ export default function SettingsScreen() {
                 <p className="mt-1 text-sm text-gray-500">Choose the AI models for different tasks.</p>
 
                 {/* Show enterprise status */}
-                <div className="mt-4 mb-6 p-3 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
+                <div className="mt-4 mb-6 p-3 bg-gray-50/30 rounded-lg">
                   <div className="flex items-center justify-between">
                     <div className="text-sm">
-                      <span className="font-medium text-gray-900 dark:text-white">License: </span>
+                      <span className="font-medium text-gray-900">License: </span>
                       {isEnterprise() ? (
-                        <span className="text-blue-600 dark:text-blue-400 font-medium">💼 Enterprise</span>
+                        <span className="text-gray-600 font-medium">💼 Enterprise</span>
                       ) : (
-                        <span className="text-gray-600 dark:text-gray-300">🆓 Community (MIT)</span>
+                        <span className="text-gray-600">🆓 Community (MIT)</span>
                       )}
                     </div>
                     {!isEnterprise() && (
                       <button
                         onClick={() => window.open(upgradeUrl, '_blank')}
-                        className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded-lg transition-colors"
+                        className="px-3 py-1 bg-gray-500 hover:bg-gray-800 text-white text-xs rounded-lg transition-colors"
                       >
                         Upgrade
                       </button>
@@ -1102,33 +1088,33 @@ export default function SettingsScreen() {
                     const selectedModel = transcriptionModels.local.find(m => m.id === preferredTranscriptionModel);
                     return selectedModel && (selectedModel as any).requiresServer;
                   })() && (
-                      <div className="mt-4 p-4 bg-orange-50/50 dark:bg-orange-900/10 rounded-xl border border-orange-200/50 dark:border-orange-700/50">
+                      <div className="mt-4 p-4 bg-white/40 rounded-xl border border-gray-200/50">
                         <div className="flex items-start gap-3 mb-3">
-                          <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-orange-500 to-red-600 flex items-center justify-center flex-shrink-0">
+                          <div className="w-8 h-8 rounded-lg bg-gray-800 flex items-center justify-center flex-shrink-0">
                             <span className="text-white text-lg">🖥️</span>
                           </div>
                           <div className="flex-1">
-                            <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+                            <h3 className="text-sm font-semibold text-gray-900">
                               PyTorch Transcription Service
                             </h3>
-                            <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
+                            <p className="text-xs text-gray-600 mt-0.5">
                               Server-side Whisper models (Medium, Large) with optional diarization
                             </p>
                           </div>
                         </div>
 
                         {pytorchStatus.checking ? (
-                          <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700/50 rounded-lg">
-                            <p className="text-xs text-gray-600 dark:text-gray-400">
+                          <div className="mt-3 p-3 bg-gray-50/50 border border-gray-200/50 rounded-lg">
+                            <p className="text-xs text-gray-600">
                               🔄 Checking PyTorch service status...
                             </p>
                           </div>
                         ) : pytorchStatus.available ? (
-                          <div className="mt-3 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700/50 rounded-lg">
-                            <p className="text-xs text-green-800 dark:text-green-200">
+                          <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                            <p className="text-xs text-gray-800">
                               ✅ <strong>PyTorch service is running!</strong>
                             </p>
-                            <p className="text-xs text-green-700 dark:text-green-300 mt-1">
+                            <p className="text-xs text-gray-600 mt-1">
                               {pytorchStatus.diarization ? (
                                 <>🎭 <strong>Diarization enabled</strong> - Speaker separation available</>
                               ) : (
@@ -1152,7 +1138,7 @@ export default function SettingsScreen() {
                                         toast.error('❌ Failed to download Pyannote models');
                                       }
                                     }}
-                                    className="ml-2 text-xs px-2 py-1 bg-purple-600 text-white rounded hover:bg-purple-700"
+                                    className="ml-2 text-xs px-2 py-1 bg-black text-white rounded hover:bg-gray-800"
                                   >
                                     📥 Download Pyannote
                                   </button>
@@ -1162,19 +1148,19 @@ export default function SettingsScreen() {
 
                           </div>
                         ) : (
-                          <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700/50 rounded-lg">
-                            <p className="text-xs text-blue-800 dark:text-blue-200 mb-2">
+                          <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                            <p className="text-xs text-gray-800 mb-2">
                               📦 <strong>Start PyTorch service:</strong>
                             </p>
                             <code className="text-xs bg-gray-900 text-green-400 p-2 rounded block font-mono">
                               docker-compose -f docker-compose.monorepo.yml --profile pytorch up -d
                             </code>
-                            <p className="text-xs text-blue-700 dark:text-blue-300 mt-2">
+                            <p className="text-xs text-gray-600 mt-2">
                               💡 For diarization (speaker identification), set HUGGINGFACE_TOKEN in docker-compose.monorepo.yml
                             </p>
                             <button
                               onClick={checkPyTorchStatus}
-                              className="mt-2 text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                              className="mt-2 text-xs text-gray-600 hover:underline"
                             >
                               🔄 Check again
                             </button>
@@ -1189,47 +1175,47 @@ export default function SettingsScreen() {
                     const selectedModel = transcriptionModels.local.find(m => m.id === preferredTranscriptionModel);
                     return selectedModel && (selectedModel as any).supportsDiarization;
                   })() && (
-                      <div className="mt-4 p-4 bg-violet-50/50 dark:bg-violet-900/10 rounded-xl border border-violet-200/50 dark:border-violet-700/50">
+                      <div className="mt-4 p-4 bg-gray-50/50 rounded-xl border border-gray-200/50">
                         <div className="flex items-start gap-3 mb-3">
-                          <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-violet-600 to-purple-600 flex items-center justify-center flex-shrink-0">
+                          <div className="w-8 h-8 rounded-lg bg-black flex items-center justify-center flex-shrink-0">
                             <span className="text-white text-lg">🏆</span>
                           </div>
                           <div className="flex-1">
-                            <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+                            <h3 className="text-sm font-semibold text-gray-900">
                               WhisperX Ultra-Fast Diarization
                             </h3>
-                            <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
+                            <p className="text-xs text-gray-600 mt-0.5">
                               6x faster than PyTorch + Pyannote (30-40s vs 4min per hour)
                             </p>
                           </div>
                         </div>
 
                         {whisperXStatus.checking ? (
-                          <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700/50 rounded-lg">
-                            <p className="text-xs text-gray-600 dark:text-gray-400">
+                          <div className="mt-3 p-3 bg-gray-50/50 border border-gray-200/50 rounded-lg">
+                            <p className="text-xs text-gray-600">
                               🔍 Checking WhisperX service...
                             </p>
                           </div>
                         ) : whisperXStatus.available ? (
-                          <div className="mt-3 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700/50 rounded-lg">
-                            <p className="text-xs text-green-800 dark:text-green-200">
+                          <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                            <p className="text-xs text-gray-800">
                               ✅ <strong>WhisperX service is running!</strong>
                             </p>
-                            <p className="text-xs text-green-700 dark:text-green-300 mt-1">
+                            <p className="text-xs text-gray-600 mt-1">
                               {whisperXStatus.diarization ? (
                                 <>🎭 <strong>Diarization enabled</strong> - Ultra-fast speaker separation on <strong>{whisperXStatus.device.toUpperCase()}</strong></>
                               ) : (
                                 <>⚠️ <strong>Diarization disabled</strong> - Download Pyannote models below</>
                               )}
                             </p>
-                            <p className="text-xs text-green-600 dark:text-green-400 mt-2">
+                            <p className="text-xs text-gray-500 mt-2">
                               ⚡ <strong>Performance:</strong> {whisperXStatus.device === 'cuda' ? '18x faster than PyTorch (GPU)' : '6x faster than PyTorch (CPU)'}
                             </p>
 
                             {/* Bouton pour télécharger Pyannote si diarization non disponible */}
                             {!whisperXStatus.diarization && (
-                              <div className="mt-3 pt-3 border-t border-green-200 dark:border-green-700">
-                                <p className="text-xs text-green-700 dark:text-green-300 mb-3">
+                              <div className="mt-3 pt-3 border-t border-gray-200">
+                                <p className="text-xs text-gray-600 mb-3">
                                   🎭 <strong>Pyannote Models for Diarization:</strong>
                                 </p>
 
@@ -1240,33 +1226,33 @@ export default function SettingsScreen() {
                                       <div
                                         key={model.id}
                                         className={`flex items-center justify-between p-2 rounded-lg border ${model.main
-                                          ? 'bg-violet-50 dark:bg-violet-900/20 border-violet-300 dark:border-violet-700'
-                                          : 'bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700'
+                                          ? 'bg-gray-50 border-gray-300'
+                                          : 'bg-gray-50/50 border-gray-200'
                                           }`}
                                       >
                                         <div className="flex-1">
                                           <div className="flex items-center gap-2">
-                                            <span className={`text-xs font-medium ${model.main ? 'text-violet-900 dark:text-violet-100' : 'text-gray-700 dark:text-gray-300'
+                                            <span className={`text-xs font-medium ${model.main ? 'text-gray-900' : 'text-gray-700'
                                               }`}>
                                               {model.name}
                                             </span>
                                             {model.main && (
-                                              <span className="text-[10px] px-1.5 py-0.5 bg-violet-500 text-white rounded font-semibold">
+                                              <span className="text-[10px] px-1.5 py-0.5 bg-gray-500 text-white rounded font-semibold">
                                                 📦 MAIN MODEL
                                               </span>
                                             )}
                                             {!model.main && (
-                                              <span className="text-[10px] px-1.5 py-0.5 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded">
+                                              <span className="text-[10px] px-1.5 py-0.5 bg-gray-300 text-gray-700 rounded">
                                                 🔄 AUTO
                                               </span>
                                             )}
                                             {model.downloaded && (
-                                              <span className="text-[10px] px-1.5 py-0.5 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded">
+                                              <span className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded">
                                                 ✓ INSTALLED
                                               </span>
                                             )}
                                           </div>
-                                          <p className="text-[10px] text-gray-600 dark:text-gray-400 mt-0.5">
+                                          <p className="text-[10px] text-gray-600 mt-0.5">
                                             {model.description} • {model.size}
                                           </p>
                                         </div>
@@ -1278,7 +1264,7 @@ export default function SettingsScreen() {
                                       <button
                                         onClick={handleDownloadPyannote}
                                         disabled={downloadingPyannote}
-                                        className="w-full mt-3 px-4 py-3 bg-gradient-to-r from-violet-500 to-purple-500 hover:from-violet-600 hover:to-purple-600 disabled:from-gray-400 disabled:to-gray-400 text-white text-sm font-semibold rounded-lg shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2"
+                                        className="w-full mt-3 px-4 py-3 bg-black hover:bg-gray-800 disabled:bg-gray-400 text-white text-sm font-semibold rounded-lg shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2"
                                       >
                                         <span className="text-lg">📥</span>
                                         <span>{downloadingPyannote ? 'Downloading...' : 'Download Main Model + Dependencies (2.88 GB total)'}</span>
@@ -1287,23 +1273,23 @@ export default function SettingsScreen() {
 
                                     {/* All installed message */}
                                     {pyannoteModels.every(m => m.downloaded) && (
-                                      <div className="mt-3 p-2 bg-green-50 dark:bg-green-900/20 border border-green-300 dark:border-green-700 rounded-lg">
-                                        <p className="text-xs text-green-700 dark:text-green-300 text-center font-medium">
+                                      <div className="mt-3 p-2 bg-gray-50 border border-gray-300 rounded-lg">
+                                        <p className="text-xs text-gray-600 text-center font-medium">
                                           ✅ All models installed! Diarization ready.
                                         </p>
                                       </div>
                                     )}
                                   </div>
                                 ) : (
-                                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                                  <p className="text-xs text-gray-500">
                                     Loading models list...
                                   </p>
                                 )}
 
-                                <p className="text-xs text-green-600 dark:text-green-400 mt-3">
+                                <p className="text-xs text-gray-500 mt-3">
                                   💡 Requires accepting conditions on HuggingFace first
                                 </p>
-                                <div className="text-xs text-green-600 dark:text-green-400 mt-1 space-y-1">
+                                <div className="text-xs text-gray-500 mt-1 space-y-1">
                                   <a
                                     href="https://huggingface.co/pyannote/speaker-diarization-3.1"
                                     target="_blank"
@@ -1325,22 +1311,22 @@ export default function SettingsScreen() {
                             )}
                           </div>
                         ) : (
-                          <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700/50 rounded-lg">
-                            <p className="text-xs text-blue-800 dark:text-blue-200 mb-2">
+                          <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                            <p className="text-xs text-gray-800 mb-2">
                               📦 <strong>Start WhisperX service (optional, but MUCH faster):</strong>
                             </p>
                             <code className="text-xs bg-gray-900 text-green-400 p-2 rounded block font-mono">
                               docker-compose -f docker-compose.monorepo.yml --profile whisperx up -d
                             </code>
-                            <p className="text-xs text-blue-700 dark:text-blue-300 mt-2">
+                            <p className="text-xs text-gray-600 mt-2">
                               💡 Requires HUGGINGFACE_TOKEN in docker-compose.monorepo.yml for diarization
                             </p>
-                            <p className="text-xs text-violet-600 dark:text-violet-400 mt-2">
+                            <p className="text-xs text-gray-600 mt-2">
                               🏆 <strong>Why WhisperX?</strong> Uses faster-whisper (C++ optimized) + native diarization = 6x faster!
                             </p>
                             <button
                               onClick={checkWhisperXStatus}
-                              className="mt-2 text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                              className="mt-2 text-xs text-gray-600 hover:underline"
                             >
                               🔄 Check again
                             </button>
@@ -1352,8 +1338,8 @@ export default function SettingsScreen() {
                   {/* Feature gate for cloud providers */}
                   {preferredTranscriptionProvider !== 'local' && (
                     <FeatureGate feature="cloudAIProviders">
-                      <div className="mt-3 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700/50 rounded-lg">
-                        <p className="text-sm text-green-800 dark:text-green-200">
+                      <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                        <p className="text-sm text-gray-800">
                           🎉 Enterprise cloud AI features enabled!
                         </p>
                       </div>
@@ -1362,23 +1348,23 @@ export default function SettingsScreen() {
 
                   {/* Ollama LLM Model Selection (only for local transcriptions) */}
                   {preferredTranscriptionProvider === 'local' && (
-                    <div className="mt-4 p-4 bg-purple-50/50 dark:bg-purple-900/10 rounded-xl border border-purple-200/50 dark:border-purple-700/50">
+                    <div className="mt-4 p-4 bg-white/40 rounded-xl border border-gray-200/50">
                       <div className="flex items-start gap-3 mb-3">
-                        <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-purple-500 to-pink-600 flex items-center justify-center flex-shrink-0">
+                        <div className="w-8 h-8 rounded-lg bg-black flex items-center justify-center flex-shrink-0">
                           <span className="text-white text-lg">🦙</span>
                         </div>
                         <div className="flex-1">
-                          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+                          <h3 className="text-sm font-semibold text-gray-900">
                             Local LLM for Title & Summary
                           </h3>
-                          <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
+                          <p className="text-xs text-gray-600 mt-0.5">
                             Ollama model for generating meeting titles and summaries (100% local, no API needed)
                           </p>
-                          <div className="mt-2 p-2 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-700/50 rounded-lg">
-                            <p className="text-xs text-orange-800 dark:text-orange-200 mb-1">
+                          <div className="mt-2 p-2 bg-gray-50 border border-gray-200 rounded-lg">
+                            <p className="text-xs text-gray-800 mb-1">
                               ⚠️ <strong>RAM Required:</strong> Increase Docker memory to at least 6 GB in Docker Desktop Settings → Resources
                             </p>
-                            <p className="text-xs text-orange-800 dark:text-orange-200">
+                            <p className="text-xs text-gray-800">
                               ⏱️ <strong>Slow CPU?</strong> Generation can take 5-10 minutes. Use "None" for instant results or upgrade to cloud APIs.
                             </p>
                           </div>
@@ -1391,7 +1377,7 @@ export default function SettingsScreen() {
                           setSelectedOllamaModel(e.target.value);
                           setHasChanges(true);
                         }}
-                        className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
+                        className="w-full p-3 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
                       >
                         {ollamaModels.map((model) => (
                           <option key={model.id} value={model.id}>
@@ -1403,23 +1389,23 @@ export default function SettingsScreen() {
                       {selectedOllamaModel !== 'none' && (
                         <>
                           {ollamaStatus.checking ? (
-                            <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700/50 rounded-lg">
-                              <p className="text-xs text-gray-600 dark:text-gray-400">
+                            <div className="mt-3 p-3 bg-gray-50/50 border border-gray-200/50 rounded-lg">
+                              <p className="text-xs text-gray-600">
                                 🔄 Checking Ollama status...
                               </p>
                             </div>
                           ) : ollamaStatus.available && ollamaStatus.models.includes(selectedOllamaModel.split(':')[0]) ? (
-                            <div className="mt-3 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700/50 rounded-lg">
-                              <p className="text-xs text-green-800 dark:text-green-200">
+                            <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                              <p className="text-xs text-gray-800">
                                 ✅ <strong>{ollamaModels.find(m => m.id === selectedOllamaModel)?.name}</strong> is ready!
                               </p>
-                              <p className="text-xs text-green-700 dark:text-green-300 mt-1">
+                              <p className="text-xs text-gray-600 mt-1">
                                 💡 Model size: {ollamaModels.find(m => m.id === selectedOllamaModel)?.size}
                               </p>
                             </div>
                           ) : !ollamaStatus.available ? (
-                            <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700/50 rounded-lg">
-                              <p className="text-xs text-blue-800 dark:text-blue-200 mb-2">
+                            <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                              <p className="text-xs text-gray-800 mb-2">
                                 📦 <strong>Start Ollama service:</strong>
                               </p>
                               <code className="text-xs bg-gray-900 text-green-400 p-2 rounded block font-mono">
@@ -1427,26 +1413,26 @@ export default function SettingsScreen() {
                               </code>
                               <button
                                 onClick={checkOllamaStatus}
-                                className="mt-2 text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                                className="mt-2 text-xs text-gray-600 hover:underline"
                               >
                                 🔄 Check again
                               </button>
                             </div>
                           ) : (
-                            <div className="mt-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700/50 rounded-lg">
+                            <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
                               <div className="flex items-start justify-between mb-2">
                                 <div>
-                                  <p className="text-xs text-yellow-800 dark:text-yellow-200 font-semibold">
+                                  <p className="text-xs text-gray-800 font-semibold">
                                     📥 Model not installed
                                   </p>
-                                  <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
+                                  <p className="text-xs text-gray-600 mt-1">
                                     💾 Size: {ollamaModels.find(m => m.id === selectedOllamaModel)?.size}
                                   </p>
                                 </div>
                                 <button
                                   onClick={handleDownloadModel}
                                   disabled={downloadingModel}
-                                  className="px-4 py-2 bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-600 hover:to-orange-700 disabled:from-gray-400 disabled:to-gray-500 text-white text-xs font-medium rounded-lg shadow-md hover:shadow-lg transition-all disabled:cursor-not-allowed flex items-center gap-2"
+                                  className="px-4 py-2 bg-black hover:bg-gray-800 disabled:bg-gray-400 text-white text-xs font-medium rounded-lg shadow-md hover:shadow-lg transition-all disabled:cursor-not-allowed flex items-center gap-2"
                                 >
                                   {downloadingModel ? (
                                     <>
@@ -1462,14 +1448,14 @@ export default function SettingsScreen() {
                                 </button>
                               </div>
                               {downloadingModel && (
-                                <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-2">
+                                <p className="text-xs text-gray-600 mt-2">
                                   ⏱️ This may take several minutes depending on your internet speed...
                                 </p>
                               )}
                               {!downloadingModel && (
                                 <button
                                   onClick={checkOllamaStatus}
-                                  className="mt-2 text-xs text-yellow-600 dark:text-yellow-400 hover:underline"
+                                  className="mt-2 text-xs text-gray-500 hover:underline"
                                 >
                                   🔄 Refresh status
                                 </button>
@@ -1480,8 +1466,8 @@ export default function SettingsScreen() {
                       )}
 
                       {selectedOllamaModel === 'none' && (
-                        <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700/50 rounded-lg">
-                          <p className="text-xs text-gray-600 dark:text-gray-400">
+                        <div className="mt-3 p-3 bg-gray-50/50 border border-gray-200/50 rounded-lg">
+                          <p className="text-xs text-gray-600">
                             ⚡ Rule-based generation active. Fast but less intelligent. Install Ollama for better results.
                           </p>
                         </div>
@@ -1525,12 +1511,12 @@ export default function SettingsScreen() {
                 <p className="mt-1 text-sm text-gray-500">Control how the app behaves after recording audio.</p>
               </div>
               <div className="p-6 pt-0">
-                <div className="flex items-center justify-between p-4 bg-gray-50/50 dark:bg-gray-700/30 rounded-xl border border-gray-200/30 dark:border-gray-600/30">
+                <div className="flex items-center justify-between p-4 bg-gray-50/50 rounded-xl border border-gray-200/30">
                   <div className="flex-1">
-                    <h3 className="text-sm font-medium text-gray-900 dark:text-white">
+                    <h3 className="text-sm font-medium text-gray-900">
                       Auto-transcribe after recording
                     </h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    <p className="text-xs text-gray-500 mt-1">
                       {autoTranscribeAfterRecording
                         ? "Automatically start transcription when recording stops"
                         : "Ask for confirmation before starting transcription"
@@ -1544,22 +1530,22 @@ export default function SettingsScreen() {
                       onChange={(e) => setAutoTranscribeAfterRecording(e.target.checked)}
                       className="sr-only peer"
                     />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-gray-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-black"></div>
                   </label>
                 </div>
 
                 {/* Streaming Transcription Toggle */}
-                <div className="mt-4 flex items-center justify-between p-4 bg-gradient-to-r from-violet-50 to-purple-50 dark:from-violet-900/20 dark:to-purple-900/20 rounded-xl border border-violet-200/50 dark:border-violet-700/50">
+                <div className="mt-4 flex items-center justify-between p-4 bg-white/40 rounded-xl border border-gray-200/50">
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      <h3 className="text-sm font-medium text-gray-900 dark:text-white">
+                      <h3 className="text-sm font-medium text-gray-900">
                         🚀 Live Streaming Transcription
                       </h3>
-                      <span className="px-2 py-0.5 text-xs font-semibold bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-full">
+                      <span className="px-2 py-0.5 text-xs font-semibold bg-black text-white rounded-full">
                         NEW
                       </span>
                     </div>
-                    <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">
+                    <p className="text-xs text-gray-600 mt-1">
                       {enableStreamingTranscription
                         ? preferredTranscriptionProvider === 'google' 
                           ? "⚡ Real-time transcription with Gemini Live API + diarization enhancement"
@@ -1569,7 +1555,7 @@ export default function SettingsScreen() {
                         : "📦 Batch transcription after recording ends (standard mode)"
                       }
                     </p>
-                    <p className="text-xs text-violet-600 dark:text-violet-400 mt-1">
+                    <p className="text-xs text-gray-600 mt-1">
                       {preferredTranscriptionProvider === 'google' 
                         ? "💡 Phase 1: Gemini 2.0 Live (temps réel) → Phase 2: Amélioration avec le modèle sélectionné"
                         : preferredTranscriptionProvider === 'openai'
@@ -1585,25 +1571,25 @@ export default function SettingsScreen() {
                       onChange={(e) => setEnableStreamingTranscription(e.target.checked)}
                       className="sr-only peer"
                     />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-violet-300 dark:peer-focus:ring-violet-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-gradient-to-r peer-checked:from-violet-600 peer-checked:to-purple-600"></div>
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-gray-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-black"></div>
                   </label>
                 </div>
 
                 {/* Auto-Generate AI Summary Toggle */}
-                <div className="mt-4 flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl border border-blue-200/50 dark:border-blue-700/50">
+                <div className="mt-4 flex items-center justify-between p-4 bg-white/40 rounded-xl border border-gray-200/50">
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      <h3 className="text-sm font-medium text-gray-900 dark:text-white">
+                      <h3 className="text-sm font-medium text-gray-900">
                         🤖 Auto-Generate Summary
                       </h3>
                     </div>
-                    <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">
+                    <p className="text-xs text-gray-600 mt-1">
                       {autoGenerateSummaryAfterStreaming
                         ? "✨ Automatically generate title and summary after transcription completes."
                         : "📝 Generate title and summary manually from the meeting detail page."
                       }
                     </p>
-                    <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                    <p className="text-xs text-gray-600 mt-1">
                       💡 Uses your preferred LLM provider (Gemini, OpenAI, etc.)
                     </p>
                   </div>
@@ -1614,27 +1600,27 @@ export default function SettingsScreen() {
                       onChange={(e) => setAutoGenerateSummaryAfterStreaming(e.target.checked)}
                       className="sr-only peer"
                     />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-gray-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-black"></div>
                   </label>
                 </div>
 
-                <div className="mt-4 p-4 bg-gray-50/50 dark:bg-gray-700/30 rounded-xl border border-gray-200/30 dark:border-gray-600/30">
+                <div className="mt-4 p-4 bg-gray-50/50 rounded-xl border border-gray-200/30">
                   <div>
-                    <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
+                    <h3 className="text-sm font-medium text-gray-900 mb-2">
                       🌍 Preferred Language / Langue préférée
                     </h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                    <p className="text-xs text-gray-500 mb-3">
                       Language for titles, summaries, and default prompts • Langue pour les titres, résumés et prompts par défaut
                     </p>
                     <select
                       value={preferredLanguage}
                       onChange={(e) => setPreferredLanguage(e.target.value as 'fr' | 'en')}
-                      className="w-full p-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full p-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 focus:border-black focus:shadow-lg focus:shadow-black/5"
                     >
                       <option value="fr">🇫🇷 Français</option>
                       <option value="en">🇬🇧 English</option>
                     </select>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                    <p className="text-xs text-gray-500 mt-2">
                       {preferredLanguage === 'fr'
                         ? "Les prompts seront optimisés pour chaque LLM en français"
                         : "Prompts will be optimized for each LLM in English"
@@ -1644,30 +1630,30 @@ export default function SettingsScreen() {
                 </div>
 
                 {/* Hide Marketing Pages Toggle */}
-                <div className="mt-4 flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-slate-50 dark:from-gray-700/30 dark:to-slate-700/30 rounded-xl border border-gray-200/50 dark:border-gray-600/50">
+                <div className="mt-4 flex items-center justify-between p-4 bg-white/40 rounded-xl border border-gray-200/50">
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      <h3 className="text-sm font-medium text-gray-900 dark:text-white">
+                      <h3 className="text-sm font-medium text-gray-900">
                         🎯 Hide marketing pages
                       </h3>
                       {isMarketingPagesGloballyForced && (
-                        <span className="px-2 py-0.5 text-xs font-semibold bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 rounded-full">
+                        <span className="px-2 py-0.5 text-xs font-semibold bg-gray-100 text-gray-600 rounded-full">
                           FORCED BY CONFIG
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">
+                    <p className="text-xs text-gray-600 mt-1">
                       {hideMarketingPages || isMarketingPagesGloballyForced
                         ? "🚀 Skip home and marketing pages - go directly to login"
                         : "📋 Show home page and full marketing content (default)"
                       }
                     </p>
                     {isMarketingPagesGloballyForced && (
-                      <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">
+                      <p className="text-xs text-gray-500 mt-1">
                         ⚙️ Marketing pages are hidden globally via VITE_HIDE_MARKETING_PAGES environment variable
                       </p>
                     )}
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    <p className="text-xs text-gray-500 mt-1">
                       💡 Perfect for client deployments - removes promotional content and enables direct login access
                     </p>
                   </div>
@@ -1679,7 +1665,7 @@ export default function SettingsScreen() {
                       disabled={isMarketingPagesGloballyForced}
                       className="sr-only peer"
                     />
-                    <div className={`w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-gray-300 dark:peer-focus:ring-gray-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-gray-600 ${isMarketingPagesGloballyForced ? 'opacity-50 cursor-not-allowed' : ''}`}></div>
+                    <div className={`w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-gray-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gray-600 ${isMarketingPagesGloballyForced ? 'opacity-50 cursor-not-allowed' : ''}`}></div>
                   </label>
                 </div>
               </div>
@@ -1766,13 +1752,13 @@ export default function SettingsScreen() {
 
             {/* Device Performance Section */}
             {preferredTranscriptionProvider === 'local' && (
-              <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm p-6 rounded-xl border border-gray-200/50 dark:border-gray-700/50 shadow-xl">
+              <div className="bg-white/80 backdrop-blur-sm p-6 rounded-xl border border-gray-200/50 shadow-xl">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white">🔬 Device Performance</h2>
+                  <h2 className="text-xl font-semibold text-gray-900">🔬 Device Performance</h2>
                   <button
                     onClick={handleRunBenchmark}
                     disabled={isBenchmarking}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                    className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 disabled:opacity-50"
                   >
                     {isBenchmarking ? '🔄 Testing...' : '🔬 Run Test'}
                   </button>
@@ -1781,39 +1767,39 @@ export default function SettingsScreen() {
                 {benchmark && (
                   <div className="space-y-3">
                     <div className="grid grid-cols-2 gap-4">
-                      <div className="bg-white dark:bg-gray-700 p-3 rounded-lg">
-                        <div className="text-sm text-gray-600 dark:text-gray-400">Device Class</div>
-                        <div className="font-semibold capitalize text-lg text-gray-900 dark:text-white">
+                      <div className="bg-white p-3 rounded-lg">
+                        <div className="text-sm text-gray-600">Device Class</div>
+                        <div className="font-semibold capitalize text-lg text-gray-900">
                           {benchmark.deviceClass === 'high-end' && '🚀 High-End'}
                           {benchmark.deviceClass === 'mid-range' && '⚡ Mid-Range'}
                           {benchmark.deviceClass === 'low-end' && '💻 Low-End'}
                         </div>
                       </div>
-                      <div className="bg-white dark:bg-gray-700 p-3 rounded-lg">
-                        <div className="text-sm text-gray-600 dark:text-gray-400">WebGPU Support</div>
-                        <div className="font-semibold text-lg text-gray-900 dark:text-white">
+                      <div className="bg-white p-3 rounded-lg">
+                        <div className="text-sm text-gray-600">WebGPU Support</div>
+                        <div className="font-semibold text-lg text-gray-900">
                           {benchmark.webGPUSupported ? '✅ Supported' : '❌ Not Available'}
                         </div>
                       </div>
-                      <div className="bg-white dark:bg-gray-700 p-3 rounded-lg">
-                        <div className="text-sm text-gray-600 dark:text-gray-400">Estimated Memory</div>
-                        <div className="font-semibold text-lg text-gray-900 dark:text-white">{benchmark.estimatedMemoryGB}GB</div>
+                      <div className="bg-white p-3 rounded-lg">
+                        <div className="text-sm text-gray-600">Estimated Memory</div>
+                        <div className="font-semibold text-lg text-gray-900">{benchmark.estimatedMemoryGB}GB</div>
                       </div>
-                      <div className="bg-white dark:bg-gray-700 p-3 rounded-lg">
-                        <div className="text-sm text-gray-600 dark:text-gray-400">CPU Cores</div>
-                        <div className="font-semibold text-lg text-gray-900 dark:text-white">{benchmark.cpuCores}</div>
+                      <div className="bg-white p-3 rounded-lg">
+                        <div className="text-sm text-gray-600">CPU Cores</div>
+                        <div className="font-semibold text-lg text-gray-900">{benchmark.cpuCores}</div>
                       </div>
                     </div>
 
-                    <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg border border-green-200 dark:border-green-700/50">
+                    <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
                       <div className="flex items-start space-x-2">
-                        <span className="text-green-600 dark:text-green-400">🎯</span>
+                        <span className="text-gray-500">🎯</span>
                         <div>
-                          <div className="font-semibold text-green-800 dark:text-green-200">Recommended Model</div>
-                          <div className="text-green-700 dark:text-green-300">
+                          <div className="font-semibold text-gray-800">Recommended Model</div>
+                          <div className="text-gray-600">
                             {transcriptionModels.local.find(m => m.id === benchmark.recommendedModel)?.name || benchmark.recommendedModel}
                           </div>
-                          <div className="text-sm text-green-600 dark:text-green-400 mt-1">
+                          <div className="text-sm text-gray-500 mt-1">
                             Optimized for your {benchmark.deviceClass} device
                             {benchmark.webGPUSupported && ' with Apple Silicon GPU acceleration'}
                           </div>
@@ -1822,22 +1808,22 @@ export default function SettingsScreen() {
                     </div>
 
                     {/* Local Processing Info */}
-                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-700/50">
+                    <div className="bg-white/40 p-4 rounded-lg border border-gray-200">
                       <div className="flex items-center space-x-2 mb-2">
                         <span className="text-lg">🔒</span>
-                        <h3 className="font-semibold text-blue-900 dark:text-blue-200">100% Local Processing</h3>
+                        <h3 className="font-semibold text-black">100% Local Processing</h3>
                       </div>
-                      <p className="text-sm text-blue-800 dark:text-blue-200 mb-2">
+                      <p className="text-sm text-gray-800 mb-2">
                         Your recommended model runs completely locally for maximum privacy:
                       </p>
-                      <ul className="text-xs text-blue-700 dark:text-blue-300 space-y-1 ml-4">
+                      <ul className="text-xs text-gray-600 space-y-1 ml-4">
                         <li>• 🔒 Zero data sent to external servers</li>
                         <li>• ⚡ No internet required after model download</li>
                         <li>• 🆓 No API costs or usage limits</li>
                         <li>• 🛡️ Complete privacy and security</li>
                         <li>• 📱 Optimized for your device capabilities</li>
                       </ul>
-                      <div className="mt-3 text-xs text-blue-600 dark:text-blue-400">
+                      <div className="mt-3 text-xs text-gray-600">
                         💡 Want advanced features? Voxtral is available as a cloud option with API key!
                       </div>
                     </div>
@@ -1845,7 +1831,7 @@ export default function SettingsScreen() {
                 )}
 
                 {!benchmark && !isBenchmarking && (
-                  <div className="text-gray-600 dark:text-gray-400">
+                  <div className="text-gray-600">
                     Run a performance test to get personalized model recommendations for your device.
                   </div>
                 )}
@@ -1860,19 +1846,17 @@ export default function SettingsScreen() {
             </div>
           </div>
         </div>
-      </div>
-    </div>
   );
 }
 
 function PromptTextarea({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void; }) {
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-900 dark:text-white mb-1">{label}</label>
+      <label className="block text-sm font-medium text-gray-900 mb-1">{label}</label>
       <textarea
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        className="w-full p-2 border border-gray-300 rounded bg-white text-gray-900 focus:border-black focus:shadow-lg focus:shadow-black/5"
         rows={4}
       />
     </div>
@@ -1900,15 +1884,15 @@ function BackendBadges({ supportsDiarization, requiresServer, isCloud, provider 
   // 🌐 Cloud Provider Badge
   if (isCloud) {
     const cloudInfo = provider === 'google' 
-      ? { icon: '🌟', label: 'Google Cloud', gradient: 'from-blue-500 to-cyan-500' }
+      ? { icon: '🌟', label: 'Google Cloud' }
       : provider === 'openai'
-        ? { icon: '🤖', label: 'OpenAI Cloud', gradient: 'from-green-500 to-emerald-500' }
+        ? { icon: '🤖', label: 'OpenAI Cloud' }
         : provider === 'mistral'
-          ? { icon: '🎯', label: 'Mistral Cloud', gradient: 'from-orange-500 to-red-500' }
-          : { icon: '☁️', label: 'Cloud', gradient: 'from-gray-500 to-gray-600' };
-    
+          ? { icon: '🎯', label: 'Mistral Cloud' }
+          : { icon: '☁️', label: 'Cloud' };
+
     badges.push(
-      <span key="backend" className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gradient-to-r ${cloudInfo.gradient} text-white shadow-sm`}>
+      <span key="backend" className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-black text-white shadow-sm">
         {cloudInfo.icon} {cloudInfo.label}
       </span>
     );
@@ -1917,7 +1901,7 @@ function BackendBadges({ supportsDiarization, requiresServer, isCloud, provider 
   // 🏆 PRIORITÉ 1: WhisperX (si diarization + disponible)
   else if (supportsDiarization && whisperXAvailable) {
     badges.push(
-      <span key="backend" className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gradient-to-r from-violet-600 to-purple-600 text-white shadow-sm">
+      <span key="backend" className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-black text-white shadow-sm">
         🏆 WhisperX
       </span>
     );
@@ -1925,7 +1909,7 @@ function BackendBadges({ supportsDiarization, requiresServer, isCloud, provider 
   // 🖥️ PRIORITÉ 2: PyTorch Server (fallback pour modèles lourds)
   else if (requiresServer) {
     badges.push(
-      <span key="backend" className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+      <span key="backend" className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
         <ServerIcon className="w-3 h-3 mr-1" /> PyTorch Server
       </span>
     );
@@ -1933,7 +1917,7 @@ function BackendBadges({ supportsDiarization, requiresServer, isCloud, provider 
   // 🌐 PRIORITÉ 3: Browser (fallback ultime)
   else {
     badges.push(
-      <span key="backend" className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+      <span key="backend" className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
         <GlobeIcon className="w-3 h-3 mr-1" /> Browser
       </span>
     );
@@ -1942,7 +1926,7 @@ function BackendBadges({ supportsDiarization, requiresServer, isCloud, provider 
   // Badge Diarization (si supporté)
   if (supportsDiarization) {
     badges.push(
-      <span key="diarization" className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
+      <span key="diarization" className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
         🎭 Diarization
       </span>
     );
@@ -1966,10 +1950,10 @@ function SettingSelectRow({ title, selectedProvider, setSelectedProvider, provid
 
   return (
     <div>
-      <h3 className="text-lg font-medium text-gray-900 dark:text-white">{title}</h3>
+      <h3 className="text-lg font-medium text-gray-900">{title}</h3>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
         <div>
-          <label className="block text-sm font-medium text-gray-900 dark:text-white mb-1">Provider</label>
+          <label className="block text-sm font-medium text-gray-900 mb-1">Provider</label>
           <select
             value={selectedProvider}
             onChange={(e) => {
@@ -1977,7 +1961,7 @@ function SettingSelectRow({ title, selectedProvider, setSelectedProvider, provid
               setSelectedProvider(newProvider);
               setSelectedModel(models[newProvider][0].id);
             }}
-            className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full p-2 border border-gray-300 rounded bg-white text-gray-900 focus:border-black focus:shadow-lg focus:shadow-black/5"
           >
             {providers.map((p: string) => (
               <option key={p} value={p} className="capitalize">
@@ -1987,11 +1971,11 @@ function SettingSelectRow({ title, selectedProvider, setSelectedProvider, provid
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-900 dark:text-white mb-1">Model</label>
+          <label className="block text-sm font-medium text-gray-900 mb-1">Model</label>
           <select
             value={selectedModel || ''}
             onChange={(e) => setSelectedModel(e.target.value)}
-            className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50"
+            className="w-full p-2 border border-gray-300 rounded bg-white text-gray-900 focus:border-black focus:shadow-lg focus:shadow-black/5 disabled:opacity-50"
             disabled={!selectedProvider}
           >
             {selectedProvider && models[selectedProvider].map((m: Model) => (
@@ -2003,7 +1987,7 @@ function SettingSelectRow({ title, selectedProvider, setSelectedProvider, provid
         </div>
       </div>
       <div className="mt-2 space-y-1">
-        <p className="text-sm text-gray-600 dark:text-gray-400">{selectedModelDesc}</p>
+        <p className="text-sm text-gray-600">{selectedModelDesc}</p>
         {/* Show badges for ALL providers */}
         {selectedModel && (
           <BackendBadges
@@ -2014,7 +1998,7 @@ function SettingSelectRow({ title, selectedProvider, setSelectedProvider, provid
           />
         )}
         {isLocal && selectedModelData && (
-          <div className="text-xs text-gray-500 dark:text-gray-400 space-y-1">
+          <div className="text-xs text-gray-500 space-y-1">
             {selectedModelData.size && (
               <div>📦 <strong>Size:</strong> {selectedModelData.size}</div>
             )}
@@ -2022,21 +2006,21 @@ function SettingSelectRow({ title, selectedProvider, setSelectedProvider, provid
               <div>🌍 <strong>Languages:</strong> {selectedModelData.languages}</div>
             )}
             {selectedProvider === 'local' && (
-              <div className="text-blue-800 dark:text-blue-200 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700/50 p-2 rounded">
+              <div className="text-gray-800 bg-gray-50 border border-gray-200 p-2 rounded">
                 ℹ️ <strong>Privacy:</strong> Runs entirely in your browser. No data sent to external servers.
               </div>
             )}
             {selectedProvider === 'local' && (
               <div className="space-y-2">
-                <div className="text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/50 p-2 rounded">
+                <div className="text-gray-800 bg-gray-50 border border-gray-200 p-2 rounded">
                   💡 <strong>Tip:</strong> Start with "Moonshine Tiny" (50MB, English) or "Whisper Tiny" (39MB, multilingual).
                   For French meetings with multiple speakers, use "Distil-Whisper Large v3" (756MB, French PRO) for best diarization.
                   If AI fails, use cloud transcription (OpenAI/Google).
                 </div>
-                <div className="text-green-800 dark:text-green-200 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700/50 p-2 rounded">
+                <div className="text-gray-800 bg-gray-50 border border-gray-200 p-2 rounded">
                   🇫🇷 <strong>Français:</strong> Nouveaux modèles spécialisés pour le français ! "Whisper Small FR" (244MB) et "Distil-Whisper Large v3" (756MB) offrent une meilleure précision pour la transcription en français et la séparation des locuteurs.
                 </div>
-                <div className="text-purple-800 dark:text-purple-200 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-700/50 p-2 rounded">
+                <div className="text-gray-800 bg-gray-50 border border-gray-200 p-2 rounded">
                   🚀 <strong>whisper.cpp Ultra-Rapide:</strong> Si le service whisper.cpp est actif (badge violet 🚀), votre transcription sera 3-9x plus rapide ! Sinon, l'app utilise automatiquement WebGPU (Apple Silicon) ou le navigateur.
                 </div>
               </div>
@@ -2094,9 +2078,9 @@ function ApiKeyInputRow({ provider, hasKey, value, onChange, onSave }: {
 
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-900 dark:text-white">{providerInfo.name}</label>
+      <label className="block text-sm font-medium text-gray-900">{providerInfo.name}</label>
       {providerInfo.description && (
-        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{providerInfo.description}</p>
+        <p className="text-xs text-gray-500 mt-1">{providerInfo.description}</p>
       )}
       <div className="flex items-center space-x-2 mt-2">
         <input
@@ -2104,7 +2088,7 @@ function ApiKeyInputRow({ provider, hasKey, value, onChange, onSave }: {
           placeholder={providerInfo.placeholder}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          className="w-full p-2 border border-gray-300 rounded bg-white text-gray-900 placeholder-gray-500 focus:border-black focus:shadow-lg focus:shadow-black/5"
         />
         <Button onClick={onSave} disabled={!value}>Save</Button>
       </div>

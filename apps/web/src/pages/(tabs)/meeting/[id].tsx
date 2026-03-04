@@ -999,20 +999,20 @@ export default function MeetingDetail() {
   if (loading) {
     return (
       <div 
-        className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-gray-900 dark:via-slate-800 dark:to-gray-900 flex items-center justify-center"
+        className="min-h-screen flex items-center justify-center"
         style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
       >
-        <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-3xl border border-gray-200/50 dark:border-gray-700/50 shadow-2xl p-8">
+        <div className="bg-white/20 backdrop-blur-xl rounded-2xl border border-gray-300/30 shadow-lg shadow-black/5 p-8">
           <div className="text-center">
-            <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 flex items-center justify-center animate-pulse shadow-xl">
+            <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-black flex items-center justify-center animate-pulse shadow-xl">
               <FileText className="w-10 h-10 text-white" />
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
+            <h2 className="text-2xl font-bold text-black mb-3">
               {t('meetingDetail.loadingTitle')}
             </h2>
-            <p className="text-gray-600 dark:text-gray-400">{t('meetingDetail.loadingDesc')}</p>
+            <p className="text-gray-500">{t('meetingDetail.loadingDesc')}</p>
             <div className="mt-6 flex justify-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black"></div>
             </div>
           </div>
         </div>
@@ -1023,23 +1023,23 @@ export default function MeetingDetail() {
   if (!meeting) {
     return (
       <div 
-        className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-gray-900 dark:via-slate-800 dark:to-gray-900 flex items-center justify-center"
+        className="min-h-screen flex items-center justify-center"
         style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
       >
-        <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-3xl border border-red-200/50 dark:border-red-700/50 shadow-2xl p-8 max-w-md mx-auto">
+        <div className="bg-white/20 backdrop-blur-xl rounded-2xl border border-gray-300/30 shadow-lg shadow-black/5 p-8 max-w-md mx-auto">
           <div className="text-center">
-            <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-r from-red-500 to-pink-600 flex items-center justify-center shadow-xl">
+            <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gray-900 flex items-center justify-center shadow-xl">
               <X className="w-10 h-10 text-white" />
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
+            <h2 className="text-2xl font-bold text-black mb-3">
               {t('meetingDetail.notFoundTitle')}
             </h2>
-            <p className="text-gray-600 dark:text-gray-400 mb-8">
+            <p className="text-gray-500 mb-8">
               {t('meetingDetail.notFoundDesc')}
             </p>
             <Button
               onClick={() => navigate('/tabs/meetings')}
-              className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5"
+              className="bg-black text-white rounded-xl hover:bg-gray-800 active:scale-[0.98] shadow-lg shadow-black/10"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
               {t('meetingDetail.backToMeetings')}
@@ -1054,37 +1054,37 @@ export default function MeetingDetail() {
     switch (meeting.status) {
       case 'completed':
         return {
-          bgColor: 'bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20',
-          textColor: 'text-green-700 dark:text-green-300',
-          iconColor: 'text-green-600',
-          borderColor: 'border-green-200/50 dark:border-green-700/50',
+          bgColor: 'bg-gray-100',
+          textColor: 'text-gray-700',
+          iconColor: 'text-gray-600',
+          borderColor: 'border-gray-200/50',
           text: t('meetingDetail.statusCompleted'),
           icon: Check
         };
       case 'processing':
         return {
-          bgColor: 'bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20',
-          textColor: 'text-blue-700 dark:text-blue-300',
-          iconColor: 'text-blue-600',
-          borderColor: 'border-blue-200/50 dark:border-blue-700/50',
+          bgColor: 'bg-gray-100',
+          textColor: 'text-gray-700',
+          iconColor: 'text-gray-600',
+          borderColor: 'border-gray-200/50',
           text: t('meetingDetail.statusProcessing'),
           icon: BarChart3
         };
       case 'pending':
         return {
-          bgColor: 'bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20',
-          textColor: 'text-yellow-700 dark:text-yellow-300',
-          iconColor: 'text-yellow-600',
-          borderColor: 'border-yellow-200/50 dark:border-yellow-700/50',
+          bgColor: 'bg-gray-100',
+          textColor: 'text-gray-700',
+          iconColor: 'text-gray-600',
+          borderColor: 'border-gray-200/50',
           text: t('meetingDetail.statusPending'),
           icon: Clock
         };
       default:
         return {
-          bgColor: 'bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-900/20 dark:to-gray-800/20',
-          textColor: 'text-gray-700 dark:text-gray-300',
+          bgColor: 'bg-gray-100',
+          textColor: 'text-gray-700',
           iconColor: 'text-gray-600',
-          borderColor: 'border-gray-200/50 dark:border-gray-700/50',
+          borderColor: 'border-gray-200/50',
           text: t('meetingDetail.statusUnknown'),
           icon: FileText
         };
@@ -1095,13 +1095,10 @@ export default function MeetingDetail() {
   const StatusIcon = statusConfig.icon;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-gray-900 dark:via-slate-800 dark:to-gray-900">
-      <div 
-        className="relative overflow-hidden pb-16"
-        style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 2rem)' }}
-      >
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-600/10 via-purple-600/10 to-pink-600/10"></div>
-        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 space-y-8"
+      style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 1.5rem)' }}
+    >
+      <div>
 
           {/* Header with Navigation */}
           <div className="mb-8">
@@ -1109,20 +1106,16 @@ export default function MeetingDetail() {
               <Button
                 onClick={() => navigate('/tabs/meetings')}
                 variant="outline"
-                className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-gray-200/50 dark:border-gray-700/50 hover:bg-gray-50/80 dark:hover:bg-gray-700/80 transition-all duration-300 hover:-translate-y-0.5 shadow-lg"
+                className="text-gray-600 hover:bg-gray-100 hover:text-black rounded-xl"
               >
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 {t('meetingDetail.backToMeetings')}
               </Button>
-              <div className="inline-flex items-center px-4 py-2 rounded-full bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-gray-200/50 dark:border-gray-700/50 shadow-lg">
-                <FileText className="w-5 h-5 text-blue-500 mr-2" />
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('meetingDetail.pageTitle')}</span>
-              </div>
             </div>
 
-            <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-md rounded-3xl border border-gray-200/50 dark:border-gray-700/50 shadow-xl overflow-hidden hover:shadow-2xl transition-all duration-300">
-              {/* Cover Gradient/Image Area */}
-              <div className="h-32 bg-gradient-to-r from-blue-600/20 via-purple-600/20 to-pink-600/20 relative">
+            <div className="bg-white/20 backdrop-blur-xl rounded-2xl border border-gray-300/30 shadow-lg shadow-black/5 overflow-hidden">
+              {/* Status Bar */}
+              <div className="h-2 bg-gray-100 relative">
                 <div className="absolute top-4 right-4">
                   <div className={`inline-flex items-center px-4 py-2 rounded-full ${statusConfig.bgColor} border ${statusConfig.borderColor} shadow-sm backdrop-blur-sm ${(meeting.status === 'processing' || meeting.status === 'pending' || meeting.status === 'uploading') ? 'animate-pulse' : ''}`}>
                     {/* Spinner for processing states */}
@@ -1145,37 +1138,37 @@ export default function MeetingDetail() {
                 </div>
               </div>
 
-              <div className="px-8 pb-8 -mt-12 relative">
+              <div className="px-8 pb-8 pt-6 relative">
                 <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
                   {/* Title and Metadata */}
                   <div className="flex-1 min-w-0">
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-100 dark:border-gray-700 inline-block w-full mb-6">
-                      <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 dark:text-white leading-tight mb-4">
+                    <div className="w-full mb-6">
+                      <h1 className="text-2xl font-bold text-black tracking-tight mb-4">
                         {meeting.title}
                       </h1>
 
-                      <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 dark:text-gray-300">
-                        <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
-                          <Calendar className="w-4 h-4 text-blue-500" />
+                      <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
+                        <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 rounded-lg border border-gray-200">
+                          <Calendar className="w-4 h-4 text-gray-500" />
                           <span>{formatDate(meeting.created_at, i18n.language)}</span>
                         </div>
 
                         {meeting.duration && (
-                          <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
-                            <Clock className="w-4 h-4 text-green-500" />
+                          <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 rounded-lg border border-gray-200">
+                            <Clock className="w-4 h-4 text-gray-500" />
                             <span>{formatDuration(meeting.duration)}</span>
                           </div>
                         )}
 
-                        <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
-                          <Users className="w-4 h-4 text-purple-500" />
+                        <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 rounded-lg border border-gray-200">
+                          <Users className="w-4 h-4 text-gray-500" />
                           <span>{t('meetingDetail.participantCount', { count: meeting.participant_count || 1 })}</span>
                         </div>
                       </div>
 
                       {/* Processing info line */}
                       {(meeting.status === 'processing' || meeting.status === 'pending' || meeting.status === 'uploading') && (
-                        <div className="mt-4 flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400">
+                        <div className="mt-4 flex items-center gap-2 text-sm text-gray-600">
                           <div className="w-3 h-3 rounded-full border-2 border-current border-t-transparent animate-spin"></div>
                           <span>
                             {meeting.status === 'processing' ? 'Transcription en arrière-plan... La page se met à jour automatiquement.' :
@@ -1195,7 +1188,7 @@ export default function MeetingDetail() {
                       {meeting.meeting_status === 'draft' && (
                         <Button
                           onClick={() => navigate(`/tabs/record?meetingId=${id}`)}
-                          className="w-full sm:w-auto bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white shadow-lg hover:shadow-xl transition-all hover:-translate-y-0.5"
+                          className="w-full sm:w-auto bg-black text-white rounded-xl hover:bg-gray-800 active:scale-[0.98] shadow-lg shadow-black/10"
                         >
                           <Play className="w-4 h-4 mr-2" />
                           🎙️ {t('meetingDetail.startRecording')}
@@ -1233,7 +1226,7 @@ export default function MeetingDetail() {
                               }, 800);
                             }
                           }}
-                          className="w-full sm:w-auto bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl transition-all hover:-translate-y-0.5"
+                          className="w-full sm:w-auto bg-black text-white rounded-xl hover:bg-gray-800 active:scale-[0.98] shadow-lg shadow-black/10"
                         >
                           <Play className="w-4 h-4 mr-2" />
                           {t('meetingDetail.listenToRecording')}
@@ -1244,7 +1237,7 @@ export default function MeetingDetail() {
                     {/* Quick Navigation Pills */}
                     {(meeting.preparation_notes || summary || (meeting.transcript && (Array.isArray(meeting.transcript) && meeting.transcript.length > 0 || hasUtterancesFormat(meeting.transcript)))) && (
                       <div className="flex flex-col gap-2">
-                        <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
                           🧭 Navigation rapide
                         </span>
                         <div className="flex flex-wrap gap-2">
@@ -1254,7 +1247,7 @@ export default function MeetingDetail() {
                             const section = document.querySelector('[data-section="preparation-notes"]');
                             if (section) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
                           }}
-                          className="inline-flex items-center gap-1.5 px-3 py-2 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-xl transition-all text-xs font-medium text-blue-700 dark:text-blue-300 hover:shadow-sm"
+                          className="inline-flex items-center gap-1.5 px-3 py-2 bg-gray-100 hover:bg-gray-200 border border-gray-200 rounded-xl transition-all text-xs font-medium text-gray-700 hover:shadow-sm"
                         >
                           <Sparkles className="w-3.5 h-3.5" />
                           <span>Notes prépa</span>
@@ -1267,7 +1260,7 @@ export default function MeetingDetail() {
                             const section = document.querySelector('[data-section="summary"]');
                             if (section) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
                           }}
-                          className="inline-flex items-center gap-1.5 px-3 py-2 bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 dark:hover:bg-purple-900/30 border border-purple-200 dark:border-purple-800 rounded-xl transition-all text-xs font-medium text-purple-700 dark:text-purple-300 hover:shadow-sm"
+                          className="inline-flex items-center gap-1.5 px-3 py-2 bg-gray-100 hover:bg-gray-200 border border-gray-200 rounded-xl transition-all text-xs font-medium text-gray-700 hover:shadow-sm"
                         >
                           <MessageSquare className="w-3.5 h-3.5" />
                           <span>Résumé</span>
@@ -1280,7 +1273,7 @@ export default function MeetingDetail() {
                                 const section = document.querySelector('[data-section="transcript"]');
                                 if (section) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
                               }}
-                              className="inline-flex items-center gap-1.5 px-3 py-2 bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-xl transition-all text-xs font-medium text-green-700 dark:text-green-300 hover:shadow-sm"
+                              className="inline-flex items-center gap-1.5 px-3 py-2 bg-gray-100 hover:bg-gray-200 border border-gray-200 rounded-xl transition-all text-xs font-medium text-gray-700 hover:shadow-sm"
                             >
                               <FileText className="w-3.5 h-3.5" />
                               <span>Transcript</span>
@@ -1292,7 +1285,7 @@ export default function MeetingDetail() {
                           const section = document.querySelector('[data-section="timeline"]');
                           if (section) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
                         }}
-                        className="inline-flex items-center gap-1.5 px-3 py-2 bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-800 rounded-xl transition-all text-xs font-medium text-indigo-700 dark:text-indigo-300 hover:shadow-sm"
+                        className="inline-flex items-center gap-1.5 px-3 py-2 bg-gray-100 hover:bg-gray-200 border border-gray-200 rounded-xl transition-all text-xs font-medium text-gray-700 hover:shadow-sm"
                       >
                         <Calendar className="w-3.5 h-3.5" />
                         <span>Historique</span>
@@ -1309,10 +1302,10 @@ export default function MeetingDetail() {
           {/* Audio Player Section */}
           {audioUrl && (
             <div id="audio-player-section" className="mb-8">
-              <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-3xl border border-gray-200/50 dark:border-gray-700/50 shadow-xl p-8 hover:shadow-2xl transition-all duration-300">
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 flex items-center justify-center mr-3 shadow-lg">
-                    <Play className="w-4 h-4 text-white" />
+              <div className="bg-white/20 backdrop-blur-xl rounded-2xl border border-gray-300/30 shadow-lg shadow-black/5 p-6">
+                <h2 className="text-xl font-bold text-black mb-6 flex items-center">
+                  <div className="p-2 bg-gray-100/80 rounded-xl mr-3">
+                    <Play className="w-4 h-4 text-gray-700" />
                   </div>
                   {t('meetingDetail.recordingPlayback')}
                 </h2>
@@ -1327,37 +1320,37 @@ export default function MeetingDetail() {
 
               {/* Preparation Notes Section (for draft/scheduled meetings) */}
               {meeting.preparation_notes && (
-                <div data-section="preparation-notes" className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 backdrop-blur-sm rounded-3xl border border-blue-200/50 dark:border-blue-700/50 shadow-xl p-8 hover:shadow-2xl transition-all duration-300">
-                  <h3 className="text-xl font-bold flex items-center gap-2 mb-6 text-blue-900 dark:text-blue-100">
-                    <Sparkles className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                <div data-section="preparation-notes" className="bg-white/20 backdrop-blur-xl rounded-2xl border border-gray-300/30 shadow-lg shadow-black/5 p-6">
+                  <h3 className="text-xl font-bold flex items-center gap-2 mb-6 text-black">
+                    <Sparkles className="w-5 h-5 text-gray-500" />
                     {t('preparationNotes.title')}
                   </h3>
-                  <div className="prose prose-blue max-w-none dark:prose-invert">
+                  <div className="prose prose-gray max-w-none">
                     <MarkdownRenderer content={meeting.preparation_notes} className="text-base" />
                   </div>
                 </div>
               )}
 
               {/* Summary Section - Unified */}
-              <div data-section="summary" className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-3xl border border-gray-200/50 dark:border-gray-700/50 shadow-xl p-8 hover:shadow-2xl transition-all duration-300">
+              <div data-section="summary" className="bg-white/20 backdrop-blur-xl rounded-2xl border border-gray-300/30 shadow-lg shadow-black/5 p-6">
                 {/* Header */}
                 <h3 className="text-2xl font-bold flex items-center gap-2 mb-6">
-                  <Sparkles className="w-6 h-6 text-purple-500" />
+                  <Sparkles className="w-6 h-6 text-gray-500" />
                   {t('meetingDetail.summaryTitle')}
                 </h3>
 
                 {/* Prompt Selectors - Always visible */}
-                <div className="bg-gradient-to-br from-purple-50/50 to-indigo-50/50 dark:from-purple-900/10 dark:to-indigo-900/10 rounded-2xl p-5 border border-purple-200/30 dark:border-purple-800/30 mb-6">
+                <div className="bg-white/40 rounded-2xl p-5 border border-gray-200/30 mb-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                     {/* Title Prompt Selector */}
                     <div className="space-y-2">
-                      <label className="text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide flex items-center">
+                      <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide flex items-center">
                         <FileType className="w-3.5 h-3.5 mr-1.5" />
                         Style de Titre
                       </label>
                       <div className="relative group">
                         <select
-                          className="w-full pl-3 pr-10 py-2.5 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl appearance-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all shadow-sm"
+                          className="w-full pl-3 pr-10 py-2.5 text-sm bg-white border border-gray-300 rounded-xl appearance-none focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all shadow-sm"
                           value={selectedTitlePromptId}
                           onChange={(e) => setSelectedTitlePromptId(e.target.value)}
                         >
@@ -1374,13 +1367,13 @@ export default function MeetingDetail() {
 
                     {/* Summary Prompt Selector */}
                     <div className="space-y-2">
-                      <label className="text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide flex items-center">
+                      <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide flex items-center">
                         <FileText className="w-3.5 h-3.5 mr-1.5" />
                         Style de Résumé
                       </label>
                       <div className="relative group">
                         <select
-                          className="w-full pl-3 pr-10 py-2.5 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl appearance-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all shadow-sm"
+                          className="w-full pl-3 pr-10 py-2.5 text-sm bg-white border border-gray-300 rounded-xl appearance-none focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all shadow-sm"
                           value={selectedSummaryPromptId}
                           onChange={(e) => setSelectedSummaryPromptId(e.target.value)}
                         >
@@ -1400,7 +1393,7 @@ export default function MeetingDetail() {
                   <Button
                     onClick={handleGenerateSummary}
                     disabled={generatingSummary}
-                    className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-semibold py-3 rounded-xl shadow-lg shadow-purple-500/20 transition-all transform hover:-translate-y-0.5 active:translate-y-0"
+                    className="w-full bg-black text-white font-semibold py-3 rounded-xl shadow-lg shadow-black/10 hover:bg-gray-800 active:scale-[0.98] transition-all"
                   >
                     {generatingSummary ? (
                       <>
@@ -1418,29 +1411,29 @@ export default function MeetingDetail() {
 
                 {/* 🚀 STREAMING Summary Display - Real-time generation */}
                 {generatingSummary && streamingSummary && (
-                  <div className="mb-4 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 border border-emerald-200 dark:border-emerald-700/50 rounded-2xl p-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                  <div className="mb-4 bg-white/20 backdrop-blur-xl border border-gray-300/30 shadow-lg shadow-black/5 rounded-2xl p-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
                     <div className="flex items-center gap-3 mb-3">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 flex items-center justify-center">
+                      <div className="w-8 h-8 rounded-full bg-black flex items-center justify-center">
                         <Sparkles className="w-4 h-4 text-white animate-pulse" />
                       </div>
                       <div className="flex-1">
-                        <h4 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                          ✨ Génération en cours
+                        <h4 className="text-sm font-semibold text-black flex items-center gap-2">
+                          Generation en cours
                           <span className="inline-flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
-                            <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
-                            <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                            <span className="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                            <span className="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                            <span className="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
                           </span>
                         </h4>
-                        <p className="text-xs text-emerald-600 dark:text-emerald-400">
+                        <p className="text-xs text-gray-500">
                           Streaming avec OpenAI/Gemini
                         </p>
                       </div>
                     </div>
-                    <div className="bg-white/60 dark:bg-gray-800/60 rounded-xl p-4 max-h-64 overflow-y-auto">
-                      <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">
+                    <div className="bg-white/40 rounded-xl p-4 max-h-64 overflow-y-auto">
+                      <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
                         {streamingSummary}
-                        <span className="inline-block w-2 h-4 bg-emerald-500 animate-pulse ml-0.5"></span>
+                        <span className="inline-block w-2 h-4 bg-black animate-pulse ml-0.5"></span>
                       </p>
                     </div>
                   </div>
@@ -1449,20 +1442,20 @@ export default function MeetingDetail() {
                 {/* Summary Content or Placeholder */}
                 {summary && !generatingSummary ? (
                   <div className="space-y-4">
-                    <div className="bg-gradient-to-r from-blue-50/50 to-indigo-50/50 dark:from-blue-900/10 dark:to-indigo-900/10 rounded-2xl p-6 border border-blue-200/30 dark:border-blue-700/30">
+                    <div className="bg-white/40 rounded-2xl p-6 border border-gray-200/30">
                       <MarkdownRenderer content={summary} className="text-base leading-relaxed" />
                     </div>
 
                     {/* Quick Actions */}
-                    <div className="flex items-center justify-between p-3 bg-gray-50/50 dark:bg-gray-900/20 rounded-xl border border-gray-200/30 dark:border-gray-700/30">
-                      <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+                    <div className="flex items-center justify-between p-3 bg-white/40 rounded-xl border border-gray-200/30">
+                      <div className="flex items-center gap-2 text-xs text-gray-600">
                         <span className="font-medium">Prompts:</span>
                         {meeting.title_prompt_id || meeting.summary_prompt_id ? (
                           <>
-                            <span className="px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded">
+                            <span className="px-2 py-0.5 bg-gray-200 text-gray-700 rounded">
                               {promptTemplates.find(p => p.id === meeting.title_prompt_id)?.name || 'Défaut'}
                             </span>
-                            <span className="px-2 py-0.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded">
+                            <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded">
                               {promptTemplates.find(p => p.id === meeting.summary_prompt_id)?.name || 'Défaut'}
                             </span>
                           </>
@@ -1477,7 +1470,7 @@ export default function MeetingDetail() {
                           navigator.clipboard.writeText(summary);
                           toast.success('Résumé copié !');
                         }}
-                        className="inline-flex items-center gap-1.5 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+                        className="inline-flex items-center gap-1.5 text-gray-600 hover:text-gray-900"
                       >
                         <Copy className="w-3.5 h-3.5" />
                         <span>Copier</span>
@@ -1485,8 +1478,8 @@ export default function MeetingDetail() {
                     </div>
                   </div>
                 ) : !generatingSummary ? (
-                  <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                    <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 flex items-center justify-center">
+                  <div className="text-center py-8 text-gray-500">
+                    <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-gray-100 flex items-center justify-center">
                       <MessageSquare className="w-6 h-6 opacity-50" />
                     </div>
                     <p className="text-sm font-medium">{t('meetingDetail.noSummary')}</p>
@@ -1497,10 +1490,10 @@ export default function MeetingDetail() {
 
               {/* Transcript Section */}
               {(Array.isArray(meeting.transcript) && meeting.transcript.length > 0) ? (
-              <div data-section="transcript" className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-3xl border border-gray-200/50 dark:border-gray-700/50 shadow-xl p-8 hover:shadow-2xl transition-all duration-300 mb-8">
+              <div data-section="transcript" className="bg-white/20 backdrop-blur-xl rounded-2xl border border-gray-300/30 shadow-lg shadow-black/5 p-6 mb-8">
                 <div className="flex items-center justify-between mb-8">
-                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 flex items-center justify-center mr-3 shadow-lg">
+                  <h2 className="text-2xl font-bold text-gray-900 flex items-center">
+                    <div className="p-2 bg-gray-100/80 rounded-xl mr-3">
                       <FileText className="w-4 h-4 text-white" />
                     </div>
                     {t('meetingDetail.transcriptTitle', { count: meeting.transcript.length })}
@@ -1512,7 +1505,7 @@ export default function MeetingDetail() {
                       onClick={handleRetryEnhancement}
                       disabled={isEnhancing}
                       variant="outline"
-                      className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border-amber-300 dark:border-amber-700 hover:from-amber-100 hover:to-orange-100 dark:hover:from-amber-900/30 dark:hover:to-orange-900/30 text-amber-700 dark:text-amber-300 shadow-md hover:shadow-lg transition-all"
+                      className="bg-gray-100 border-gray-300 hover:bg-gray-200 text-gray-700 shadow-md hover:shadow-lg transition-all"
                     >
                       {isEnhancing ? (
                         <>
@@ -1533,12 +1526,12 @@ export default function MeetingDetail() {
                   {meeting.transcript.map((segment: any, index: number) => {
                     // Obtenir la couleur du locuteur de manière consistante
                     const speakerColors = [
-                      'from-blue-500 to-indigo-600',
-                      'from-green-500 to-emerald-600',
-                      'from-purple-500 to-pink-600',
-                      'from-orange-500 to-red-600',
-                      'from-cyan-500 to-blue-600',
-                      'from-yellow-500 to-orange-600'
+                      'from-gray-700 to-gray-900',
+                      'from-gray-500 to-gray-700',
+                      'from-gray-600 to-gray-800',
+                      'from-gray-400 to-gray-600',
+                      'from-gray-500 to-gray-700',
+                      'from-gray-600 to-gray-800'
                     ];
 
                     const speakerNumber = segment.speaker?.replace(/\D/g, '') || '1';
@@ -1546,13 +1539,13 @@ export default function MeetingDetail() {
                     const speakerColor = speakerColors[colorIndex];
 
                     return (
-                      <div key={index} className="group flex items-start gap-4 p-6 bg-gradient-to-r from-gray-50/50 to-white/50 dark:from-gray-700/30 dark:to-gray-600/30 rounded-2xl border border-gray-200/30 dark:border-gray-600/30 hover:shadow-lg transition-all duration-300">
+                      <div key={index} className="group flex items-start gap-4 p-6 bg-white/40 rounded-2xl border border-gray-200/30 hover:shadow-lg transition-all duration-300">
                         <div className="flex-shrink-0">
                           <div className={`w-12 h-12 rounded-full bg-gradient-to-r ${speakerColor} flex items-center justify-center text-white shadow-lg`}>
                             <User className="w-6 h-6" />
                           </div>
                           {formatSegmentTime(segment.start) && (
-                            <div className="text-[10px] text-center text-gray-500 dark:text-gray-400 mt-1">
+                            <div className="text-[10px] text-center text-gray-500 mt-1">
                               {formatSegmentTime(segment.start)}
                             </div>
                           )}
@@ -1565,7 +1558,7 @@ export default function MeetingDetail() {
                                   type="text"
                                   value={tempSpeakerName}
                                   onChange={(e) => setTempSpeakerName(e.target.value)}
-                                  className="text-sm font-medium bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded px-2 py-1 min-w-[120px]"
+                                  className="text-sm font-medium bg-white border border-gray-300 rounded px-2 py-1 min-w-[120px]"
                                   autoFocus
                                   onKeyDown={(e) => {
                                     if (e.key === 'Enter') saveSpeakerName();
@@ -1574,14 +1567,14 @@ export default function MeetingDetail() {
                                 />
                                 <button
                                   onClick={saveSpeakerName}
-                                  className="p-1 text-green-600 hover:text-green-700"
+                                  className="p-1 text-gray-700 hover:text-black"
                                   title="Sauvegarder"
                                 >
                                   <Check className="w-4 h-4" />
                                 </button>
                                 <button
                                   onClick={cancelEditingSpeaker}
-                                  className="p-1 text-red-600 hover:text-red-700"
+                                  className="p-1 text-gray-500 hover:text-gray-700"
                                   title="Annuler"
                                 >
                                   <X className="w-4 h-4" />
@@ -1590,7 +1583,7 @@ export default function MeetingDetail() {
                             ) : (
                               <button
                                 onClick={() => startEditingSpeaker(segment.speaker)}
-                                className="flex items-center gap-1 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 group/edit"
+                                className="flex items-center gap-1 text-sm font-medium text-gray-600 hover:text-gray-800 group/edit"
                                 title="Cliquer pour éditer le nom"
                               >
                                 <span>{getSpeakerDisplayName(segment.speaker || `Locuteur ${speakerNumber}`)}</span>
@@ -1598,21 +1591,21 @@ export default function MeetingDetail() {
                               </button>
                             )}
                             {formatSegmentTimeRange(segment.start, segment.end) && (
-                              <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-600 px-2 py-1 rounded-full">
+                              <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
                                 {formatSegmentTimeRange(segment.start, segment.end)}
                               </span>
                             )}
                           </div>
-                          <p className="text-gray-900 dark:text-white leading-relaxed text-base">
+                          <p className="text-gray-900 leading-relaxed text-base">
                             {segment.text}
                           </p>
                         </div>
                         <button
                           onClick={() => copyToClipboard(segment.text)}
-                          className="opacity-0 group-hover:opacity-100 p-2 rounded-lg bg-gray-100 dark:bg-gray-600 hover:bg-gray-200 dark:hover:bg-gray-500 transition-all duration-200"
+                          className="opacity-0 group-hover:opacity-100 p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-all duration-200"
                           title="Copy to clipboard"
                         >
-                          <Copy className="w-4 h-4 text-gray-600 dark:text-gray-300" />
+                          <Copy className="w-4 h-4 text-gray-600" />
                         </button>
                       </div>
                     );
@@ -1621,9 +1614,9 @@ export default function MeetingDetail() {
               </div>
               ) : meeting.transcript && hasUtterancesFormat(meeting.transcript) && meeting.transcript.utterances.length > 0 ? (
                 // Fallback pour l'ancien format
-                <div data-section="transcript" className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-3xl border border-gray-200/50 dark:border-gray-700/50 shadow-xl p-8 hover:shadow-2xl transition-all duration-300 mb-8">
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-8 flex items-center">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 flex items-center justify-center mr-3 shadow-lg">
+                <div data-section="transcript" className="bg-white/20 backdrop-blur-xl rounded-2xl border border-gray-300/30 shadow-lg shadow-black/5 p-6 mb-8">
+                <h2 className="text-2xl font-bold text-black mb-6 flex items-center">
+                  <div className="p-2 bg-gray-100/80 rounded-xl mr-3">
                     <FileText className="w-4 h-4 text-white" />
                   </div>
                   Transcript
@@ -1631,9 +1624,9 @@ export default function MeetingDetail() {
 
                 <div className="space-y-4 max-h-[600px] overflow-y-auto pr-4">
                   {meeting.transcript.utterances.map((utterance: any, index: number) => (
-                    <div key={index} className="group flex items-start gap-4 p-6 bg-gradient-to-r from-gray-50/50 to-white/50 dark:from-gray-700/30 dark:to-gray-600/30 rounded-2xl border border-gray-200/30 dark:border-gray-600/30 hover:shadow-lg transition-all duration-300">
+                    <div key={index} className="group flex items-start gap-4 p-6 bg-white/40 rounded-2xl border border-gray-200/30 hover:shadow-lg transition-all duration-300">
                       <div className="flex-shrink-0">
-                        <div className="w-12 h-12 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 flex items-center justify-center text-white shadow-lg">
+                        <div className="w-12 h-12 rounded-full bg-gradient-to-r from-gray-700 to-gray-900 flex items-center justify-center text-white shadow-lg">
                           <User className="w-6 h-6" />
                         </div>
                       </div>
@@ -1645,7 +1638,7 @@ export default function MeetingDetail() {
                                 type="text"
                                 value={tempSpeakerName}
                                 onChange={(e) => setTempSpeakerName(e.target.value)}
-                                className="text-sm font-medium bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded px-2 py-1 min-w-[120px]"
+                                className="text-sm font-medium bg-white border border-gray-300 rounded px-2 py-1 min-w-[120px]"
                                 autoFocus
                                 onKeyDown={(e) => {
                                   if (e.key === 'Enter') saveSpeakerName();
@@ -1654,14 +1647,14 @@ export default function MeetingDetail() {
                               />
                               <button
                                 onClick={saveSpeakerName}
-                                className="p-1 text-green-600 hover:text-green-700"
+                                className="p-1 text-gray-700 hover:text-black"
                                 title="Sauvegarder"
                               >
                                 <Check className="w-4 h-4" />
                               </button>
                               <button
                                 onClick={cancelEditingSpeaker}
-                                className="p-1 text-red-600 hover:text-red-700"
+                                className="p-1 text-gray-500 hover:text-gray-700"
                                 title="Annuler"
                               >
                                 <X className="w-4 h-4" />
@@ -1670,7 +1663,7 @@ export default function MeetingDetail() {
                           ) : (
                             <button
                               onClick={() => startEditingSpeaker(`Locuteur_${utterance.speaker + 1}`)}
-                              className="flex items-center gap-1 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 group/edit"
+                              className="flex items-center gap-1 text-sm font-medium text-gray-600 hover:text-gray-800 group/edit"
                               title="Cliquer pour éditer le nom"
                             >
                               <span>{getSpeakerDisplayName(`Locuteur_${utterance.speaker + 1}`)}</span>
@@ -1678,16 +1671,16 @@ export default function MeetingDetail() {
                             </button>
                           )}
                         </div>
-                        <p className="text-gray-900 dark:text-white leading-relaxed text-base">
+                        <p className="text-gray-900 leading-relaxed text-base">
                           {utterance.transcript}
                         </p>
                       </div>
                       <button
                         onClick={() => copyToClipboard(utterance.transcript)}
-                        className="opacity-0 group-hover:opacity-100 p-2 rounded-lg bg-gray-100 dark:bg-gray-600 hover:bg-gray-200 dark:hover:bg-gray-500 transition-all duration-200"
+                        className="opacity-0 group-hover:opacity-100 p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-all duration-200"
                         title="Copy to clipboard"
                       >
-                        <Copy className="w-4 h-4 text-gray-600 dark:text-gray-300" />
+                        <Copy className="w-4 h-4 text-gray-600" />
                       </button>
                     </div>
                   ))}
@@ -1695,16 +1688,16 @@ export default function MeetingDetail() {
               </div>
               ) : (
                 // Affichage par défaut quand il n'y a pas de transcript
-                <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-3xl border border-gray-200/50 dark:border-gray-700/50 shadow-xl p-8 hover:shadow-2xl transition-all duration-300 mb-8">
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-8 flex items-center">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 flex items-center justify-center mr-3 shadow-lg">
+                <div className="bg-white/20 backdrop-blur-xl rounded-2xl border border-gray-300/30 shadow-lg shadow-black/5 p-6 mb-8">
+                <h2 className="text-2xl font-bold text-black mb-6 flex items-center">
+                  <div className="p-2 bg-gray-100/80 rounded-xl mr-3">
                     <FileText className="w-4 h-4 text-white" />
                   </div>
                   Transcript
                 </h2>
 
-                <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 flex items-center justify-center">
+                <div className="text-center py-12 text-gray-500">
+                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
                     <FileText className="w-8 h-8 opacity-50" />
                   </div>
                   <p className="text-lg font-medium">{t('meetingDetail.transcriptProcessing')}</p>
@@ -1715,7 +1708,7 @@ export default function MeetingDetail() {
                   </p>
                   {meeting.status === 'processing' && (
                     <div className="mt-4 flex justify-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black"></div>
                     </div>
                   )}
 
@@ -1753,7 +1746,7 @@ export default function MeetingDetail() {
                           toast.error(t('meetingDetail.toastTranscribeError'));
                         }
                       }}
-                      className="mt-4 px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300"
+                      className="mt-4 px-6 py-3 bg-black hover:bg-gray-800 text-white rounded-xl font-semibold shadow-lg shadow-black/10 active:scale-[0.98] transition-all"
                     >
                       🚀 {t('meetingDetail.startTranscription')}
                     </button>
@@ -1771,47 +1764,47 @@ export default function MeetingDetail() {
             </div>
 
             {/* Meeting Info */}
-            <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-3xl border border-gray-200/50 dark:border-gray-700/50 shadow-xl p-6 hover:shadow-2xl transition-all duration-300">
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center">
-                <div className="w-6 h-6 rounded-full bg-gradient-to-r from-purple-500 to-pink-600 flex items-center justify-center mr-3 shadow-lg">
-                  <BarChart3 className="w-3 h-3 text-white" />
+            <div className="bg-white/80 backdrop-blur-sm rounded-3xl border border-gray-200/50 shadow-xl p-6 hover:shadow-2xl transition-all duration-300">
+              <h3 className="text-xl font-bold text-black mb-6 flex items-center">
+                <div className="p-1.5 bg-gray-100/80 rounded-lg mr-3">
+                  <BarChart3 className="w-4 h-4 text-gray-700" />
                 </div>
                 {t('meetingDetail.meetingInfo')}
               </h3>
 
               <div className="space-y-6">
                 {meeting.transcription_provider && (
-                  <div className="p-4 bg-gradient-to-r from-purple-50/50 to-pink-50/50 dark:from-purple-900/10 dark:to-pink-900/10 rounded-2xl border border-purple-200/30 dark:border-purple-700/30">
-                    <span className="text-sm text-gray-600 dark:text-gray-400 uppercase tracking-wide">{t('meetingDetail.provider')}</span>
-                    <p className="font-semibold text-gray-900 dark:text-white text-lg capitalize">
+                  <div className="p-4 bg-white/40 rounded-2xl border border-gray-200/30">
+                    <span className="text-sm text-gray-600 uppercase tracking-wide">{t('meetingDetail.provider')}</span>
+                    <p className="font-semibold text-gray-900 text-lg capitalize">
                       {meeting.transcription_provider}
                     </p>
                   </div>
                 )}
 
                 {meeting.transcription_model && (
-                  <div className="p-4 bg-gradient-to-r from-blue-50/50 to-indigo-50/50 dark:from-blue-900/10 dark:to-indigo-900/10 rounded-2xl border border-blue-200/30 dark:border-blue-700/30">
-                    <span className="text-sm text-gray-600 dark:text-gray-400 uppercase tracking-wide">{t('meetingDetail.model')}</span>
-                    <p className="font-semibold text-gray-900 dark:text-white text-lg">
+                  <div className="p-4 bg-white/40 rounded-2xl border border-gray-200/30">
+                    <span className="text-sm text-gray-600 uppercase tracking-wide">{t('meetingDetail.model')}</span>
+                    <p className="font-semibold text-gray-900 text-lg">
                       {meeting.transcription_model}
                     </p>
                   </div>
                 )}
 
-                <div className="p-4 bg-gradient-to-r from-gray-50/50 to-slate-50/50 dark:from-gray-700/30 dark:to-slate-700/30 rounded-2xl border border-gray-200/30 dark:border-gray-600/30">
+                <div className="p-4 bg-white/40 rounded-2xl border border-gray-200/30">
                   <div className="flex items-center justify-between">
                     <div>
-                      <span className="text-sm text-gray-600 dark:text-gray-400 uppercase tracking-wide">{t('meetingDetail.meetingId')}</span>
-                      <p className="font-mono text-sm text-gray-900 dark:text-white break-all">
+                      <span className="text-sm text-gray-600 uppercase tracking-wide">{t('meetingDetail.meetingId')}</span>
+                      <p className="font-mono text-sm text-gray-900 break-all">
                         {meeting.id}
                       </p>
                     </div>
                     <button
                       onClick={() => copyToClipboard(meeting.id)}
-                      className="p-2 rounded-lg bg-gray-100 dark:bg-gray-600 hover:bg-gray-200 dark:hover:bg-gray-500 transition-all duration-200"
+                      className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-all duration-200"
                       title="Copy ID"
                     >
-                      <Copy className="w-4 h-4 text-gray-600 dark:text-gray-300" />
+                      <Copy className="w-4 h-4 text-gray-600" />
                     </button>
                   </div>
                 </div>
@@ -1819,15 +1812,15 @@ export default function MeetingDetail() {
             </div>
 
             {/* Actions */}
-            <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-3xl border border-gray-200/50 dark:border-gray-700/50 shadow-xl p-6 hover:shadow-2xl transition-all duration-300">
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6">
+            <div className="bg-white/80 backdrop-blur-sm rounded-3xl border border-gray-200/50 shadow-xl p-6 hover:shadow-2xl transition-all duration-300">
+              <h3 className="text-xl font-bold text-black mb-6">
                 {t('meetingDetail.actions')}
               </h3>
 
               <div className="space-y-4">
                 <Button
                   onClick={() => setShowExportModal(true)}
-                  className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5"
+                  className="w-full bg-black text-white rounded-xl hover:bg-gray-800 active:scale-[0.98] shadow-lg shadow-black/10"
                   disabled={!meeting.transcript || (!Array.isArray(meeting.transcript) && !hasUtterancesFormat(meeting.transcript))}
                 >
                   <FileDown className="w-4 h-4 mr-2" />
@@ -1839,10 +1832,10 @@ export default function MeetingDetail() {
                   <div className="space-y-2">
                     {audioInfo && (
                       <div className={`p-3 rounded-lg text-sm ${audioInfo.expired
-                        ? 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400'
+                        ? 'bg-gray-100 border border-gray-300 text-gray-700'
                         : audioInfo.urgent
-                          ? 'bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 text-orange-700 dark:text-orange-400'
-                          : 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-400'
+                          ? 'bg-gray-100 border border-gray-300 text-gray-700'
+                          : 'bg-gray-50 border border-gray-200 text-gray-600'
                         }`}>
                         <div className="flex items-center gap-2">
                           {audioInfo.expired ? (
@@ -1870,8 +1863,8 @@ export default function MeetingDetail() {
                       variant="outline"
                       disabled={isAudioExpired()}
                       className={`w-full shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5 ${isAudioExpired()
-                        ? 'bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-400 dark:text-gray-500 cursor-not-allowed'
-                        : 'bg-gradient-to-r from-green-500/10 to-emerald-600/10 hover:from-green-500/20 hover:to-emerald-600/20 border-green-500/30 text-green-700 dark:text-green-400'
+                        ? 'bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed'
+                        : 'bg-gray-50 hover:bg-gray-100 border-gray-300 text-gray-700'
                         }`}
                     >
                       <Download className="w-4 h-4 mr-2" />
@@ -1883,7 +1876,7 @@ export default function MeetingDetail() {
                 <Button
                   onClick={() => navigate('/tabs/meetings')}
                   variant="outline"
-                  className="w-full bg-white/80 dark:bg-gray-700/80 backdrop-blur-sm border-gray-200/50 dark:border-gray-600/50 hover:bg-gray-50/80 dark:hover:bg-gray-600/80 transition-all duration-300 hover:-translate-y-0.5 shadow-lg"
+                  className="w-full text-gray-600 hover:bg-gray-100 hover:text-black rounded-xl"
                 >
                   <ArrowLeft className="w-4 h-4 mr-2" />
                   {t('meetingDetail.backToMeetings')}
@@ -1896,33 +1889,33 @@ export default function MeetingDetail() {
           {/* Export Modal */}
           {showExportModal && (
             <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-gray-800 rounded-3xl border border-gray-200/50 dark:border-gray-700/50 shadow-2xl max-w-md w-full overflow-hidden">
-              <div className="bg-gradient-to-r from-blue-500 to-indigo-600 p-6">
+            <div className="bg-white rounded-2xl border border-gray-300/30 shadow-2xl max-w-md w-full overflow-hidden">
+              <div className="bg-black p-6">
                 <h3 className="text-xl font-bold text-white mb-2">{t('meetingDetail.exportModalTitle')}</h3>
-                <p className="text-blue-100 text-sm">{t('meetingDetail.exportModalDesc')}</p>
+                <p className="text-gray-300 text-sm">{t('meetingDetail.exportModalDesc')}</p>
               </div>
 
               <div className="p-6">
                 <div className="space-y-3 mb-6">
                   {[
-                    { value: 'pdf', label: t('meetingDetail.formatPdf'), description: t('meetingDetail.formatPdfDesc'), icon: FileType, gradient: 'from-red-500 to-pink-600' },
-                    { value: 'json', label: t('meetingDetail.formatJson'), description: t('meetingDetail.formatJsonDesc'), icon: Code, gradient: 'from-yellow-500 to-orange-600' },
-                    { value: 'csv', label: t('meetingDetail.formatCsv'), description: t('meetingDetail.formatCsvDesc'), icon: Table, gradient: 'from-green-500 to-emerald-600' },
-                    { value: 'txt', label: t('meetingDetail.formatTxt'), description: t('meetingDetail.formatTxtDesc'), icon: FileText, gradient: 'from-gray-500 to-slate-600' }
+                    { value: 'pdf', label: t('meetingDetail.formatPdf'), description: t('meetingDetail.formatPdfDesc'), icon: FileType },
+                    { value: 'json', label: t('meetingDetail.formatJson'), description: t('meetingDetail.formatJsonDesc'), icon: Code },
+                    { value: 'csv', label: t('meetingDetail.formatCsv'), description: t('meetingDetail.formatCsvDesc'), icon: Table },
+                    { value: 'txt', label: t('meetingDetail.formatTxt'), description: t('meetingDetail.formatTxtDesc'), icon: FileText }
                   ].map((format) => {
                     const IconComponent = format.icon;
                     return (
-                      <label key={format.value} className={`flex items-start gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all duration-300 hover:shadow-lg ${exportFormat === format.value ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-gray-700/50'}`}>
+                      <label key={format.value} className={`flex items-start gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all duration-300 hover:shadow-lg ${exportFormat === format.value ? 'border-black bg-gray-50' : 'border-gray-200 bg-gray-50/50'}`}>
                         <input type="radio" name="exportFormat" value={format.value} checked={exportFormat === format.value} onChange={(e) => setExportFormat(e.target.value as any)} className="sr-only" />
-                        <div className={`w-12 h-12 rounded-full bg-gradient-to-r ${format.gradient} flex items-center justify-center text-white shadow-lg flex-shrink-0`}>
+                        <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center text-gray-700 flex-shrink-0">
                           <IconComponent className="w-6 h-6" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h4 className="font-semibold text-gray-900 dark:text-white">{format.label}</h4>
-                          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{format.description}</p>
+                          <h4 className="font-semibold text-black">{format.label}</h4>
+                          <p className="text-sm text-gray-500 mt-1">{format.description}</p>
                         </div>
                         {exportFormat === format.value && (
-                          <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center flex-shrink-0">
+                          <div className="w-5 h-5 rounded-full bg-black flex items-center justify-center flex-shrink-0">
                             <Check className="w-3 h-3 text-white" />
                           </div>
                         )}
@@ -1932,7 +1925,7 @@ export default function MeetingDetail() {
                 </div>
                 <div className="flex gap-3">
                   <Button onClick={() => setShowExportModal(false)} variant="outline" className="flex-1">{t('meetingDetail.cancel')}</Button>
-                  <Button onClick={handleExport} className="flex-1 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white" disabled={isExporting}>
+                  <Button onClick={handleExport} className="flex-1 bg-black text-white rounded-xl hover:bg-gray-800 active:scale-[0.98]" disabled={isExporting}>
                     {isExporting ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div> : <FileDown className="w-4 h-4 mr-2" />}
                     {isExporting ? t('meetingDetail.exporting') : t('meetingDetail.export')}
                   </Button>
@@ -1941,7 +1934,6 @@ export default function MeetingDetail() {
             </div>
             </div>
           )}
-        </div>
       </div>
     </div>
   );

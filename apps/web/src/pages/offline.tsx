@@ -1,6 +1,5 @@
 import { useNavigate } from 'react-router-dom';
 import { RefreshCw, Server, AlertTriangle } from 'lucide-react';
-import { Button } from '../components/ui/Button';
 import { supabase } from '../lib/supabase';
 import { useState } from 'react';
 
@@ -13,7 +12,7 @@ export default function OfflinePage() {
     try {
       // Essayer de se connecter à Supabase
       const { error } = await supabase.from('profiles').select('count').limit(1);
-      
+
       if (!error) {
         // Connexion réussie, rediriger
         navigate('/');
@@ -27,44 +26,44 @@ export default function OfflinePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-red-50 via-orange-50 to-yellow-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center p-4">
-      <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 text-center">
+    <div className="min-h-screen flex items-center justify-center p-4">
+      <div className="max-w-md w-full bg-white/90 backdrop-blur-xl border border-gray-300/30 rounded-2xl shadow-2xl shadow-black/10 p-8 text-center">
         {/* Icon */}
         <div className="mb-6 flex justify-center">
-          <div className="w-24 h-24 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center">
-            <Server className="w-12 h-12 text-red-600 dark:text-red-400" />
+          <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center">
+            <Server className="w-12 h-12 text-gray-500" />
           </div>
         </div>
 
         {/* Title */}
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-3">
-          ⚠️ Services non disponibles
+        <h1 className="text-2xl font-bold text-black mb-3">
+          Services non disponibles
         </h1>
 
         {/* Message */}
-        <p className="text-gray-600 dark:text-gray-300 mb-6">
-          Les services Supabase ne sont pas accessibles. Veuillez démarrer Docker et Supabase.
+        <p className="text-gray-500 mb-6">
+          Les services Supabase ne sont pas accessibles. Veuillez demarrer Docker et Supabase.
         </p>
 
         {/* Instructions */}
-        <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4 mb-6 text-left">
+        <div className="bg-white/60 backdrop-blur-sm border border-gray-200 rounded-xl p-4 mb-6 text-left">
           <div className="flex items-start gap-2 mb-3">
-            <AlertTriangle className="w-5 h-5 text-orange-500 flex-shrink-0 mt-0.5" />
+            <AlertTriangle className="w-5 h-5 text-gray-500 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
-              <h3 className="font-semibold text-gray-900 dark:text-white mb-2">
-                Pour redémarrer les services :
+              <h3 className="font-semibold text-black mb-2">
+                Pour redemarrer les services :
               </h3>
-              <ol className="text-sm text-gray-600 dark:text-gray-300 space-y-2">
+              <ol className="text-sm text-gray-600 space-y-2">
                 <li className="flex items-start gap-2">
-                  <span className="font-bold text-blue-600">1.</span>
+                  <span className="font-bold text-black">1.</span>
                   <span>Ouvrez <strong>Docker Desktop</strong></span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="font-bold text-blue-600">2.</span>
+                  <span className="font-bold text-black">2.</span>
                   <span>Dans le terminal :</span>
                 </li>
               </ol>
-              <div className="mt-2 bg-gray-800 text-green-400 p-3 rounded font-mono text-xs overflow-x-auto">
+              <div className="mt-2 bg-gray-900 text-gray-300 p-3 rounded-xl font-mono text-xs overflow-x-auto">
                 cd /Users/trystanlamouller/Github_Lamouller/Antislash-Talk
                 <br />
                 docker-compose -f docker-compose.monorepo.yml up -d
@@ -75,40 +74,40 @@ export default function OfflinePage() {
 
         {/* Action Buttons */}
         <div className="space-y-3">
-          <Button
+          <button
             onClick={checkConnection}
             disabled={checking}
-            className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white"
+            className="w-full h-12 bg-black text-white rounded-xl font-medium hover:bg-gray-800 active:scale-[0.98] transition-all shadow-lg shadow-black/10 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
           >
             {checking ? (
               <>
                 <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                Vérification...
+                Verification...
               </>
             ) : (
               <>
                 <RefreshCw className="w-4 h-4 mr-2" />
-                Réessayer la connexion
+                Reessayer la connexion
               </>
             )}
-          </Button>
+          </button>
 
           <a
             href="http://localhost:54323"
             target="_blank"
             rel="noopener noreferrer"
-            className="block w-full text-sm text-blue-600 dark:text-blue-400 hover:underline"
+            className="block w-full text-sm text-black font-medium hover:underline"
           >
-            Ouvrir Supabase Studio →
+            Ouvrir Supabase Studio
           </a>
         </div>
 
         {/* Technical Details */}
         <details className="mt-6 text-left">
-          <summary className="text-sm text-gray-500 dark:text-gray-400 cursor-pointer hover:text-gray-700 dark:hover:text-gray-300">
-            Détails techniques
+          <summary className="text-sm text-gray-500 cursor-pointer hover:text-black">
+            Details techniques
           </summary>
-          <div className="mt-2 text-xs text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-700/50 p-3 rounded">
+          <div className="mt-2 text-xs text-gray-600 bg-white/60 backdrop-blur-sm border border-gray-200 p-3 rounded-xl">
             <p><strong>URL Supabase :</strong> {import.meta.env.VITE_SUPABASE_URL}</p>
             <p className="mt-1"><strong>Services requis :</strong></p>
             <ul className="list-disc list-inside ml-2 mt-1">
@@ -124,4 +123,3 @@ export default function OfflinePage() {
     </div>
   );
 }
-

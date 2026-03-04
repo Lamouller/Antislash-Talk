@@ -285,7 +285,7 @@ export default function RecordingScreen() {
                 <span>🆘 Found interrupted recording ({minutesAgo}min ago)</span>
                 <div className="flex gap-2">
                   <button
-                    className="px-3 py-1 bg-purple-600 text-white rounded text-sm"
+                    className="px-3 py-1 bg-black text-white rounded text-sm"
                     onClick={() => {
                       // TODO: Implement recovery logic
                       toast.dismiss(t.id);
@@ -2004,42 +2004,42 @@ export default function RecordingScreen() {
         return {
           title: t('record.recordingInProgress'),
           subtitle: t('record.captureAudio'),
-          color: 'from-red-500 to-pink-600',
+          color: 'bg-black',
           icon: Radio,
-          bgColor: 'from-red-50 to-pink-50 dark:from-red-900/20 dark:to-pink-900/20'
+          bgColor: 'bg-gray-50'
         };
       case 'local-transcribing':
         return {
           title: t('record.transcribing'),
           subtitle: t('record.convertingToText'),
-          color: 'from-blue-500 to-indigo-600',
+          color: 'bg-gray-800',
           icon: Waves,
-          bgColor: 'from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20'
+          bgColor: 'bg-gray-50'
         };
       case 'saving':
       case 'uploading':
         return {
           title: t('record.saving'),
           subtitle: t('record.uploading'),
-          color: 'from-green-500 to-emerald-600',
+          color: 'bg-gray-700',
           icon: RefreshCw,
-          bgColor: 'from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20'
+          bgColor: 'bg-gray-50'
         };
       case 'error':
         return {
           title: t('record.error'),
           subtitle: t('record.somethingWrong'),
-          color: 'from-red-500 to-pink-600',
+          color: 'bg-gray-900',
           icon: Square,
-          bgColor: 'from-red-50 to-pink-50 dark:from-red-900/20 dark:to-pink-900/20'
+          bgColor: 'bg-gray-50'
         };
       default:
         return {
           title: t('record.ready'),
           subtitle: t('record.startCapturing'),
-          color: 'from-purple-500 to-pink-600',
+          color: 'bg-black',
           icon: Mic,
-          bgColor: 'from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20'
+          bgColor: 'bg-gray-50'
         };
     }
   };
@@ -2048,34 +2048,27 @@ export default function RecordingScreen() {
   const StateIcon = stateConfig.icon;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-pink-100 dark:from-gray-900 dark:via-purple-900/20 dark:to-pink-900/20">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 space-y-8"
+      style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 1.5rem)' }}
+    >
       {/* iOS Standalone mode indicator (for debugging) - positioned below safe area */}
       {isIOSStandalone && (
-        <div 
-          className="fixed left-0 right-0 bg-purple-600 text-white text-xs text-center py-1 z-50"
+        <div
+          className="fixed left-0 right-0 bg-black text-white text-xs text-center py-1 z-50"
           style={{ top: 'env(safe-area-inset-top, 0px)' }}
         >
-          📱 PWA Mode {wakeLockActive ? '• Wake Lock Active' : ''}
+          PWA Mode {wakeLockActive ? '- Wake Lock Active' : ''}
         </div>
       )}
 
-      <div 
-        className="relative overflow-hidden pb-16"
-        style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 2rem)' }}
-      >
-        <div className="absolute inset-0 bg-gradient-to-r from-purple-600/10 via-pink-600/10 to-red-600/10"></div>
-        <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-4xl mx-auto space-y-8">
 
           {/* Header */}
-          <div className="text-center mb-12">
-            <div className="inline-flex items-center px-4 py-2 rounded-full bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-gray-200/50 dark:border-gray-700/50 shadow-lg mb-6">
-              <FileAudio className="w-5 h-5 text-purple-500 mr-2" />
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('record.audioRecording')}</span>
-            </div>
-            <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-gray-900 via-purple-800 to-pink-800 dark:from-white dark:via-purple-200 dark:to-pink-200 bg-clip-text text-transparent mb-4">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-black tracking-tight mb-2">
               {stateConfig.title}
             </h1>
-            <p className="text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+            <p className="text-gray-500 text-sm">
               {stateConfig.subtitle}
             </p>
           </div>
@@ -2084,18 +2077,18 @@ export default function RecordingScreen() {
           <div className="max-w-2xl mx-auto">
 
             {/* Status Card */}
-            <div className={`bg-gradient-to-r ${stateConfig.bgColor} backdrop-blur-sm rounded-2xl border border-gray-200/50 dark:border-gray-700/50 shadow-lg p-8 mb-8`}>
+            <div className={`${stateConfig.bgColor} bg-white/20 backdrop-blur-xl border border-gray-300/30 shadow-lg shadow-black/5 rounded-2xl p-8 mb-8`}>
               <div className="text-center">
-                <div className={`w-24 h-24 mx-auto mb-6 rounded-full bg-gradient-to-r ${stateConfig.color} flex items-center justify-center shadow-xl animate-pulse`}>
+                <div className={`w-24 h-24 mx-auto mb-6 rounded-full ${stateConfig.color} flex items-center justify-center shadow-xl animate-pulse`}>
                   <StateIcon className="w-12 h-12 text-white" />
                 </div>
 
                 {/* Timer */}
                 <div className="text-center mb-6">
-                  <div className="text-6xl font-mono font-bold text-gray-900 dark:text-white mb-2">
+                  <div className="text-6xl font-mono font-bold text-gray-900 mb-2">
                     {formatTime(duration)}
                   </div>
-                  <div className="flex items-center justify-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
+                  <div className="flex items-center justify-center space-x-2 text-sm text-gray-600">
                     <Clock className="w-4 h-4" />
                     <span>{t('record.duration')}</span>
                   </div>
@@ -2105,7 +2098,7 @@ export default function RecordingScreen() {
                 {isRecording && (
                   <div className="flex items-center justify-center space-x-2 mb-6">
                     <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
-                    <span className="text-sm font-medium text-red-600 dark:text-red-400">
+                    <span className="text-sm font-medium text-gray-700">
                       {isPaused ? t('record.paused') : t('record.recording')}
                     </span>
                   </div>
@@ -2114,13 +2107,13 @@ export default function RecordingScreen() {
                 {/* Progress for transcription */}
                 {isTranscribing && (
                   <div className="mb-6">
-                    <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400 mb-2">
+                    <div className="flex items-center justify-between text-sm text-gray-600 mb-2">
                       <span>{t('record.transcribingProgress')}</span>
                       <span>{Math.round(transcriptionProgress)}%</span>
                     </div>
-                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                    <div className="w-full bg-gray-200 rounded-full h-2">
                       <div
-                        className="bg-gradient-to-r from-blue-500 to-indigo-600 h-2 rounded-full transition-all duration-300"
+                        className="bg-black h-2 rounded-full transition-all duration-300"
                         style={{ width: `${transcriptionProgress}%` }}
                       ></div>
                     </div>
@@ -2129,30 +2122,30 @@ export default function RecordingScreen() {
 
                 {/* 🚀 AI STREAMING GENERATION - Real-time summary display */}
                 {isStreamingGeneration && (
-                  <div className="mb-6 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 border border-emerald-200 dark:border-emerald-700/50 rounded-2xl p-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                  <div className="mb-6 bg-white/20 backdrop-blur-xl border border-gray-300/30 shadow-lg shadow-black/5 rounded-2xl p-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
                     <div className="flex items-center gap-3 mb-3">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 flex items-center justify-center">
+                      <div className="w-8 h-8 rounded-full bg-gray-100/80 flex items-center justify-center">
                         <Sparkles className="w-4 h-4 text-white animate-pulse" />
                       </div>
                       <div className="flex-1">
-                        <h4 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                        <h4 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
                           ✨ Generating AI Summary
                           <span className="inline-flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
-                            <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
-                            <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                            <span className="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                            <span className="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                            <span className="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
                           </span>
                         </h4>
-                        <p className="text-xs text-emerald-600 dark:text-emerald-400">
+                        <p className="text-xs text-gray-500">
                           Streaming with OpenAI/Gemini
                         </p>
                       </div>
                     </div>
                     {streamingSummary && (
-                      <div className="bg-white/60 dark:bg-gray-800/60 rounded-xl p-3 max-h-48 overflow-y-auto">
-                        <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">
+                      <div className="bg-white/60 rounded-xl p-3 max-h-48 overflow-y-auto">
+                        <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
                           {streamingSummary}
-                          <span className="inline-block w-2 h-4 bg-emerald-500 animate-pulse ml-0.5"></span>
+                          <span className="inline-block w-2 h-4 bg-gray-500 animate-pulse ml-0.5"></span>
                         </p>
                       </div>
                     )}
@@ -2163,16 +2156,16 @@ export default function RecordingScreen() {
 
             {/* 🚀 LIVE TRANSCRIPTION ZONE - Visible dès le début de l'enregistrement ! */}
             {(enableStreamingTranscription && (isRecording || isStreamingActive || isTranscribing || liveTranscriptionSegments.length > 0)) && (
-              <div className="bg-gradient-to-r from-violet-50 to-purple-50 dark:from-violet-900/20 dark:to-purple-900/20 border border-violet-200 dark:border-violet-700/50 rounded-2xl p-6 mb-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="bg-white/20 backdrop-blur-xl border border-gray-300/30 shadow-lg shadow-black/5 rounded-2xl p-6 mb-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-r from-violet-600 to-purple-600 flex items-center justify-center animate-pulse">
+                  <div className="w-10 h-10 rounded-full bg-black flex items-center justify-center animate-pulse">
                     <Waves className="w-5 h-5 text-white" />
                   </div>
                   <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    <h3 className="text-lg font-semibold text-gray-900">
                       💬 {t('record.liveTranscription')}
                     </h3>
-                    <p className="text-xs text-violet-600 dark:text-violet-400">
+                    <p className="text-xs text-gray-500">
                       {userPreferences.transcription_provider === 'google' 
                         ? '⚡ Transcription temps réel par Gemini Live'
                         : userPreferences.transcription_provider === 'openai'
@@ -2183,15 +2176,15 @@ export default function RecordingScreen() {
                   <div className="flex items-center gap-2">
                     {isStreamingActive ? (
                       <>
-                        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                        <span className="text-xs font-medium text-green-600 dark:text-green-400">
+                        <div className="w-2 h-2 bg-black rounded-full animate-pulse"></div>
+                        <span className="text-xs font-medium text-gray-700">
                           {t('record.streaming')}
                         </span>
                       </>
                     ) : (
                       <>
-                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                        <span className="text-xs font-medium text-blue-600 dark:text-blue-400">
+                        <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                        <span className="text-xs font-medium text-gray-500">
                           {liveTranscriptionSegments.length > 0 ? t('record.completed') : t('record.ready')}
                         </span>
                       </>
@@ -2202,7 +2195,7 @@ export default function RecordingScreen() {
                 {/* Scrollable transcription zone - Clean text bubbles, no speaker labels */}
                 <div
                   ref={transcriptionContainerRef}
-                  className="max-h-96 overflow-y-auto bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm rounded-xl p-4 space-y-2 border border-violet-200/50 dark:border-violet-700/30 scroll-smooth"
+                  className="max-h-96 overflow-y-auto bg-white/60 backdrop-blur-sm rounded-xl p-4 space-y-2 border border-gray-200/50 scroll-smooth"
                 >
                   {liveTranscriptionSegments.length > 0 ? (
                     liveTranscriptionSegments.map((segment, idx) => (
@@ -2216,13 +2209,13 @@ export default function RecordingScreen() {
                           <div className="flex-shrink-0 mt-1">
                             <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                               segment.speaker && segment.speaker !== 'Live' && !segment.speaker.startsWith('SPEAKER_')
-                                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400'
-                                : 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-400'
+                                ? 'bg-gray-200 text-gray-700'
+                                : 'bg-gray-100 text-gray-600'
                             }`}>
                               {segment.speaker || 'Speaker'}
                             </span>
                           </div>
-                          <p className="flex-1 text-sm text-gray-800 dark:text-gray-200 leading-relaxed bg-white/40 dark:bg-gray-700/40 px-3 py-2 rounded-xl">
+                          <p className="flex-1 text-sm text-gray-800 leading-relaxed bg-white/40/40 px-3 py-2 rounded-xl">
                             {segment.text}
                           </p>
                         </div>
@@ -2230,11 +2223,11 @@ export default function RecordingScreen() {
                     ))
                   ) : (
                     <div className="text-center py-8">
-                      <div className="flex items-center justify-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-                        <Waves className="w-5 h-5 text-violet-500 animate-pulse" />
+                      <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
+                        <Waves className="w-5 h-5 text-gray-500 animate-pulse" />
                         <span>{t('record.waiting')}</span>
                       </div>
-                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
+                      <p className="text-xs text-gray-400 mt-2">
                         {t('record.segmentsAppear')}
                       </p>
                     </div>
@@ -2242,12 +2235,12 @@ export default function RecordingScreen() {
 
                   {/* 🚀 REAL-TIME streaming text preview - shows words as they arrive */}
                   {isStreamingActive && geminiTranscription.streamingText && (
-                    <div className="bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 border border-yellow-300 dark:border-yellow-700/50 rounded-xl p-3 animate-pulse">
+                    <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 animate-pulse">
                       <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 bg-yellow-500 rounded-full animate-ping"></div>
-                        <span className="text-xs font-medium text-yellow-700 dark:text-yellow-400">En cours...</span>
+                        <div className="w-2 h-2 bg-gray-500 rounded-full animate-ping"></div>
+                        <span className="text-xs font-medium text-gray-700">En cours...</span>
                       </div>
-                      <p className="text-sm text-gray-700 dark:text-gray-300 mt-1 italic">
+                      <p className="text-sm text-gray-700 mt-1 italic">
                         "{geminiTranscription.streamingText}"
                       </p>
                     </div>
@@ -2255,34 +2248,34 @@ export default function RecordingScreen() {
 
                   {/* Loading indicator - visible only during active streaming */}
                   {isStreamingActive && liveTranscriptionSegments.length > 0 && !geminiTranscription.streamingText && (
-                    <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 animate-pulse">
-                      <div className="w-1.5 h-1.5 bg-violet-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                      <div className="w-1.5 h-1.5 bg-violet-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                      <div className="w-1.5 h-1.5 bg-violet-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                    <div className="flex items-center gap-2 text-xs text-gray-500 animate-pulse">
+                      <div className="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                      <div className="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                      <div className="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
                       <span className="ml-2">{t('record.receivingSegments')}</span>
                     </div>
                   )}
                 </div>
 
                 {/* Statistics - simplified */}
-                <div className="mt-3 flex items-center justify-between text-xs text-violet-600 dark:text-violet-400">
+                <div className="mt-3 flex items-center justify-between text-xs text-gray-500">
                   <span>✨ {liveTranscriptionSegments.length} segments</span>
-                  <span className="text-gray-400 dark:text-gray-500">Diarization en post-traitement</span>
+                  <span className="text-gray-400">Diarization en post-traitement</span>
                 </div>
               </div>
             )}
 
             {/* Audio Security Policy Notice */}
-            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-2xl p-4 mb-6">
+            <div className="bg-white/20 backdrop-blur-xl border border-gray-300/30 shadow-lg shadow-black/5 rounded-2xl p-4 mb-6">
               <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0 mt-0.5">
                   <Clock className="w-4 h-4 text-white" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-100 mb-1">
+                  <h3 className="text-sm font-semibold text-black mb-1">
                     🔒 {t('record.securityPolicy')}
                   </h3>
-                  <p className="text-xs text-blue-700 dark:text-blue-300">
+                  <p className="text-xs text-gray-500">
                     <Trans i18nKey="record.securityDesc" components={{ strong: <strong /> }} />
                   </p>
                 </div>
@@ -2290,8 +2283,8 @@ export default function RecordingScreen() {
             </div>
 
             {/* Meeting Title Input */}
-            <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm rounded-2xl border border-gray-200/50 dark:border-gray-700/50 shadow-lg p-6 mb-8">
-              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+            <div className="bg-white/20 backdrop-blur-xl border border-gray-300/30 shadow-lg shadow-black/5 rounded-2xl p-6 mb-8">
+              <label className="block text-sm font-semibold text-gray-700 mb-3">
                 {t('record.meetingTitle')}
               </label>
               <input
@@ -2299,76 +2292,76 @@ export default function RecordingScreen() {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder={`Meeting ${new Date().toLocaleDateString()}`}
-                className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-white/50 dark:bg-gray-700/50 backdrop-blur-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
+                className="w-full h-12 px-4 bg-white/80 backdrop-blur-sm border-2 border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:border-black focus:bg-white focus:shadow-lg focus:shadow-black/5 transition-all outline-none"
                 disabled={isRecording || isTranscribing}
               />
             </div>
 
             {/* Preparation Notes (read-only) */}
             {preparationNotes && (
-              <div className="bg-blue-50/70 dark:bg-blue-900/20 backdrop-blur-sm rounded-2xl border border-blue-200/50 dark:border-blue-700/50 shadow-lg p-6 mb-8">
-                <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-100 mb-3 flex items-center">
+              <div className="bg-white/20 backdrop-blur-xl border border-gray-300/30 shadow-lg shadow-black/5 rounded-2xl p-6 mb-8">
+                <h3 className="text-sm font-semibold text-black mb-3 flex items-center">
                   <Sparkles className="w-4 h-4 mr-2" />
-                  📝 Notes de préparation
+                  Notes de préparation
                 </h3>
-                <div className="text-sm text-blue-800 dark:text-blue-200 max-h-60 overflow-y-auto p-3 bg-white/50 dark:bg-gray-800/50 rounded-lg">
+                <div className="text-sm text-gray-700 max-h-60 overflow-y-auto p-3 bg-white/50 rounded-lg">
                   <MarkdownRenderer content={preparationNotes} />
                 </div>
               </div>
             )}
 
             {/* Context Notes (editable) - for enriching the summary */}
-            <div className="bg-amber-50/70 dark:bg-amber-900/20 backdrop-blur-sm rounded-2xl border border-amber-200/50 dark:border-amber-700/50 shadow-lg p-6 mb-8">
-              <label className="block text-sm font-semibold text-amber-900 dark:text-amber-100 mb-3 flex items-center">
+            <div className="bg-white/20 backdrop-blur-xl border border-gray-300/30 shadow-lg shadow-black/5 rounded-2xl p-6 mb-8">
+              <label className="block text-sm font-semibold text-black mb-3 flex items-center">
                 <Sparkles className="w-4 h-4 mr-2" />
-                📌 Notes de contexte (optionnel)
+                Notes de contexte (optionnel)
               </label>
               <textarea
                 value={contextNotes}
                 onChange={(e) => setContextNotes(e.target.value)}
                 placeholder="Ajoutez des notes pendant l'enregistrement pour enrichir le résumé AI (ex: décisions prises, points clés, références non-verbales...)"
-                className="w-full px-4 py-3 border border-amber-200 dark:border-amber-600 rounded-xl bg-white/50 dark:bg-gray-700/50 backdrop-blur-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all min-h-[120px] resize-y"
+                className="w-full px-4 py-3 bg-white/80 backdrop-blur-sm border-2 border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:border-black focus:bg-white focus:shadow-lg focus:shadow-black/5 transition-all outline-none min-h-[120px] resize-y"
                 disabled={isTranscribing}
               />
-              <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
+              <p className="mt-2 text-xs text-gray-500">
                 💡 Ces notes seront utilisées comme contexte additionnel lors de la génération du résumé AI
               </p>
             </div>
 
             {/* User Preferences Display */}
-            <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm rounded-2xl border border-gray-200/50 dark:border-gray-700/50 shadow-lg p-6 mb-8">
-              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4 flex items-center">
+            <div className="bg-white/20 backdrop-blur-xl border border-gray-300/30 shadow-lg shadow-black/5 rounded-2xl p-6 mb-8">
+              <h3 className="text-sm font-semibold text-gray-700 mb-4 flex items-center">
                 <Settings className="w-4 h-4 mr-2" />
                 {t('record.settingsTitle')}
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="p-3 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg border border-blue-200/30 dark:border-blue-700/30">
-                  <div className="text-xs text-blue-600 dark:text-blue-400 uppercase tracking-wide font-medium">{t('record.provider')}</div>
-                  <div className="text-sm font-semibold text-blue-900 dark:text-blue-100 capitalize">
+                <div className="p-3 bg-white/40 rounded-lg border border-gray-200/50">
+                  <div className="text-xs text-gray-500 uppercase tracking-wide font-medium">{t('record.provider')}</div>
+                  <div className="text-sm font-semibold text-black capitalize">
                     {userPreferences.transcription_provider}
                     {userPreferences.transcription_provider === 'local' && (
-                      <span className="ml-2 text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 px-2 py-1 rounded-full">
+                      <span className="ml-2 text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-full">
                         {t('record.private')}
                       </span>
                     )}
                   </div>
                 </div>
-                <div className="p-3 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-lg border border-purple-200/30 dark:border-purple-700/30">
-                  <div className="text-xs text-purple-600 dark:text-purple-400 uppercase tracking-wide font-medium">{t('record.model')}</div>
-                  <div className="text-sm font-semibold text-purple-900 dark:text-purple-100">
+                <div className="p-3 bg-white/40 rounded-lg border border-gray-200/50">
+                  <div className="text-xs text-gray-500 uppercase tracking-wide font-medium">{t('record.model')}</div>
+                  <div className="text-sm font-semibold text-black">
                     {userPreferences.transcription_model}
                   </div>
                 </div>
               </div>
-              <div className="mt-3 space-y-2 text-xs text-gray-600 dark:text-gray-400">
+              <div className="mt-3 space-y-2 text-xs text-gray-600">
                 {userPreferences.transcription_provider === 'local' ? (
                   <span className="flex items-center">
-                    <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
+                    <span className="w-2 h-2 bg-black rounded-full mr-2"></span>
                     {t('record.localDesc')}
                   </span>
                 ) : (
                   <span className="flex items-center">
-                    <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
+                    <span className="w-2 h-2 bg-gray-500 rounded-full mr-2"></span>
                     {t('record.cloudDesc')}
                   </span>
                 )}
@@ -2377,7 +2370,7 @@ export default function RecordingScreen() {
                   userPrompts.summary !== 'Provide a concise one-paragraph summary of the key discussion points and decisions, in French.' ||
                   userPrompts.transcript !== 'A detailed, diarized transcript with speaker identification.') && (
                     <span className="flex items-center">
-                      <span className="w-2 h-2 bg-purple-500 rounded-full mr-2"></span>
+                      <span className="w-2 h-2 bg-gray-500 rounded-full mr-2"></span>
                       {t('record.customPrompts')}
                     </span>
                   )}
@@ -2386,10 +2379,10 @@ export default function RecordingScreen() {
 
             {/* 🎯 Prompt Selector BEFORE Recording (visible in auto-transcribe mode) */}
             {!isRecording && !audioBlob && autoTranscribeAfterRecording && promptTemplates.length > 0 && (
-              <div className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-2xl p-4 mb-4 border border-purple-200 dark:border-purple-700/30">
+              <div className="bg-white/20 backdrop-blur-xl border border-gray-300/30 shadow-lg shadow-black/5 rounded-2xl p-4 mb-4">
                 <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-sm font-semibold text-purple-900 dark:text-purple-100 flex items-center">
-                    <Sparkles className="w-4 h-4 mr-2 text-purple-600" />
+                  <h4 className="text-sm font-semibold text-black flex items-center">
+                    <Sparkles className="w-4 h-4 mr-2 text-gray-700" />
                     Style de résumé
                   </h4>
                   <Button
@@ -2403,7 +2396,7 @@ export default function RecordingScreen() {
                   </Button>
                 </div>
                 <select
-                  className="w-full px-4 py-3 border border-purple-300 dark:border-purple-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
+                  className="w-full px-4 py-3 bg-white/80 backdrop-blur-sm border-2 border-gray-200 rounded-xl text-gray-900 focus:border-black focus:bg-white focus:shadow-lg focus:shadow-black/5 outline-none transition-all"
                   value={selectedPromptId || ''}
                   onChange={(e) => applyPromptTemplate(e.target.value)}
                 >
@@ -2416,7 +2409,7 @@ export default function RecordingScreen() {
                   ))}
                 </select>
                 {selectedPromptId && (
-                  <p className="mt-2 text-xs text-purple-600 dark:text-purple-400">
+                  <p className="mt-2 text-xs text-gray-500">
                     ✓ Ce style sera utilisé pour le résumé automatique
                   </p>
                 )}
@@ -2429,7 +2422,7 @@ export default function RecordingScreen() {
                 <Button
                   onClick={handleStartRecording}
                   disabled={pageState !== 'ready'}
-                  className="w-full bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white py-4 text-lg font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5"
+                  className="w-full bg-black text-white hover:bg-gray-800 active:scale-[0.98] py-4 text-lg font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5"
                 >
                   <Mic className="w-6 h-6 mr-3" />
                   {t('record.startRecording')}
@@ -2441,7 +2434,7 @@ export default function RecordingScreen() {
                   <Button
                     onClick={handlePauseResume}
                     variant="outline"
-                    className="py-4 text-lg font-semibold rounded-xl border-gray-200 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
+                    className="py-4 text-lg font-semibold rounded-xl border-gray-200 hover:bg-gray-50"
                   >
                     {isPaused ? (
                       <>
@@ -2457,7 +2450,7 @@ export default function RecordingScreen() {
                   </Button>
                   <Button
                     onClick={handleStopRecording}
-                    className="bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white py-4 text-lg font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
+                    className="bg-gray-900 text-white hover:bg-black active:scale-[0.98] py-4 text-lg font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
                   >
                     <Square className="w-6 h-6 mr-2" />
                     {t('record.stop')}
@@ -2475,7 +2468,7 @@ export default function RecordingScreen() {
                   <Button
                     onClick={handlePauseResume}
                     variant="outline"
-                    className="py-4 text-lg font-semibold rounded-xl border-gray-200 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
+                    className="py-4 text-lg font-semibold rounded-xl border-gray-200 hover:bg-gray-50"
                   >
                     {isPaused ? (
                       <>
@@ -2491,7 +2484,7 @@ export default function RecordingScreen() {
                   </Button>
                   <Button
                     onClick={handleStopRecording}
-                    className="bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white py-4 text-lg font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
+                    className="bg-gray-900 text-white hover:bg-black active:scale-[0.98] py-4 text-lg font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
                   >
                     <Square className="w-6 h-6 mr-2" />
                     {t('record.stop')}
@@ -2501,17 +2494,17 @@ export default function RecordingScreen() {
 
               {audioBlob && !isRecording && !autoTranscribeAfterRecording && (
                 <div className="space-y-4">
-                  <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm rounded-2xl border border-gray-200/50 dark:border-gray-700/50 shadow-lg p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
-                      <Sparkles className="w-5 h-5 mr-2 text-purple-500" />
+                  <div className="bg-white/20 backdrop-blur-xl border border-gray-300/30 shadow-lg shadow-black/5 rounded-2xl p-6">
+                    <h3 className="text-lg font-semibold text-black mb-4 flex items-center">
+                      <Sparkles className="w-5 h-5 mr-2 text-gray-700" />
                       {t('record.processingOptions')}
                     </h3>
 
                     {/* Prompt Template Selector */}
-                    <div className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-xl p-4 mb-4 border border-purple-200 dark:border-purple-700/30">
+                    <div className="bg-white/40 rounded-xl p-4 mb-4 border border-gray-200/50">
                       <div className="flex items-center justify-between mb-3">
-                        <h4 className="text-sm font-semibold text-purple-900 dark:text-purple-100 flex items-center">
-                          <Sparkles className="w-4 h-4 mr-2 text-purple-600" />
+                        <h4 className="text-sm font-semibold text-black flex items-center">
+                          <Sparkles className="w-4 h-4 mr-2 text-gray-700" />
                           {t('record.promptTemplate')}
                         </h4>
                         <Button
@@ -2528,7 +2521,7 @@ export default function RecordingScreen() {
                       {promptTemplates.length > 0 ? (
                         <>
                           <select
-                            className="w-full px-4 py-3 border border-purple-300 dark:border-purple-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
+                            className="w-full px-4 py-3 bg-white/80 backdrop-blur-sm border-2 border-gray-200 rounded-xl text-gray-900 focus:border-black focus:bg-white focus:shadow-lg focus:shadow-black/5 outline-none transition-all"
                             value={selectedPromptId || ''}
                             onChange={(e) => applyPromptTemplate(e.target.value)}
                             disabled={isTranscribing}
@@ -2542,13 +2535,13 @@ export default function RecordingScreen() {
                             ))}
                           </select>
                           {selectedPromptId && (
-                            <p className="mt-2 text-xs text-purple-600 dark:text-purple-400">
+                            <p className="mt-2 text-xs text-gray-500">
                               ✓ Prompt sélectionné pour le résumé
                             </p>
                           )}
                         </>
                       ) : (
-                        <div className="text-center py-2 text-sm text-purple-700 dark:text-purple-300">
+                        <div className="text-center py-2 text-sm text-gray-500">
                           <p className="mb-2">{t('record.noPrompts')}</p>
                           <Button
                             variant="outline"
@@ -2572,7 +2565,7 @@ export default function RecordingScreen() {
                           }
                         }}
                         disabled={isTranscribing}
-                        className="w-full bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white py-4 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 text-lg font-semibold"
+                        className="w-full bg-black text-white hover:bg-gray-800 active:scale-[0.98] py-4 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 text-lg font-semibold"
                       >
                         {userPreferences.transcription_provider === 'local' ? (
                           <>
@@ -2589,7 +2582,7 @@ export default function RecordingScreen() {
 
                       {/* Alternative options */}
                       <details className="mt-4">
-                        <summary className="cursor-pointer text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors">
+                        <summary className="cursor-pointer text-sm text-gray-600 hover:text-gray-800 transition-colors">
                           🔧 {t('record.otherOptions')}
                         </summary>
                         <div className="mt-3 grid gap-2">
@@ -2598,7 +2591,7 @@ export default function RecordingScreen() {
                               onClick={() => handleTranscription('local', 'Xenova/whisper-tiny')}
                               disabled={isTranscribing}
                               variant="outline"
-                              className="w-full py-2 text-sm rounded-lg border-gray-200 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
+                              className="w-full py-2 text-sm rounded-lg border-gray-200 hover:bg-gray-50"
                             >
                               <Waves className="w-4 h-4 mr-2" />
                               {t('record.tryLocal')}
@@ -2608,7 +2601,7 @@ export default function RecordingScreen() {
                             onClick={handleMistralTranscription}
                             disabled={isTranscribing}
                             variant="outline"
-                            className="w-full py-2 text-sm rounded-lg border-gray-200 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
+                            className="w-full py-2 text-sm rounded-lg border-gray-200 hover:bg-gray-50"
                           >
                             <Settings className="w-4 h-4 mr-2" />
                             {t('record.testMistral')}
@@ -2617,7 +2610,7 @@ export default function RecordingScreen() {
                             onClick={() => handleSave()}
                             disabled={isTranscribing}
                             variant="outline"
-                            className="w-full py-2 text-sm rounded-lg border-gray-200 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
+                            className="w-full py-2 text-sm rounded-lg border-gray-200 hover:bg-gray-50"
                           >
                             <FileAudio className="w-4 h-4 mr-2" />
                             {t('record.saveAudioOnly')}
@@ -2631,15 +2624,15 @@ export default function RecordingScreen() {
 
               {/* Auto-transcription indicator when enabled */}
               {audioBlob && !isRecording && autoTranscribeAfterRecording && !isTranscribing && (
-                <div className="bg-blue-50/70 dark:bg-blue-900/30 backdrop-blur-sm rounded-2xl border border-blue-200/50 dark:border-blue-700/50 shadow-lg p-6">
+                <div className="bg-white/20 backdrop-blur-xl border border-gray-300/30 shadow-lg shadow-black/5 rounded-2xl p-6">
                   <div className="text-center">
-                    <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg">
+                    <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-black flex items-center justify-center shadow-lg">
                       <Sparkles className="w-8 h-8 text-white" />
                     </div>
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                    <h3 className="text-lg font-semibold text-black mb-2">
                       {t('record.autoProcessingEnabled')}
                     </h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                    <p className="text-sm text-gray-600 mb-4">
                       {userPreferences.transcription_provider === 'local'
                         ? t('record.localDesc')
                         : t('record.cloudDesc')
@@ -2647,7 +2640,7 @@ export default function RecordingScreen() {
                       <br />
                       <span className="font-medium">{userPreferences.transcription_provider} - {userPreferences.transcription_model}</span>
                     </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                    <p className="text-xs text-gray-500">
                       {t('record.changeSettings')}
                     </p>
                   </div>
@@ -2664,7 +2657,7 @@ export default function RecordingScreen() {
                     setSavedMeetingId(null);
                   }}
                   variant="outline"
-                  className="w-full py-3 rounded-xl border-gray-200 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
+                  className="w-full py-3 rounded-xl border-gray-200 hover:bg-gray-50"
                 >
                   <RefreshCw className="w-5 h-5 mr-2" />
                   {t('record.startOver')}
@@ -2676,15 +2669,15 @@ export default function RecordingScreen() {
 
             {/* Success Message */}
             {savedMeetingId && (
-              <div className="mt-8 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 backdrop-blur-sm rounded-2xl border border-green-200/50 dark:border-green-700/50 shadow-lg p-6">
+              <div className="mt-8 bg-white/20 backdrop-blur-xl border border-gray-300/30 shadow-lg shadow-black/5 rounded-2xl p-6">
                 <div className="text-center">
-                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 flex items-center justify-center">
+                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-black flex items-center justify-center">
                     <Sparkles className="w-8 h-8 text-white" />
                   </div>
-                  <h3 className="text-lg font-semibold text-green-900 dark:text-green-100 mb-2">
+                  <h3 className="text-lg font-semibold text-black mb-2">
                     {t('record.successTitle')}
                   </h3>
-                  <p className="text-green-700 dark:text-green-300 mb-4">
+                  <p className="text-gray-600 mb-4">
                     {t('record.successDesc')}
                   </p>
                 </div>
@@ -2695,7 +2688,6 @@ export default function RecordingScreen() {
             <div className="h-40 md:hidden" />
           </div>
         </div>
-      </div>
 
       {/* LIQUID GLASS FOOTER - Apple-style floating pill */}
       <div 
@@ -2763,7 +2755,7 @@ export default function RecordingScreen() {
                     {formatTime(duration)}
                   </span>
                   <div className="flex items-center gap-1.5 mt-0.5">
-                    <div className={`w-2 h-2 rounded-full ${isPaused ? 'bg-amber-400' : 'bg-red-500 animate-pulse'}`} />
+                    <div className={`w-2 h-2 rounded-full ${isPaused ? 'bg-gray-400' : 'bg-red-500 animate-pulse'}`} />
                     <span className="text-[11px] text-white/70 font-medium">
                       {isPaused ? 'Pause' : 'REC'}
                     </span>

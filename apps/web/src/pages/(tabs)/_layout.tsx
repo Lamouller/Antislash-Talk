@@ -4,10 +4,10 @@ import SideBar from '../../components/layout/SideBar';
 
 export default function TabsLayout() {
   return (
-    <div className="min-h-screen min-h-screen-safe bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-gray-900 dark:via-slate-800 dark:to-gray-900">
+    <div className="min-h-screen min-h-screen-safe bg-[#F5F5F7]">
       {/* iOS overscroll background - extends beyond viewport to cover bounce area */}
-      <div 
-        className="fixed inset-x-0 -top-[200px] h-[300px] bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-gray-900 dark:via-slate-800 dark:to-gray-900 pointer-events-none z-40 md:hidden"
+      <div
+        className="fixed inset-x-0 -top-[200px] h-[300px] bg-[#F5F5F7] pointer-events-none z-40 md:hidden"
         aria-hidden="true"
       />
       

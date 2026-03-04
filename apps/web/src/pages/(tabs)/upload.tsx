@@ -18,7 +18,7 @@ export default function UploadAudioPage() {
   const [progress, setProgress] = useState(0);
   const [meetingId, setMeetingId] = useState<string | null>(null);
 
-  // 🚀 LOCAL TRANSCRIPTION HOOK
+  // LOCAL TRANSCRIPTION HOOK
   const { transcribe, isTranscribing, progress: transcriptionProgress } = useLocalTranscription();
 
   // Drag & drop handlers
@@ -148,22 +148,22 @@ export default function UploadAudioPage() {
       setProgress(70);
       setMeetingId(meeting.id);
 
-      // 🚀 CHECK IF LOCAL TRANSCRIPTION IS SELECTED
+      // CHECK IF LOCAL TRANSCRIPTION IS SELECTED
       const isLocalTranscription = profile?.preferred_transcription_provider === 'local';
 
       if (isLocalTranscription) {
-        // ✨ LOCAL TRANSCRIPTION WITH BROWSER/PYTORCH/WHISPER.CPP
-        console.log('🚀 Using LOCAL transcription...');
+        // LOCAL TRANSCRIPTION WITH BROWSER/PYTORCH/WHISPER.CPP
+        console.log('Using LOCAL transcription...');
         toast(t('upload.transcribing'), { duration: 3000 });
 
         try {
           // Transcribe directly from the file (it's already a Blob)
           const modelId = profile?.preferred_transcription_model || 'tiny';
-          console.log(`📝 Transcribing with model: ${modelId}`);
+          console.log(`Transcribing with model: ${modelId}`);
 
           const result = await transcribe(file, modelId);
 
-          console.log('✅ Local transcription completed!');
+          console.log('Local transcription completed!');
 
           // Update meeting with transcription result
           const { error: updateError } = await supabase
@@ -175,7 +175,7 @@ export default function UploadAudioPage() {
             .eq('id', meeting.id);
 
           if (updateError) {
-            console.error('❌ Failed to update meeting:', updateError);
+            console.error('Failed to update meeting:', updateError);
             throw updateError;
           }
 
@@ -187,11 +187,8 @@ export default function UploadAudioPage() {
             navigate(`/tabs/meeting/${meeting.id}`);
           }, 2000);
 
-          // 🎯 Return the created meeting for auto-summary
-          // Note: added check for result.text if we want to do something with it later
-
         } catch (transcribeError) {
-          console.error('❌ Local transcription failed:', transcribeError);
+          console.error('Local transcription failed:', transcribeError);
           toast.error(t('upload.localError'));
 
           // Still navigate to the meeting page
@@ -201,8 +198,8 @@ export default function UploadAudioPage() {
         }
 
       } else {
-        // 🌐 API TRANSCRIPTION (GOOGLE, OPENAI, ETC.)
-        console.log('🌐 Using API transcription...');
+        // API TRANSCRIPTION (GOOGLE, OPENAI, ETC.)
+        console.log('Using API transcription...');
 
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
@@ -251,185 +248,184 @@ export default function UploadAudioPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
-      <div 
-        className="container mx-auto px-4"
-        style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 2rem)', paddingBottom: '2rem' }}
-      >
-        {/* Header */}
-        <div className="mb-8">
-          <Button
-            onClick={() => navigate('/tabs/meetings')}
-            variant="outline"
-            className="mb-4"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            {t('upload.backToMeetings')}
-          </Button>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 space-y-8"
+      style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 1.5rem)' }}
+    >
+      {/* Header */}
+      <div>
+        <Button
+          onClick={() => navigate('/tabs/meetings')}
+          variant="outline"
+          className="mb-4 text-gray-600 hover:bg-gray-100 hover:text-black rounded-xl"
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          {t('upload.backToMeetings')}
+        </Button>
 
-          <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2 flex items-center">
-            <Upload className="w-10 h-10 mr-4 text-blue-500" />
-            {t('upload.title')}
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            {t('upload.subtitle')}
-          </p>
-        </div>
+        <h1 className="text-2xl font-bold text-black tracking-tight flex items-center">
+          <div className="p-2.5 bg-gray-100/80 rounded-xl mr-4">
+            <Upload className="w-6 h-6 text-gray-700" />
+          </div>
+          {t('upload.title')}
+        </h1>
+        <p className="text-gray-500 text-sm mt-1">
+          {t('upload.subtitle')}
+        </p>
+      </div>
 
-        {/* Upload Area */}
-        <div className="max-w-3xl mx-auto">
-          <div
-            onDragEnter={handleDragEnter}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-            className={`
-              relative bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-3xl 
-              border-2 border-dashed transition-all duration-300 p-12
-              ${isDragging
-                ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-900/20 scale-105'
-                : 'border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500'
-              }
-              ${uploading ? 'pointer-events-none opacity-75' : ''}
-            `}
-          >
-            {!file ? (
-              <div className="text-center">
-                <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 flex items-center justify-center">
-                  <FileAudio className="w-10 h-10 text-white" />
-                </div>
-
-                <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-                  {t('upload.dropHere')}
-                </h3>
-                <p className="text-gray-600 dark:text-gray-400 mb-6">
-                  {t('upload.clickToBrowse')}
-                </p>
-
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="audio/*"
-                  onChange={handleFileInput}
-                  className="hidden"
-                />
-
-                <Button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white"
-                >
-                  <Upload className="w-4 h-4 mr-2" />
-                  {t('upload.selectButton')}
-                </Button>
-
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-4">
-                  {t('upload.supportedFormats')}
-                </p>
+      {/* Upload Area */}
+      <div className="max-w-3xl mx-auto">
+        <div
+          onDragEnter={handleDragEnter}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          className={`
+            relative bg-white/20 backdrop-blur-xl rounded-2xl
+            border-2 border-dashed transition-all duration-300 p-12
+            ${isDragging
+              ? 'border-black bg-gray-50/50 scale-105'
+              : 'border-gray-300 hover:border-gray-400'
+            }
+            ${uploading ? 'pointer-events-none opacity-75' : ''}
+          `}
+        >
+          {!file ? (
+            <div className="text-center">
+              <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gray-100 flex items-center justify-center">
+                <FileAudio className="w-10 h-10 text-gray-500" />
               </div>
-            ) : (
-              <div className="space-y-6">
-                {/* File Info */}
-                <div className="flex items-start justify-between p-6 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-2xl border border-blue-200/50 dark:border-blue-700/50">
-                  <div className="flex items-start space-x-4 flex-1">
-                    <div className="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center flex-shrink-0">
-                      <FileAudio className="w-6 h-6 text-white" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h4 className="text-lg font-semibold text-gray-900 dark:text-white truncate">
-                        {file.name}
-                      </h4>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {formatFileSize(file.size)} • {file.type || t('upload.audioFile')}
-                      </p>
-                    </div>
-                  </div>
 
-                  {!uploading && (
-                    <Button
-                      onClick={removeFile}
-                      variant="outline"
-                      size="small"
-                      className="ml-4"
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
-                  )}
+              <h3 className="text-2xl font-bold text-black mb-2">
+                {t('upload.dropHere')}
+              </h3>
+              <p className="text-gray-500 mb-6">
+                {t('upload.clickToBrowse')}
+              </p>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="audio/*"
+                onChange={handleFileInput}
+                className="hidden"
+              />
+
+              <Button
+                onClick={() => fileInputRef.current?.click()}
+                className="bg-black text-white rounded-xl hover:bg-gray-800 active:scale-[0.98] shadow-lg shadow-black/10"
+              >
+                <Upload className="w-4 h-4 mr-2" />
+                {t('upload.selectButton')}
+              </Button>
+
+              <p className="text-sm text-gray-500 mt-4">
+                {t('upload.supportedFormats')}
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {/* File Info */}
+              <div className="flex items-start justify-between p-6 bg-white/40 rounded-2xl border border-gray-200/50">
+                <div className="flex items-start space-x-4 flex-1">
+                  <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+                    <FileAudio className="w-6 h-6 text-gray-700" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="text-lg font-semibold text-black truncate">
+                      {file.name}
+                    </h4>
+                    <p className="text-sm text-gray-500">
+                      {formatFileSize(file.size)} • {file.type || t('upload.audioFile')}
+                    </p>
+                  </div>
                 </div>
 
-                {/* Progress Bar */}
-                {(uploading || isTranscribing) && (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-600 dark:text-gray-400">
-                        {isTranscribing ? t('upload.transcribing') : t('upload.processing')}
-                      </span>
-                      <span className="font-semibold text-blue-600 dark:text-blue-400">
-                        {isTranscribing ? `${transcriptionProgress}%` : `${progress}%`}
-                      </span>
-                    </div>
-                    <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 transition-all duration-500 ease-out"
-                        style={{ width: `${isTranscribing ? transcriptionProgress : progress}%` }}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* Upload Button */}
-                {!uploading && !isTranscribing && !meetingId && (
+                {!uploading && (
                   <Button
-                    onClick={handleUpload}
-                    disabled={!file || uploading || isTranscribing}
-                    className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white py-4 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={removeFile}
+                    variant="outline"
+                    size="small"
+                    className="ml-4"
                   >
-                    <Sparkles className="w-5 h-5 mr-2" />
-                    {t('upload.uploadAndTranscribe')}
+                    <X className="w-4 h-4" />
                   </Button>
                 )}
-
-                {/* Success Message */}
-                {meetingId && (
-                  <div className="flex items-center justify-center space-x-3 text-green-600 dark:text-green-400">
-                    <CheckCircle className="w-6 h-6" />
-                    <span className="font-semibold">{t('upload.successRedirect')}</span>
-                  </div>
-                )}
               </div>
-            )}
+
+              {/* Progress Bar */}
+              {(uploading || isTranscribing) && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-500">
+                      {isTranscribing ? t('upload.transcribing') : t('upload.processing')}
+                    </span>
+                    <span className="font-semibold text-black">
+                      {isTranscribing ? `${transcriptionProgress}%` : `${progress}%`}
+                    </span>
+                  </div>
+                  <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-black transition-all duration-500 ease-out rounded-full"
+                      style={{ width: `${isTranscribing ? transcriptionProgress : progress}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Upload Button */}
+              {!uploading && !isTranscribing && !meetingId && (
+                <Button
+                  onClick={handleUpload}
+                  disabled={!file || uploading || isTranscribing}
+                  className="w-full bg-black text-white py-4 text-lg rounded-xl hover:bg-gray-800 active:scale-[0.98] shadow-lg shadow-black/10 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Sparkles className="w-5 h-5 mr-2" />
+                  {t('upload.uploadAndTranscribe')}
+                </Button>
+              )}
+
+              {/* Success Message */}
+              {meetingId && (
+                <div className="flex items-center justify-center space-x-3 text-gray-700">
+                  <CheckCircle className="w-6 h-6" />
+                  <span className="font-semibold">{t('upload.successRedirect')}</span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Info Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
+          <div className="bg-white/20 backdrop-blur-xl border border-gray-300/30 shadow-lg shadow-black/5 rounded-2xl p-6">
+            <div className="p-2.5 bg-gray-100/80 rounded-xl w-10 h-10 flex items-center justify-center mb-3">
+              <Upload className="w-5 h-5 text-gray-700" />
+            </div>
+            <h3 className="font-semibold text-black mb-1">{t('upload.fastUploadTitle')}</h3>
+            <p className="text-sm text-gray-500">
+              {t('upload.fastUploadDesc')}
+            </p>
           </div>
 
-          {/* Info Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
-            <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-200/50 dark:border-gray-700/50">
-              <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mb-3">
-                <Upload className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-              </div>
-              <h3 className="font-semibold text-gray-900 dark:text-white mb-1">{t('upload.fastUploadTitle')}</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                {t('upload.fastUploadDesc')}
-              </p>
+          <div className="bg-white/20 backdrop-blur-xl border border-gray-300/30 shadow-lg shadow-black/5 rounded-2xl p-6">
+            <div className="p-2.5 bg-gray-100/80 rounded-xl w-10 h-10 flex items-center justify-center mb-3">
+              <Sparkles className="w-5 h-5 text-gray-700" />
             </div>
+            <h3 className="font-semibold text-black mb-1">{t('upload.autoTranscribeTitle')}</h3>
+            <p className="text-sm text-gray-500">
+              {t('upload.autoTranscribeDesc')}
+            </p>
+          </div>
 
-            <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-200/50 dark:border-gray-700/50">
-              <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center mb-3">
-                <Sparkles className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-              </div>
-              <h3 className="font-semibold text-gray-900 dark:text-white mb-1">{t('upload.autoTranscribeTitle')}</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                {t('upload.autoTranscribeDesc')}
-              </p>
+          <div className="bg-white/20 backdrop-blur-xl border border-gray-300/30 shadow-lg shadow-black/5 rounded-2xl p-6">
+            <div className="p-2.5 bg-gray-100/80 rounded-xl w-10 h-10 flex items-center justify-center mb-3">
+              <CheckCircle className="w-5 h-5 text-gray-700" />
             </div>
-
-            <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-200/50 dark:border-gray-700/50">
-              <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center mb-3">
-                <CheckCircle className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-              </div>
-              <h3 className="font-semibold text-gray-900 dark:text-white mb-1">{t('upload.readyTitle')}</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                {t('upload.readyDesc')}
-              </p>
-            </div>
+            <h3 className="font-semibold text-black mb-1">{t('upload.readyTitle')}</h3>
+            <p className="text-sm text-gray-500">
+              {t('upload.readyDesc')}
+            </p>
           </div>
         </div>
       </div>

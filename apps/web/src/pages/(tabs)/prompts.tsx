@@ -179,39 +179,41 @@ Règles:
     };
 
     return (
-        <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900 overflow-hidden">
+        <div className="flex flex-col h-full overflow-hidden">
             {/* Header with safe area for Dynamic Island */}
-            <header 
-                className="flex-none bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-8 pb-6"
+            <header
+                className="flex-none bg-white/20 backdrop-blur-xl border-b border-gray-300/30 px-8 pb-6"
                 style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 1.5rem)' }}
             >
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 max-w-6xl mx-auto w-full">
                     <div>
-                        <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
-                            <Sparkles className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+                        <h1 className="text-2xl font-bold text-black tracking-tight flex items-center gap-3">
+                            <div className="p-2.5 bg-gray-100/80 rounded-xl">
+                                <Sparkles className="w-6 h-6 text-gray-700" />
+                            </div>
                             {t('prompts.title')}
                         </h1>
-                        <p className="text-slate-500 dark:text-slate-400 mt-1">
+                        <p className="text-gray-500 text-sm mt-1">
                             {t('prompts.subtitle')}
                         </p>
                     </div>
                     <div className="flex flex-wrap gap-3 w-full sm:w-auto">
                         {/* Tabs Navigation */}
-                        <div className="flex bg-slate-100 dark:bg-slate-700 p-1 rounded-lg">
+                        <div className="flex bg-gray-100 p-1 rounded-xl">
                             <button
                                 onClick={() => setActiveTab('list')}
-                                className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'list'
-                                    ? 'bg-white dark:bg-slate-600 text-blue-600 dark:text-blue-400 shadow-sm'
-                                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'
+                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'list'
+                                    ? 'bg-black text-white shadow-sm'
+                                    : 'text-gray-600 hover:text-black'
                                     }`}
                             >
                                 {t('prompts.tabs.my_prompts')}
                             </button>
                             <button
                                 onClick={() => setActiveTab('assistant')}
-                                className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'assistant'
-                                    ? 'bg-white dark:bg-slate-600 text-purple-600 dark:text-purple-400 shadow-sm'
-                                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'
+                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'assistant'
+                                    ? 'bg-black text-white shadow-sm'
+                                    : 'text-gray-600 hover:text-black'
                                     }`}
                             >
                                 <Wand2 className="w-4 h-4" />
@@ -221,7 +223,7 @@ Règles:
                         <Button onClick={() => {
                             setEditingPrompt({ name: '', description: '', category: 'custom', content: '', is_favorite: false } as PromptTemplate);
                             setActiveTab('editor');
-                        }}>
+                        }} className="bg-black text-white rounded-xl hover:bg-gray-800 active:scale-[0.98] shadow-lg shadow-black/10">
                             <Plus className="w-4 h-4 mr-2" />
                             {t('prompts.new_prompt')}
                         </Button>
@@ -237,28 +239,28 @@ Règles:
                     {activeTab === 'list' && (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {prompts.map(prompt => (
-                                <Card key={prompt.id} className="p-6 hover:shadow-lg transition-shadow border-slate-200 dark:border-slate-700">
+                                <Card key={prompt.id} className="p-6 bg-white/20 backdrop-blur-xl border border-gray-300/30 shadow-lg shadow-black/5 rounded-2xl hover:shadow-xl hover:shadow-black/10 transition-all duration-200">
                                     <div className="flex justify-between items-start mb-4">
-                                        <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                                            <FileText className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                                        <div className="p-2.5 bg-gray-100/80 rounded-xl">
+                                            <FileText className="w-6 h-6 text-gray-700" />
                                         </div>
-                                        {prompt.is_favorite && <Star className="w-5 h-5 text-yellow-400 fill-current" />}
+                                        {prompt.is_favorite && <Star className="w-5 h-5 text-gray-700 fill-current" />}
                                     </div>
-                                    <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">{prompt.name}</h3>
-                                    <p className="text-slate-500 dark:text-slate-400 text-sm mb-4 line-clamp-2">{prompt.description}</p>
+                                    <h3 className="text-lg font-semibold text-black mb-2">{prompt.name}</h3>
+                                    <p className="text-gray-500 text-sm mb-4 line-clamp-2">{prompt.description}</p>
                                     <div className="flex justify-between items-center mt-auto">
-                                        <span className="text-xs font-mono text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">
+                                        <span className="bg-gray-100 text-gray-700 border border-gray-200 rounded-full text-xs px-2.5 py-1">
                                             {prompt.category}
                                         </span>
                                         <div className="flex gap-2">
                                             <Button variant="ghost" size="small" onClick={() => {
                                                 setEditingPrompt(prompt);
                                                 setActiveTab('editor');
-                                            }}>
-                                                <Edit3 className="w-4 h-4 text-slate-600" />
+                                            }} className="text-gray-600 hover:bg-gray-100 hover:text-black rounded-xl">
+                                                <Edit3 className="w-4 h-4" />
                                             </Button>
-                                            <Button variant="ghost" size="small" onClick={() => handleDelete(prompt.id!)}>
-                                                <Trash2 className="w-4 h-4 text-red-500" />
+                                            <Button variant="ghost" size="small" onClick={() => handleDelete(prompt.id!)} className="text-gray-600 hover:bg-gray-100 hover:text-black rounded-xl">
+                                                <Trash2 className="w-4 h-4" />
                                             </Button>
                                         </div>
                                     </div>
@@ -267,13 +269,13 @@ Règles:
 
                             {/* Empty State */}
                             {prompts.length === 0 && !isLoading && (
-                                <div className="col-span-full flex flex-col items-center justify-center p-12 text-center border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl">
-                                    <div className="p-4 bg-slate-100 dark:bg-slate-800 rounded-full mb-4">
-                                        <Sparkles className="w-8 h-8 text-slate-400" />
+                                <div className="col-span-full flex flex-col items-center justify-center p-12 text-center border-2 border-dashed border-gray-300 rounded-2xl">
+                                    <div className="p-4 bg-gray-100 rounded-full mb-4">
+                                        <Sparkles className="w-8 h-8 text-gray-400" />
                                     </div>
-                                    <h3 className="text-lg font-medium text-slate-900 dark:text-white mb-2">{t('prompts.empty_title')}</h3>
-                                    <p className="text-slate-500 mb-6 max-w-md">{t('prompts.empty_description')}</p>
-                                    <Button variant="outline" onClick={() => setActiveTab('assistant')}>
+                                    <h3 className="text-lg font-medium text-black mb-2">{t('prompts.empty_title')}</h3>
+                                    <p className="text-gray-500 mb-6 max-w-md">{t('prompts.empty_description')}</p>
+                                    <Button variant="outline" onClick={() => setActiveTab('assistant')} className="text-gray-600 hover:bg-gray-100 hover:text-black rounded-xl">
                                         <Wand2 className="w-4 h-4 mr-2" />
                                         {t('prompts.try_assistant')}
                                     </Button>
@@ -285,20 +287,20 @@ Règles:
                     {/* EDITOR VIEW */}
                     {activeTab === 'editor' && editingPrompt && (
                         <div className="max-w-3xl mx-auto">
-                            <Button variant="ghost" onClick={() => setActiveTab('list')} className="mb-4">
+                            <Button variant="ghost" onClick={() => setActiveTab('list')} className="mb-4 text-gray-600 hover:bg-gray-100 hover:text-black rounded-xl">
                                 <ArrowLeft className="w-4 h-4 mr-2" />
                                 {t('common.back')}
                             </Button>
-                            <Card className="p-8">
-                                <h2 className="text-xl font-bold mb-6">
+                            <Card className="p-8 bg-white/20 backdrop-blur-xl border border-gray-300/30 shadow-lg shadow-black/5 rounded-2xl">
+                                <h2 className="text-xl font-bold text-black mb-6">
                                     {editingPrompt.id ? t('prompts.edit_title') : t('prompts.create_title')}
                                 </h2>
                                 <div className="space-y-6">
                                     <div>
-                                        <label className="block text-sm font-medium mb-2">{t('prompts.form.name')}</label>
+                                        <label className="block text-sm font-medium text-black mb-2">{t('prompts.form.name')}</label>
                                         <input
                                             type="text"
-                                            className="w-full p-2 border rounded-md dark:bg-slate-800 dark:border-slate-700"
+                                            className="w-full h-12 px-4 bg-white/80 backdrop-blur-sm border-2 border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:border-black focus:bg-white focus:shadow-lg focus:shadow-black/5 outline-none transition-all"
                                             value={editingPrompt.name}
                                             onChange={e => setEditingPrompt({ ...editingPrompt, name: e.target.value })}
                                             placeholder="Ex: Résumé Exécutif"
@@ -306,9 +308,9 @@ Règles:
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div>
-                                            <label className="block text-sm font-medium mb-2">{t('prompts.form.category')}</label>
+                                            <label className="block text-sm font-medium text-black mb-2">{t('prompts.form.category')}</label>
                                             <select
-                                                className="w-full p-2 border rounded-md dark:bg-slate-800 dark:border-slate-700"
+                                                className="w-full h-12 px-4 bg-white/80 backdrop-blur-sm border-2 border-gray-200 rounded-xl text-gray-900 focus:border-black focus:bg-white focus:shadow-lg focus:shadow-black/5 outline-none transition-all"
                                                 value={editingPrompt.category}
                                                 onChange={e => setEditingPrompt({ ...editingPrompt, category: e.target.value as any })}
                                             >
@@ -324,37 +326,37 @@ Règles:
                                                     type="checkbox"
                                                     checked={editingPrompt.is_favorite}
                                                     onChange={e => setEditingPrompt({ ...editingPrompt, is_favorite: e.target.checked })}
-                                                    className="w-4 h-4 rounded border-slate-300"
+                                                    className="w-4 h-4 rounded border-gray-300"
                                                 />
-                                                <span className="text-sm font-medium">{t('prompts.form.favorite')}</span>
+                                                <span className="text-sm font-medium text-black">{t('prompts.form.favorite')}</span>
                                             </label>
                                         </div>
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium mb-2">{t('prompts.form.description')}</label>
+                                        <label className="block text-sm font-medium text-black mb-2">{t('prompts.form.description')}</label>
                                         <input
                                             type="text"
-                                            className="w-full p-2 border rounded-md dark:bg-slate-800 dark:border-slate-700"
+                                            className="w-full h-12 px-4 bg-white/80 backdrop-blur-sm border-2 border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:border-black focus:bg-white focus:shadow-lg focus:shadow-black/5 outline-none transition-all"
                                             value={editingPrompt.description}
                                             onChange={e => setEditingPrompt({ ...editingPrompt, description: e.target.value })}
                                             placeholder="Ex: Utilise un ton formel..."
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium mb-2">{t('prompts.form.content')}</label>
+                                        <label className="block text-sm font-medium text-black mb-2">{t('prompts.form.content')}</label>
                                         <textarea
-                                            className="w-full p-4 border rounded-md font-mono text-sm h-64 dark:bg-slate-800 dark:border-slate-700"
+                                            className="w-full p-4 bg-white/80 backdrop-blur-sm border-2 border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:border-black focus:bg-white focus:shadow-lg focus:shadow-black/5 outline-none transition-all font-mono text-sm h-64"
                                             value={editingPrompt.content}
                                             onChange={e => setEditingPrompt({ ...editingPrompt, content: e.target.value })}
                                             placeholder="You are an AI assistant..."
                                         />
-                                        <p className="text-xs text-slate-500 mt-2">
+                                        <p className="text-xs text-gray-500 mt-2">
                                             {t('prompts.form.tips')}
                                         </p>
                                     </div>
-                                    <div className="flex justify-end gap-3 pt-4 border-t dark:border-slate-700">
-                                        <Button variant="ghost" onClick={() => setActiveTab('list')}>{t('common.cancel')}</Button>
-                                        <Button onClick={() => handleSave(editingPrompt)}>
+                                    <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+                                        <Button variant="ghost" onClick={() => setActiveTab('list')} className="text-gray-600 hover:bg-gray-100 hover:text-black rounded-xl">{t('common.cancel')}</Button>
+                                        <Button onClick={() => handleSave(editingPrompt)} className="bg-black text-white rounded-xl hover:bg-gray-800 active:scale-[0.98] shadow-lg shadow-black/10">
                                             <Save className="w-4 h-4 mr-2" />
                                             {t('common.save')}
                                         </Button>
@@ -367,19 +369,19 @@ Règles:
                     {/* ASSISTANT WIZARD VIEW */}
                     {activeTab === 'assistant' && (
                         <div className="max-w-4xl mx-auto">
-                            <Button variant="ghost" onClick={() => setActiveTab('list')} className="mb-4">
+                            <Button variant="ghost" onClick={() => setActiveTab('list')} className="mb-4 text-gray-600 hover:bg-gray-100 hover:text-black rounded-xl">
                                 <ArrowLeft className="w-4 h-4 mr-2" />
                                 {t('common.back')}
                             </Button>
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                                 {/* Left: Input */}
-                                <Card className="p-6">
+                                <Card className="p-6 bg-white/20 backdrop-blur-xl border border-gray-300/30 shadow-lg shadow-black/5 rounded-2xl">
                                     <div className="flex gap-4 mb-6">
                                         <button
                                             onClick={() => setWizardMode('describe')}
-                                            className={`flex-1 p-3 rounded-lg border text-center transition-all ${wizardMode === 'describe'
-                                                ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300'
-                                                : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50'
+                                            className={`flex-1 p-3 rounded-xl border-2 text-center transition-all ${wizardMode === 'describe'
+                                                ? 'border-black bg-gray-50 text-black'
+                                                : 'border-gray-200 hover:bg-gray-50 text-gray-600'
                                                 }`}
                                         >
                                             <MessageSquare className="w-6 h-6 mx-auto mb-2" />
@@ -387,9 +389,9 @@ Règles:
                                         </button>
                                         <button
                                             onClick={() => setWizardMode('analyze')}
-                                            className={`flex-1 p-3 rounded-lg border text-center transition-all ${wizardMode === 'analyze'
-                                                ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
-                                                : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50'
+                                            className={`flex-1 p-3 rounded-xl border-2 text-center transition-all ${wizardMode === 'analyze'
+                                                ? 'border-black bg-gray-50 text-black'
+                                                : 'border-gray-200 hover:bg-gray-50 text-gray-600'
                                                 }`}
                                         >
                                             <Bot className="w-6 h-6 mx-auto mb-2" />
@@ -398,13 +400,13 @@ Règles:
                                     </div>
 
                                     <div className="mb-4">
-                                        <label className="block text-sm font-medium mb-2">
+                                        <label className="block text-sm font-medium text-black mb-2">
                                             {wizardMode === 'describe' ? t('prompts.wizard.input_describe_label') : t('prompts.wizard.input_analyze_label')}
                                         </label>
                                         <textarea
                                             value={wizardInput}
                                             onChange={e => setWizardInput(e.target.value)}
-                                            className="w-full p-4 border rounded-lg h-48 resize-none focus:ring-2 focus:ring-purple-500 dark:bg-slate-800 dark:border-slate-700"
+                                            className="w-full p-4 bg-white/80 backdrop-blur-sm border-2 border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:border-black focus:bg-white focus:shadow-lg focus:shadow-black/5 outline-none transition-all h-48 resize-none"
                                             placeholder={wizardMode === 'describe'
                                                 ? "Ex: Je veux un résumé très court, orienté action, avec des emojis pour les bonnes nouvelles."
                                                 : "Collez ici un exemple de rapport parfait que vous avez déjà..."
@@ -413,7 +415,7 @@ Règles:
                                     </div>
 
                                     <Button
-                                        className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
+                                        className="w-full bg-black text-white rounded-xl hover:bg-gray-800 active:scale-[0.98] shadow-lg shadow-black/10"
                                         disabled={!wizardInput.trim() || isGenerating}
                                         onClick={handleRunWizard}
                                     >
@@ -434,23 +436,23 @@ Règles:
                                 {/* Right: Output */}
                                 <div className="space-y-4">
                                     {wizardOutput ? (
-                                        <Card className="p-6 h-full flex flex-col bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+                                        <Card className="p-6 h-full flex flex-col bg-white/20 backdrop-blur-xl border border-gray-300/30 shadow-lg shadow-black/5 rounded-2xl">
                                             <div className="flex justify-between items-center mb-4">
-                                                <h3 className="font-semibold flex items-center gap-2">
-                                                    <Bot className="w-5 h-5 text-purple-600" />
+                                                <h3 className="font-semibold text-black flex items-center gap-2">
+                                                    <Bot className="w-5 h-5 text-gray-700" />
                                                     {t('prompts.wizard.result_title')}
                                                 </h3>
                                             </div>
-                                            <div className="flex-1 bg-white dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700 font-mono text-xs overflow-y-auto mb-4 whitespace-pre-wrap">
+                                            <div className="flex-1 bg-white/60 p-4 rounded-xl border border-gray-200 font-mono text-xs overflow-y-auto mb-4 whitespace-pre-wrap text-gray-900">
                                                 {wizardOutput}
                                             </div>
-                                            <Button onClick={copyWizardToEditor} className="w-full">
+                                            <Button onClick={copyWizardToEditor} className="w-full bg-black text-white rounded-xl hover:bg-gray-800 active:scale-[0.98] shadow-lg shadow-black/10">
                                                 <Edit3 className="w-4 h-4 mr-2" />
                                                 {t('prompts.wizard.use_btn')}
                                             </Button>
                                         </Card>
                                     ) : (
-                                        <div className="h-full border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl flex flex-col items-center justify-center text-slate-400 p-8 text-center">
+                                        <div className="h-full border-2 border-dashed border-gray-300 rounded-2xl flex flex-col items-center justify-center text-gray-400 p-8 text-center">
                                             <Wand2 className="w-12 h-12 mb-4 opacity-50" />
                                             <p>{t('prompts.wizard.placeholder')}</p>
                                         </div>

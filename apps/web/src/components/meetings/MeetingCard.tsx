@@ -14,7 +14,7 @@ export function MeetingCard({
   transcript,
   participantCount
 }: MeetingCardProps) {
-  
+
   const isValidDate = created_at && !isNaN(new Date(created_at).getTime());
 
   const formatTime = (seconds: number) => {
@@ -22,36 +22,24 @@ export function MeetingCard({
     const secs = Math.round(seconds % 60);
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
-  
+
   const getStatusConfig = () => {
     switch (status) {
       case 'completed':
         return {
-          color: 'bg-green-500',
           text: 'Completed',
-          textColor: 'text-green-700 dark:text-green-300',
-          bgColor: 'bg-green-50 dark:bg-green-900/20'
         };
-             case 'processing':
-         return {
-           color: 'bg-blue-500',
-           text: 'Processing',
-           textColor: 'text-blue-700 dark:text-blue-300',
-           bgColor: 'bg-blue-50 dark:bg-blue-900/20'
-         };
+      case 'processing':
+        return {
+          text: 'Processing',
+        };
       case 'failed':
         return {
-          color: 'bg-red-500',
           text: 'Failed',
-          textColor: 'text-red-700 dark:text-red-300',
-          bgColor: 'bg-red-50 dark:bg-red-900/20'
         };
       default:
         return {
-          color: 'bg-gray-500',
           text: 'Unknown',
-          textColor: 'text-gray-700 dark:text-gray-300',
-          bgColor: 'bg-gray-50 dark:bg-gray-900/20'
         };
     }
   };
@@ -59,62 +47,66 @@ export function MeetingCard({
   const statusConfig = getStatusConfig();
 
   return (
-    <div className="group bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm rounded-2xl border border-gray-200/50 dark:border-gray-700/50 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 p-6 h-full cursor-pointer">
+    <div className="group bg-white/20 backdrop-blur-xl border border-gray-300/30 shadow-lg shadow-black/5 rounded-2xl hover:shadow-xl hover:shadow-black/10 transition-all duration-200 p-6 h-full cursor-pointer">
       <div className="flex flex-col h-full">
-        
+
         {/* Header */}
         <div className="flex-1 mb-4">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3 line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+          <h3 className="text-lg font-semibold text-black mb-3 line-clamp-2 group-hover:text-gray-700 transition-colors">
             {title || 'Untitled Meeting'}
           </h3>
-          
+
           {/* Date and Duration */}
-          <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400 mb-3">
+          <div className="flex items-center gap-4 text-sm text-gray-500 mb-3">
             <div className="flex items-center">
-              <Calendar className="w-4 h-4 mr-1.5 text-blue-500" />
+              <div className="p-1.5 bg-gray-100/80 rounded-lg mr-1.5">
+                <Calendar className="w-4 h-4 text-gray-600" />
+              </div>
               <span>
                 {isValidDate ? formatDate(new Date(created_at), 'MMM d, yyyy') : 'Invalid Date'}
               </span>
             </div>
-            
+
             <div className="flex items-center">
-              <Clock className="w-4 h-4 mr-1.5 text-green-500" />
+              <div className="p-1.5 bg-gray-100/80 rounded-lg mr-1.5">
+                <Clock className="w-4 h-4 text-gray-600" />
+              </div>
               <span>{formatTime(duration)}</span>
             </div>
           </div>
         </div>
-        
+
         {/* Footer */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             {/* Status Badge */}
-            <div className={`inline-flex items-center px-3 py-1 rounded-full ${statusConfig.bgColor} border border-gray-200/50 dark:border-gray-700/50`}>
-              <div className={`w-2 h-2 rounded-full ${statusConfig.color} mr-2`}></div>
-              <span className={`text-xs font-medium ${statusConfig.textColor}`}>
+            <div className="inline-flex items-center px-3 py-1 rounded-full bg-gray-100 text-gray-700 border border-gray-200">
+              <div className="w-2 h-2 rounded-full bg-gray-500 mr-2"></div>
+              <span className="text-xs font-medium">
                 {statusConfig.text}
               </span>
             </div>
-            
+
             {/* Transcript Indicator */}
             {transcript && (
-              <div className="inline-flex items-center px-2 py-1 rounded-full bg-purple-50 dark:bg-purple-900/20 border border-purple-200/50 dark:border-purple-700/50">
-                <FileText className="w-3 h-3 text-purple-500" />
+              <div className="inline-flex items-center px-2 py-1 rounded-full bg-gray-100 border border-gray-200">
+                <FileText className="w-3 h-3 text-gray-600" />
               </div>
             )}
-            
+
             {/* Participant Count */}
             {participantCount > 0 && (
-              <div className="inline-flex items-center px-2 py-1 rounded-full bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200/50 dark:border-indigo-700/50">
-                <Mic className="w-3 h-3 text-indigo-500 mr-1" />
-                <span className="text-xs font-medium text-indigo-700 dark:text-indigo-300">
+              <div className="inline-flex items-center px-2 py-1 rounded-full bg-gray-100 border border-gray-200">
+                <Mic className="w-3 h-3 text-gray-600 mr-1" />
+                <span className="text-xs font-medium text-gray-700">
                   {participantCount}
                 </span>
               </div>
             )}
           </div>
-          
+
           {/* Arrow Indicator */}
-          <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-blue-500 group-hover:translate-x-1 transition-all duration-300" />
+          <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-black group-hover:translate-x-1 transition-all duration-200" />
         </div>
       </div>
     </div>

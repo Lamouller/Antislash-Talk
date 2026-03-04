@@ -2,25 +2,33 @@ import React from 'react';
 import { cva, type VariantProps } from 'class-variance-authority';
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background',
+  'inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
   {
     variants: {
       variant: {
-        primary: 'bg-primary text-primary-foreground hover:bg-primary/90',
-        secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
-        outline: 'border border-input hover:bg-accent hover:text-accent-foreground',
-        danger: 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
-        ghost: 'hover:bg-accent hover:text-accent-foreground',
+        default: 'bg-black text-white shadow-lg shadow-black/10 hover:bg-gray-800 active:scale-[0.98]',
+        primary: 'bg-black text-white shadow-lg shadow-black/10 hover:bg-gray-800 active:scale-[0.98]',
+        destructive: 'bg-red-600 text-white shadow-sm hover:bg-red-700 active:scale-[0.98]',
+        danger: 'bg-red-600 text-white shadow-sm hover:bg-red-700 active:scale-[0.98]',
+        outline: 'border-2 border-gray-200 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-300 active:scale-[0.98]',
+        secondary: 'bg-gray-100 text-gray-700 hover:bg-gray-200 active:scale-[0.98]',
+        ghost: 'text-gray-600 hover:bg-gray-100 hover:text-black',
+        glass: 'bg-white/20 backdrop-blur-md border border-gray-300/30 text-gray-700 shadow-sm hover:bg-white/40 active:scale-[0.98]',
       },
       size: {
-        small: 'h-9 px-3 rounded-md',
-        medium: 'h-10 py-2 px-4',
-        large: 'h-11 px-8 rounded-md',
+        default: 'h-11 px-6 rounded-xl text-sm',
+        sm: 'h-9 px-4 rounded-lg text-sm',
+        small: 'h-9 px-4 rounded-lg text-sm',
+        md: 'h-11 px-6 rounded-xl text-sm',
+        medium: 'h-11 px-6 rounded-xl text-sm',
+        lg: 'h-12 px-8 rounded-xl text-base',
+        large: 'h-12 px-8 rounded-xl text-base',
+        icon: 'h-10 w-10 rounded-xl',
       },
     },
     defaultVariants: {
-      variant: 'primary',
-      size: 'medium',
+      variant: 'default',
+      size: 'default',
     },
   }
 );
@@ -58,7 +66,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       >
         {isLoading ? (
           <>
-            <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-current mr-2" />
+            <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-current" />
             {loadingText || 'Loading...'}
           </>
         ) : (
