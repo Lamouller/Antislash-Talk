@@ -360,8 +360,8 @@ export default function RecordingScreen() {
   }, []);
 
   // 🔄 Sync recording state with global context for the floating timer
-  const { updateState: updateRecordingContext, resetState: resetRecordingContext } = useRecordingContext();
-  
+  const { updateState: updateRecordingContext, resetState: resetRecordingContext, registerActions, unregisterActions } = useRecordingContext();
+
   useEffect(() => {
     updateRecordingContext({
       isRecording,
@@ -371,6 +371,9 @@ export default function RecordingScreen() {
       transcriptionProgress,
     });
   }, [isRecording, isPaused, duration, isTranscribing, transcriptionProgress, updateRecordingContext]);
+
+  // Ref for stable NavBar action callbacks (assigned after handler definitions below)
+  const navBarHandlersRef = useRef<{ start: () => void; stop: () => void; pauseResume: () => void }>({ start: () => {}, stop: () => {}, pauseResume: () => {} });
 
   // Reset global context when component unmounts
   useEffect(() => {
@@ -1513,6 +1516,21 @@ export default function RecordingScreen() {
       toast.success('Recording paused');
     }
   };
+
+  // Update ref on every render so NavBar always calls the latest closures
+  navBarHandlersRef.current.start = handleStartRecording;
+  navBarHandlersRef.current.stop = handleStopRecording;
+  navBarHandlersRef.current.pauseResume = handlePauseResume;
+
+  // Register stable wrappers that delegate to ref (runs once)
+  useEffect(() => {
+    registerActions({
+      onStart: () => navBarHandlersRef.current.start(),
+      onStop: () => navBarHandlersRef.current.stop(),
+      onPauseResume: () => navBarHandlersRef.current.pauseResume(),
+    });
+    return () => unregisterActions();
+  }, [registerActions, unregisterActions]);
 
   const handleTranscription = async (_provider: string, model: string) => {
     if (!audioBlob) {
