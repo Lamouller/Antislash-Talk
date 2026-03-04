@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase';
 import { Session } from '@supabase/supabase-js';
 import { Toaster } from 'react-hot-toast';
 import { useMarketingPagesConfig } from '../hooks/useMarketingPagesConfig';
-import { RecordingProvider, useRecordingState } from '../contexts/RecordingContext';
+import { RecordingProvider } from '../contexts/RecordingContext';
 
 // #region agent log - Global Debug Logs Panel Component
 function GlobalDebugLogsPanel() {
@@ -120,57 +120,6 @@ function GlobalDebugLogsPanel() {
 }
 // #endregion
 
-function formatTime(seconds: number): string {
-  const mins = Math.floor(seconds / 60);
-  const secs = seconds % 60;
-  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-}
-
-function GlobalRecordingButton() {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const recordingState = useRecordingState();
-
-  const isRecordPage = location.pathname === '/tabs/record';
-  const isAuthPage = location.pathname.startsWith('/auth');
-
-  if (isRecordPage || isAuthPage) return null;
-
-  const { isRecording, isPaused, duration, isTranscribing, transcriptionProgress } = recordingState;
-
-  // Only show when actively recording or transcribing
-  // The bottom tab bar already has a Record button for the idle state
-  if (!isRecording && !isTranscribing) return null;
-
-  return (
-    <div
-      className="fixed bottom-0 left-0 right-0 z-50 flex justify-center pointer-events-none"
-      style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 5rem)' }}
-    >
-      <button
-        onClick={() => navigate('/tabs/record')}
-        className="pointer-events-auto flex items-center gap-3 px-5 py-3 bg-white/80 backdrop-blur-xl border border-gray-300/30 rounded-full shadow-lg shadow-black/10 transition-all duration-300 active:scale-95 hover:shadow-xl"
-      >
-        <div className={`w-3 h-3 rounded-full ${isPaused ? 'bg-gray-500' : 'bg-black animate-pulse'}`} />
-        <span className="text-black text-lg font-mono font-semibold min-w-[60px]">
-          {formatTime(duration)}
-        </span>
-        <span className="text-gray-500 text-xs font-medium">
-          {isTranscribing ? 'Transcription...' : isPaused ? 'Pause' : 'REC'}
-        </span>
-        {isTranscribing && (
-          <div className="w-16 h-1 rounded-full overflow-hidden bg-gray-200">
-            <div
-              className="h-full rounded-full transition-all bg-black"
-              style={{ width: `${transcriptionProgress}%` }}
-            />
-          </div>
-        )}
-      </button>
-    </div>
-  );
-}
-
 export default function RootLayout() {
   const [session, setSession] = useState<Session | null>(null);
   const [initialized, setInitialized] = useState(false);
@@ -281,7 +230,6 @@ export default function RootLayout() {
             }}
           />
           <Outlet />
-          <GlobalRecordingButton />
           {(localStorage.getItem('__debug_mode__') === 'true' || import.meta.env.DEV) && <GlobalDebugLogsPanel />}
         </div>
       </div>

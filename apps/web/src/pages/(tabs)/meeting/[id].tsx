@@ -1002,9 +1002,8 @@ export default function MeetingDetail() {
 
   if (loading) {
     return (
-      <div 
+      <div
         className="min-h-screen flex items-center justify-center"
-        style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
       >
         <div className="bg-white/20 backdrop-blur-xl rounded-2xl border border-gray-300/30 shadow-lg shadow-black/5 p-8">
           <div className="text-center">
@@ -1026,9 +1025,8 @@ export default function MeetingDetail() {
 
   if (!meeting) {
     return (
-      <div 
+      <div
         className="min-h-screen flex items-center justify-center"
-        style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
       >
         <div className="bg-white/20 backdrop-blur-xl rounded-2xl border border-gray-300/30 shadow-lg shadow-black/5 p-8 max-w-md mx-auto">
           <div className="text-center">
@@ -1099,8 +1097,7 @@ export default function MeetingDetail() {
   const StatusIcon = statusConfig.icon;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 space-y-8"
-      style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 1.5rem)' }}
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 space-y-8 pt-6"
     >
       <div>
 

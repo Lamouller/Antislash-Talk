@@ -248,8 +248,7 @@ export default function UploadAudioPage() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 space-y-8"
-      style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 1.5rem)' }}
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 space-y-8 pt-6"
     >
       {/* Header */}
       <div>

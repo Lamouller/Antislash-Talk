@@ -83,7 +83,6 @@ export default function MeetingsScreen() {
     return (
       <div
         className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 flex items-center justify-center min-h-[60vh]"
-        style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
       >
         <div className="bg-white/20 backdrop-blur-xl border border-gray-300/30 shadow-lg shadow-black/5 rounded-2xl p-8 max-w-md mx-auto">
           <div className="text-center">
@@ -101,8 +100,7 @@ export default function MeetingsScreen() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 space-y-8"
-      style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 1.5rem)' }}
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 space-y-8 pt-6"
     >
       {/* Header */}
       <div>

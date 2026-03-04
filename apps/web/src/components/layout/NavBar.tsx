@@ -1,10 +1,19 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import { Home, FileText, Mic, Upload, Settings } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useRecordingState } from '../../contexts/RecordingContext';
+
+function formatTime(seconds: number): string {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+}
 
 export default function NavBar() {
   const { t } = useTranslation();
   const location = useLocation();
+  const recordingState = useRecordingState();
+  const { isRecording, isPaused, duration, isTranscribing } = recordingState;
 
   // Derive a simple page title from the current route
   const getPageTitle = () => {
@@ -48,10 +57,10 @@ export default function NavBar() {
 
       {/* Bottom tab bar (mobile only) */}
       <div
-        className="fixed bottom-0 left-0 right-0 z-40 md:hidden"
+        className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-white/80 backdrop-blur-xl border-t border-gray-200/50"
         style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
       >
-        <div className="bg-white/80 backdrop-blur-xl border-t border-gray-200/50">
+        <div>
           <div
             className="flex items-end justify-around px-2 pt-1 pb-1"
             style={{
@@ -68,7 +77,7 @@ export default function NavBar() {
                 : location.pathname.startsWith(item.href);
 
               if (item.isCenter) {
-                // Center Record button - accentuated, raised
+                // Center Record button - accentuated, raised, shows recording state
                 return (
                   <NavLink
                     key={item.href}
@@ -77,7 +86,13 @@ export default function NavBar() {
                   >
                     <div
                       className={`w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-all duration-200 ${
-                        isActive
+                        isRecording && !isPaused
+                          ? 'bg-red-600 shadow-red-600/30 animate-pulse'
+                          : isRecording && isPaused
+                          ? 'bg-gray-600 shadow-gray-600/20'
+                          : isTranscribing
+                          ? 'bg-black shadow-black/20'
+                          : isActive
                           ? 'bg-black shadow-black/20 scale-105'
                           : 'bg-black shadow-black/15'
                       }`}
@@ -86,10 +101,10 @@ export default function NavBar() {
                     </div>
                     <span
                       className={`text-[10px] font-medium mt-1 transition-all duration-200 ${
-                        isActive ? 'text-black' : 'text-gray-400'
+                        isRecording ? 'text-red-600 font-mono' : isActive ? 'text-black' : 'text-gray-400'
                       }`}
                     >
-                      {item.label}
+                      {isRecording ? formatTime(duration) : isTranscribing ? 'Transcription...' : item.label}
                     </span>
                   </NavLink>
                 );

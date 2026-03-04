@@ -182,8 +182,7 @@ Règles:
         <div className="flex flex-col h-full overflow-hidden">
             {/* Header with safe area for Dynamic Island */}
             <header
-                className="flex-none bg-white/20 backdrop-blur-xl border-b border-gray-300/30 px-8 pb-6"
-                style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 1.5rem)' }}
+                className="flex-none bg-white/20 backdrop-blur-xl border-b border-gray-300/30 px-8 pb-6 pt-6"
             >
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 max-w-6xl mx-auto w-full">
                     <div>
