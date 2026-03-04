@@ -1,143 +1,125 @@
 import { Link } from 'react-router-dom';
-import { Mic, ArrowRight, Github, Star, Shield, Globe, Users } from 'lucide-react';
+import { Mic, ArrowRight, Github, Shield, Globe, Users } from 'lucide-react';
 
 export default function HomeScreen() {
   return (
-    <div className="min-h-screen">
-      {/* Navigation */}
-      <nav
-        className="fixed left-0 right-0 z-50 px-4 lg:px-8 py-4 bg-white/20 backdrop-blur-xl border-b border-gray-300/20"
-        style={{ top: 0, paddingTop: 'env(safe-area-inset-top, 0px)' }}
-      >
-        <div className="w-full flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="bg-black p-2 rounded-xl shadow-lg shadow-black/10">
-              <Mic size={24} className="text-white" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold text-black">Antislash Talk</h1>
-              <div className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                <span className="w-1.5 h-1.5 bg-gray-400 rounded-full mr-1.5"></span>
-                Community Edition
-              </div>
-            </div>
+    <div className="min-h-screen flex flex-col lg:flex-row">
+      {/* Left Panel - Branding (hidden on mobile) */}
+      <div className="hidden lg:flex lg:w-1/2 bg-black text-white flex-col items-center justify-center p-12">
+        <div className="max-w-md text-center">
+          <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-8">
+            <Mic className="w-8 h-8 text-black" />
           </div>
-          <div className="flex items-center space-x-4">
-            <a
-              href="https://github.com/Lamouller/Antislash-Talk"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center space-x-2 text-gray-500 hover:text-black transition-colors"
-            >
-              <Github size={20} />
-              <span className="hidden sm:inline">Star on GitHub</span>
-            </a>
-            <Link
-              to="/auth"
-              className="px-4 py-2 bg-black text-white rounded-xl font-medium hover:bg-gray-800 transition-colors shadow-lg shadow-black/10"
-            >
-              Get Started
-            </Link>
+          <h1 className="text-4xl font-bold mb-4">Antislash Talk</h1>
+          <p className="text-lg text-gray-400 mb-3">AI-Powered Meeting Transcription</p>
+          <p className="text-gray-500 leading-relaxed mb-8">
+            Transform your meetings into actionable insights with cutting-edge AI transcription, speaker identification, and multi-language support.
+          </p>
+          <div className="flex items-center justify-center gap-3">
+            <span className="px-3 py-1.5 bg-white/10 border border-white/20 rounded-full text-xs font-medium text-gray-300">
+              AI Transcription
+            </span>
+            <span className="px-3 py-1.5 bg-white/10 border border-white/20 rounded-full text-xs font-medium text-gray-300">
+              Multi-Language
+            </span>
+            <span className="px-3 py-1.5 bg-white/10 border border-white/20 rounded-full text-xs font-medium text-gray-300">
+              Secure
+            </span>
           </div>
         </div>
-      </nav>
+      </div>
 
-      {/* Hero Section */}
-      <main className="min-h-screen flex items-center justify-center px-4 lg:px-8 py-24">
-        <div className="w-full text-center max-w-5xl mx-auto">
-          {/* Hero Content */}
-          <div className="mb-16">
-            <div className="inline-flex items-center px-4 py-2 rounded-full bg-gray-100 text-gray-600 text-sm font-medium mb-8">
-              <Star size={16} className="mr-2" />
-              AI-Powered Meeting Intelligence
+      {/* Right Panel - Content */}
+      <div className="flex-1 flex flex-col bg-white">
+        {/* Mobile logo header */}
+        <div className="lg:hidden flex items-center justify-center pt-12 pb-4">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 bg-black rounded-xl flex items-center justify-center">
+              <Mic className="w-5 h-5 text-white" />
             </div>
+            <span className="text-lg font-bold text-black">Antislash Talk</span>
+          </div>
+        </div>
 
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-black tracking-tight mb-6">
-              AI-Powered
+        {/* Main content area */}
+        <div className="flex-1 flex items-center justify-center p-6 lg:p-12">
+          <div className="w-full max-w-lg">
+            {/* Hero */}
+            <h2 className="text-3xl sm:text-4xl font-bold text-black tracking-tight mb-4">
+              Record, Transcribe,
               <br />
-              Meeting Transcription
-            </h1>
-
-            <p className="text-lg text-gray-500 max-w-2xl mx-auto leading-relaxed mb-12">
-              Record, transcribe, and analyze your meetings with AI-powered insights.
-              <br className="hidden sm:block" />
-              Multi-language support, speaker identification, and secure cloud storage.
+              Analyze
+            </h2>
+            <p className="text-gray-500 text-lg leading-relaxed mb-10">
+              AI-powered meeting intelligence that helps you capture every word, identify speakers, and extract key insights automatically.
             </p>
 
             {/* CTA Buttons */}
-            <div className="flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-6 mb-16">
+            <div className="flex flex-col sm:flex-row gap-4 mb-12">
               <Link
                 to="/auth/register"
-                className="px-8 py-4 bg-black text-white rounded-2xl text-lg font-medium hover:bg-gray-800 active:scale-[0.98] transition-all shadow-lg shadow-black/10 group"
+                className="inline-flex items-center justify-center px-6 py-3 bg-black text-white rounded-lg font-medium hover:bg-gray-800 transition-colors group"
               >
-                <span className="flex items-center">
-                  Start Free
-                  <ArrowRight size={20} className="ml-2 group-hover:translate-x-1 transition-transform" />
-                </span>
+                Get Started
+                <ArrowRight size={18} className="ml-2 group-hover:translate-x-1 transition-transform" />
               </Link>
               <a
                 href="https://github.com/Lamouller/Antislash-Talk"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="px-8 py-4 border-2 border-gray-300 hover:border-black text-black rounded-2xl font-medium text-lg transition-all flex items-center"
+                className="inline-flex items-center justify-center px-6 py-3 border border-gray-200 text-black rounded-lg font-medium hover:border-black transition-colors"
               >
-                <Github size={20} className="mr-2" />
+                <Github size={18} className="mr-2" />
                 View on GitHub
               </a>
             </div>
-          </div>
 
-          {/* Features Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 w-full">
-            <div className="bg-white/20 backdrop-blur-xl border border-gray-300/30 rounded-2xl p-6 shadow-lg shadow-black/5">
-              <div className="p-2.5 bg-gray-100/80 rounded-xl w-fit mx-auto mb-4">
-                <Mic size={24} className="text-black" />
+            {/* Feature Grid 2x2 */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-4 border border-gray-200 rounded-xl">
+                <div className="w-9 h-9 bg-gray-100 rounded-lg flex items-center justify-center mb-3">
+                  <Mic size={18} className="text-black" />
+                </div>
+                <h3 className="font-semibold text-black text-sm mb-1">AI Transcription</h3>
+                <p className="text-xs text-gray-500">High-accuracy speech-to-text across multiple languages.</p>
               </div>
-              <h3 className="font-semibold text-black mb-2">AI Transcription</h3>
-              <p className="text-sm text-gray-500">Automatic speech-to-text with high accuracy across multiple languages.</p>
-            </div>
 
-            <div className="bg-white/20 backdrop-blur-xl border border-gray-300/30 rounded-2xl p-6 shadow-lg shadow-black/5">
-              <div className="p-2.5 bg-gray-100/80 rounded-xl w-fit mx-auto mb-4">
-                <Users size={24} className="text-black" />
+              <div className="p-4 border border-gray-200 rounded-xl">
+                <div className="w-9 h-9 bg-gray-100 rounded-lg flex items-center justify-center mb-3">
+                  <Users size={18} className="text-black" />
+                </div>
+                <h3 className="font-semibold text-black text-sm mb-1">Speaker ID</h3>
+                <p className="text-xs text-gray-500">Automatically identify and label different speakers.</p>
               </div>
-              <h3 className="font-semibold text-black mb-2">Speaker Identification</h3>
-              <p className="text-sm text-gray-500">Automatically identify and label different speakers in your meetings.</p>
-            </div>
 
-            <div className="bg-white/20 backdrop-blur-xl border border-gray-300/30 rounded-2xl p-6 shadow-lg shadow-black/5">
-              <div className="p-2.5 bg-gray-100/80 rounded-xl w-fit mx-auto mb-4">
-                <Globe size={24} className="text-black" />
+              <div className="p-4 border border-gray-200 rounded-xl">
+                <div className="w-9 h-9 bg-gray-100 rounded-lg flex items-center justify-center mb-3">
+                  <Globe size={18} className="text-black" />
+                </div>
+                <h3 className="font-semibold text-black text-sm mb-1">Multi-Language</h3>
+                <p className="text-xs text-gray-500">Support for multiple languages with translation.</p>
               </div>
-              <h3 className="font-semibold text-black mb-2">Multi-Language</h3>
-              <p className="text-sm text-gray-500">Support for multiple languages with real-time translation capabilities.</p>
-            </div>
 
-            <div className="bg-white/20 backdrop-blur-xl border border-gray-300/30 rounded-2xl p-6 shadow-lg shadow-black/5">
-              <div className="p-2.5 bg-gray-100/80 rounded-xl w-fit mx-auto mb-4">
-                <Shield size={24} className="text-black" />
+              <div className="p-4 border border-gray-200 rounded-xl">
+                <div className="w-9 h-9 bg-gray-100 rounded-lg flex items-center justify-center mb-3">
+                  <Shield size={18} className="text-black" />
+                </div>
+                <h3 className="font-semibold text-black text-sm mb-1">Secure Storage</h3>
+                <p className="text-xs text-gray-500">Encrypted meeting data stored securely in the cloud.</p>
               </div>
-              <h3 className="font-semibold text-black mb-2">Secure Storage</h3>
-              <p className="text-sm text-gray-500">Your meeting data is encrypted and securely stored in the cloud.</p>
             </div>
           </div>
         </div>
-      </main>
 
-      {/* Footer */}
-      <footer className="border-t border-gray-200 py-8">
-        <div className="max-w-7xl mx-auto px-6 text-center">
-          <div className="flex items-center justify-center space-x-2 text-gray-400 text-sm">
-            <span>© 2026 Antislash Talk</span>
-            <span>·</span>
+        {/* Footer */}
+        <div className="px-6 py-6 text-center">
+          <div className="text-xs text-gray-400">
+            <span>&copy; 2026 Antislash Talk</span>
+            <span className="mx-2">&middot;</span>
             <span>Antislash Studio</span>
-            <span>·</span>
-            <a href="https://github.com/Lamouller/Antislash-Talk" className="hover:text-black transition-colors">
-              MIT License
-            </a>
           </div>
         </div>
-      </footer>
+      </div>
     </div>
   );
 }
