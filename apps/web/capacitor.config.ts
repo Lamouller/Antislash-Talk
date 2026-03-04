@@ -6,7 +6,7 @@ const config: CapacitorConfig = {
   webDir: 'dist',
   server: {
     // Charger l'app depuis le VPS (mode production)
-    url: 'https://app.riquelme-talk.antislash.studio',
+    url: 'https://talk.antislash.studio',
     // Pour le dev local, commente la ligne ci-dessus et décommente celle-ci :
     // url: 'http://192.168.1.X:5173',
     // cleartext: true
