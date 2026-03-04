@@ -115,7 +115,7 @@ async function enhanceWithGoogle(apiKey: string, request: EnhancementRequest) {
   };
 }
 
-Deno.serve(async (req) => {
+export const handler = async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
@@ -127,7 +127,7 @@ Deno.serve(async (req) => {
     )
 
     const requestBody: EnhancementRequest = await req.json()
-    
+
     console.log('Enhancement request received for user:', requestBody.user_id)
 
     // Get user's preferred LLM and API key
@@ -138,7 +138,7 @@ Deno.serve(async (req) => {
       .single()
 
     const preferredProvider = profile?.preferred_llm || 'openai'
-    
+
     // Get API key for the preferred provider
     const { data: apiKeyData } = await supabase
       .from('api_keys')
@@ -154,7 +154,7 @@ Deno.serve(async (req) => {
     const apiKey = apiKeyData.encrypted_key // In production, this should be decrypted
 
     let enhancedResult
-    
+
     switch (preferredProvider) {
       case 'openai':
         enhancedResult = await enhanceWithOpenAI(apiKey, requestBody)
@@ -177,10 +177,15 @@ Deno.serve(async (req) => {
     console.error('Enhancement error:', error)
     return new Response(
       JSON.stringify({ error: error.message }),
-      { 
+      {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     )
   }
-}) 
+};
+
+// Start server if this file is the main entry point
+if (import.meta.main) {
+  Deno.serve(handler);
+} 

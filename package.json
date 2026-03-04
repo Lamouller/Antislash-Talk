@@ -6,12 +6,9 @@
   "type": "module",
   "scripts": {
     "dev": "pnpm --filter @antislash-talk/web dev",
-    "dev:all": "concurrently \"pnpm dev:web\" \"pnpm dev:api\"",
     "dev:web": "pnpm --filter @antislash-talk/web dev",
-    "dev:api": "pnpm --filter @antislash-talk/api dev",
     "build": "pnpm --recursive --filter './apps/**' build",
     "build:web": "pnpm --filter @antislash-talk/web build",
-    "build:api": "pnpm --filter @antislash-talk/api build",
     "clean": "pnpm --recursive exec rm -rf node_modules dist .turbo",
     "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
     "lint": "pnpm --recursive lint",

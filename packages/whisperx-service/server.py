@@ -43,13 +43,21 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="WhisperX Transcription Service")
 
-# CORS configuration
+# CORS restreint aux domaines autorisés
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "https://riquelme-talk.antislash.studio",
+        "https://app.riquelme-talk.antislash.studio",
+        "https://api.riquelme-talk.antislash.studio",
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "capacitor://localhost",
+        "http://localhost",
+    ],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
 # Global state

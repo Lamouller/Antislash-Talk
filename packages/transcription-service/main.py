@@ -23,13 +23,21 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# CORS pour communication avec Edge Functions
+# CORS restreint aux domaines autorisés
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # En production, restreindre aux domaines autorisés
+    allow_origins=[
+        "https://riquelme-talk.antislash.studio",
+        "https://app.riquelme-talk.antislash.studio",
+        "https://api.riquelme-talk.antislash.studio",
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "capacitor://localhost",
+        "http://localhost",
+    ],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
 # État du service

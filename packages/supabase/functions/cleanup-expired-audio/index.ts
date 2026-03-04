@@ -1,7 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
 
-Deno.serve(async (req) => {
+export const handler = async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
@@ -29,17 +29,17 @@ Deno.serve(async (req) => {
 
     if (!expiredMeetings || expiredMeetings.length === 0) {
       console.log('✅ No expired audio files found')
-      return new Response(JSON.stringify({ 
-        success: true, 
+      return new Response(JSON.stringify({
+        success: true,
         message: 'No expired audio files found',
-        deletedCount: 0 
+        deletedCount: 0
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
 
     console.log(`🗑️ Found ${expiredMeetings.length} expired audio files to delete`)
-    
+
     let deletedCount = 0
     let errors: string[] = []
 
@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
     for (const meeting of expiredMeetings) {
       try {
         console.log(`🗂️ Deleting audio for meeting: ${meeting.title} (${meeting.id})`)
-        
+
         // Delete from storage
         const { error: deleteError } = await supabase.storage
           .from('meetingrecordings')
@@ -62,7 +62,7 @@ Deno.serve(async (req) => {
         // Update database to remove recording_url
         const { error: updateError } = await supabase
           .from('meetings')
-          .update({ 
+          .update({
             recording_url: null,
             // Keep audio_expires_at for audit trail
           })
@@ -100,14 +100,19 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('❌ Fatal error in cleanup function:', error)
     return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: error.message 
+      JSON.stringify({
+        success: false,
+        error: error.message
       }),
-      { 
+      {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     )
   }
-}) 
+};
+
+// Start server if this file is the main entry point
+if (import.meta.main) {
+  Deno.serve(handler);
+} 

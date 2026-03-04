@@ -4,22 +4,15 @@
 packages:
   # Main web application
   - 'apps/web'
-  
-  # Backend services
-  - 'apps/api'
-  
+
   # Supabase self-hosted configuration
   - 'packages/supabase'
-  
+
   # Shared libraries
   - 'packages/shared'
   - 'packages/ui'
   - 'packages/types'
-  
+
   # Development tools
-  - 'packages/config'
   - 'packages/scripts'
-  
-  # Documentation
-  - 'apps/docs'
 
