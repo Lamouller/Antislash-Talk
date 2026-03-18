@@ -228,6 +228,12 @@ services:
       SUPABASE_PUBLIC_URL: ${SUPABASE_PUBLIC_URL:-http://localhost:54321}
       SUPABASE_ANON_KEY: ${ANON_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNjc5MDg2OTIwLCJleHAiOjE5OTQ2NjI5MjB9.VWXx6e0Gi-rHC0Gv7O2M38LAoIrBYsGLtC0TBvuRx6k}
       SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJvbGUiOiJzZXJ2aWNlX3JvbGUiLCJpYXQiOjE2NzkwODY5MjAsImV4cCI6MTk5NDY2MjkyMH0.mFqWJEQz3pR2AyhqJqXVvNqlRVGVPLhV2J0W-7LGvpw}
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3000').then(r => { if (r.status >= 500) throw new Error(r.status) })\""]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     networks:
       - antislash-network
     depends_on:
