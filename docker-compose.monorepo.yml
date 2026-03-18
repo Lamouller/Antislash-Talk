@@ -353,7 +353,7 @@ services:
       # Cache des modèles Ollama (évite de re-télécharger)
       - ollama-models:/root/.ollama
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://127.0.0.1:11434/api/tags || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:11434/api/tags || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -394,7 +394,7 @@ services:
       - pytorch-hub:/root/.cache/torch
       - huggingface-cache:/root/.cache/huggingface
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://127.0.0.1:8000/health || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8000/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -432,7 +432,7 @@ services:
       # Cache des modèles WhisperX (évite de re-télécharger)
       - whisperx-models:/app/models
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://127.0.0.1:8082/health"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8082/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
