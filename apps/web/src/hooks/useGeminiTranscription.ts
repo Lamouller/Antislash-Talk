@@ -127,6 +127,9 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
     const workletNodeRef = useRef<AudioWorkletNode | null>(null);
     const mediaStreamRef = useRef<MediaStream | null>(null);
     const pcmChunkCountRef = useRef<number>(0);
+    // 🎙️ Phase 10: Track whether we own the PCM stream (i.e. we created it via getUserMedia).
+    // If false, the stream was provided externally and we must NOT stop its tracks on cleanup.
+    const ownsPCMStreamRef = useRef<boolean>(false);
 
     // ─── Phase 9: clientVAD refs ───────────────────────────────────────────
     const vadRef = useRef<RmsVad | null>(null);
@@ -1003,21 +1006,44 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
         }
     }, []);
 
+    // 🎙️ Phase 10: Options accepted by startPCMCapture
+    interface StartPCMCaptureOptions {
+        /** If provided, this stream is used instead of calling getUserMedia.
+         *  The hook will NOT stop the tracks on cleanup (ownsPCMStreamRef = false). */
+        externalStream?: MediaStream;
+    }
+
     // Start PCM audio capture using AudioWorklet
-    const startPCMCapture = useCallback(async () => {
+    const startPCMCapture = useCallback(async (options: StartPCMCaptureOptions = {}) => {
         try {
             pcmChunkCountRef.current = 0;
-            
-            // Request microphone access at 16kHz
-            const stream = await navigator.mediaDevices.getUserMedia({
-                audio: {
-                    sampleRate: 16000,
-                    channelCount: 1,
-                    echoCancellation: true,
-                    noiseSuppression: true
-                }
-            });
+
+            // 🎙️ Phase 10: Decide whether to use an external stream or create our own.
+            const _unifiedEnvFlags = readEnvFlags();
+            const _useUnified = resolveFlag('unifiedMicStream', { envFlags: _unifiedEnvFlags }).value;
+
+            let stream: MediaStream;
+            let ownsStream: boolean;
+
+            if (_useUnified && options.externalStream) {
+                stream = options.externalStream;
+                ownsStream = false;
+                console.debug('[PCM Capture] Using external stream (unifiedMicStream ON)');
+            } else {
+                // Legacy: create our own stream
+                stream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        sampleRate: 16000,
+                        channelCount: 1,
+                        echoCancellation: true,
+                        noiseSuppression: true
+                    }
+                });
+                ownsStream = true;
+            }
+
             mediaStreamRef.current = stream;
+            ownsPCMStreamRef.current = ownsStream;
 
             // Create AudioContext at 16kHz (required by Gemini)
             audioContextRef.current = new AudioContext({ sampleRate: 16000 });
@@ -1119,10 +1145,19 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
             audioContextRef.current.close();
             audioContextRef.current = null;
         }
+        // 🎙️ Phase 10: Only stop tracks if we created (own) the stream.
+        // If the stream was provided externally, the caller (record.tsx) owns it
+        // and will stop it when stopRecording() is called.
         if (mediaStreamRef.current) {
-            mediaStreamRef.current.getTracks().forEach(track => track.stop());
+            if (ownsPCMStreamRef.current) {
+                mediaStreamRef.current.getTracks().forEach(track => track.stop());
+                console.debug('[PCM Capture] Stopped owned stream tracks');
+            } else {
+                console.debug('[PCM Capture] External stream — tracks NOT stopped (not owned)');
+            }
             mediaStreamRef.current = null;
         }
+        ownsPCMStreamRef.current = false;
 
         debugLog('useGeminiTranscription:stopPCMCapture', '🔇 PCM CAPTURE STOPPED', {
             totalPCMChunks: pcmChunkCountRef.current
@@ -1478,25 +1513,48 @@ ${existingText || '(aucune transcription préalable - analyse uniquement l\'audi
     // FULL WORKFLOW: Start live → Stop → Enhance automatically
     // ═══════════════════════════════════════════════════════════════════════════
 
+    // 🎙️ Phase 10: Options for startFullWorkflow
+    interface StartFullWorkflowOptions {
+        onLiveSegment?: (segment: TranscriptSegment) => void;
+        onEnhancedResult?: (result: GeminiTranscriptionResult) => void;
+        /** If provided (and unifiedMicStream flag is ON), passed to startPCMCapture
+         *  to skip a second getUserMedia call. */
+        externalStream?: MediaStream;
+    }
+
     const startFullWorkflow = useCallback(async (
-        onLiveSegment?: (segment: TranscriptSegment) => void,
+        onLiveSegmentOrOptions?: ((segment: TranscriptSegment) => void) | StartFullWorkflowOptions,
         onEnhancedResult?: (result: GeminiTranscriptionResult) => void
     ) => {
+        // Support both legacy positional call and new options object
+        let onLiveSegment: ((segment: TranscriptSegment) => void) | undefined;
+        let externalStream: MediaStream | undefined;
+
+        if (typeof onLiveSegmentOrOptions === 'function') {
+            onLiveSegment = onLiveSegmentOrOptions;
+        } else if (onLiveSegmentOrOptions && typeof onLiveSegmentOrOptions === 'object') {
+            onLiveSegment = onLiveSegmentOrOptions.onLiveSegment;
+            onEnhancedResult = onLiveSegmentOrOptions.onEnhancedResult;
+            externalStream = onLiveSegmentOrOptions.externalStream;
+        }
+
         // #region agent log
         debugLog('useGeminiTranscription:fullWorkflow', '🚀 STARTING FULL WORKFLOW', {
             enableLive: enableLiveTranscription,
-            enableEnhance: enablePostEnhancement
+            enableEnhance: enablePostEnhancement,
+            hasExternalStream: !!externalStream
         }, 'WORKFLOW');
         // #endregion
 
         // Start live WebSocket connection
         await startLiveTranscription(onLiveSegment);
-        
+
         // Wait for WebSocket to be ready before sending audio
         await new Promise(r => setTimeout(r, 500));
-        
+
         // Start PCM capture via AudioWorklet (sends audio directly to WebSocket)
-        const pcmStarted = await startPCMCapture();
+        // 🎙️ Phase 10: pass externalStream so startPCMCapture can skip getUserMedia when flag is ON
+        const pcmStarted = await startPCMCapture({ externalStream });
         
         // #region agent log
         fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:fullWorkflow',message:'PCM_CAPTURE_STATUS',data:{pcmStarted,wsState:wsRef.current?.readyState},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
@@ -1620,9 +1678,13 @@ ${existingText || '(aucune transcription préalable - analyse uniquement l\'audi
                 audioContextRef.current = null;
             }
             if (mediaStreamRef.current) {
-                mediaStreamRef.current.getTracks().forEach(t => t.stop());
+                // 🎙️ Phase 10: Only stop tracks if we own the stream
+                if (ownsPCMStreamRef.current) {
+                    mediaStreamRef.current.getTracks().forEach(t => t.stop());
+                }
                 mediaStreamRef.current = null;
             }
+            ownsPCMStreamRef.current = false;
         };
     }, []);
 

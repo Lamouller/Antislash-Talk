@@ -16,6 +16,7 @@ import { useLiveDiarization } from '../../hooks/useLiveDiarization';
 import { useWakeLock } from '../../hooks/useWakeLock';
 import { useDisplayMode } from '../../hooks/useDisplayMode';
 import { getAdaptivePrompts, getWhisperOptimizedPrompts, requiresSpecialPrompts } from '../../lib/adaptive-prompts';
+import { readEnvFlags, resolveFlag } from '../../lib/featureFlags';
 import { processStreamingSegment, SpeakerMapping, SpeakerSegment } from '../../lib/speaker-name-detector';
 import toast from 'react-hot-toast';
 import { Button } from '../../components/ui/Button';
@@ -221,7 +222,8 @@ export default function RecordingScreen() {
     stopRecording,
     pauseRecording,
     resumeRecording,
-    resetRecorder
+    resetRecorder,
+    getActiveMediaStream,  // 🎙️ Phase 10: stream getter for unified mic
   } = useWebAudioRecorder();
 
   const {
@@ -813,12 +815,49 @@ export default function RecordingScreen() {
             console.warn('[record] ⚠️ Pyannote Live not available:', pyannoteError);
           }
 
-          // Start Gemini live workflow
-          const workflow = await geminiTranscription.startFullWorkflow(
-            // Callback for each live segment
-            (segment) => {
+          // 🎙️ Phase 10: Unified mic stream orchestration
+          // Step 1 — Start MediaRecorder (getUserMedia #1)
+          // We capture chunks here; we also expose getActiveMediaStream() for sharing.
+          let chunkCount = 0;
+          await startRecording(async (chunk: Blob, _chunkIndex: number) => {
+            chunkCount++;
+            // Convert Blob to ArrayBuffer and send to Gemini
+            const arrayBuffer = await chunk.arrayBuffer();
+            const mimeType = chunk.type || 'audio/webm';
+
+            // #region agent log
+            if (chunkCount <= 5 || chunkCount % 10 === 0) {
+              debugLog('record.tsx:geminiChunk', '📤 SENDING AUDIO CHUNK', {
+                chunkNumber: chunkCount,
+                chunkSizeBytes: arrayBuffer.byteLength,
+                mimeType,
+                hasWorkflow: !!geminiWorkflowRef.current
+              }, 'GEMINI');
+            }
+            // #endregion
+
+            await geminiWorkflowRef.current?.sendChunk(arrayBuffer, mimeType);
+          });
+
+          // Step 2 — If flag ON, retrieve the active stream to share with Gemini PCM capture
+          const _envFlags = readEnvFlags();
+          const _useUnified = resolveFlag('unifiedMicStream', { envFlags: _envFlags }).value;
+
+          let sharedStream: MediaStream | undefined;
+          if (_useUnified) {
+            sharedStream = getActiveMediaStream() ?? undefined;
+            if (sharedStream) {
+              console.debug('[record] 🎙️ unifiedMicStream ON — sharing MediaStream with Gemini PCM capture');
+            } else {
+              console.warn('[record] ⚠️ unifiedMicStream ON but getActiveMediaStream() returned null — Gemini will open its own stream');
+            }
+          }
+
+          // Step 3 — Start Gemini live workflow (passes externalStream so startPCMCapture skips getUserMedia when flag ON)
+          const workflow = await geminiTranscription.startFullWorkflow({
+            onLiveSegment: (segment) => {
               console.log(`%c[record] 🎤 GEMINI LIVE SEGMENT`, 'color: #10b981; font-weight: bold', segment);
-              
+
               // #region agent log
               debugLog('record.tsx:geminiLiveSegment', '📝 LIVE SEGMENT RECEIVED', {
                 speaker: segment.speaker,
@@ -826,13 +865,12 @@ export default function RecordingScreen() {
                 timestamp: Date.now()
               }, 'GEMINI');
               // #endregion
-              
+
               setGeminiLiveSegments(prev => [...prev, segment]);
               // NOTE: liveTranscriptionSegments is synced via useEffect from geminiTranscription.liveSegments
               // Do NOT update setLiveTranscriptionSegments here to avoid duplication!
             },
-            // Callback when enhancement is complete
-            (result) => {
+            onEnhancedResult: (result) => {
               console.log('%c[record] ✅ GEMINI ENHANCEMENT COMPLETE', 'color: #10b981; font-weight: bold', result);
               // #region agent log
               debugLog('record.tsx:geminiEnhanced', '✅ ENHANCEMENT COMPLETE', {
@@ -840,40 +878,21 @@ export default function RecordingScreen() {
                 textLength: result.text.length
               }, 'GEMINI');
               // #endregion
-            }
-          );
+            },
+            externalStream: sharedStream,
+          });
 
           // #region agent log
           debugLog('record.tsx:handleStartRecording', '✅ GEMINI WORKFLOW STARTED', {
             hasWorkflow: !!workflow,
             hasSendChunk: !!workflow?.sendChunk,
-            hasStop: !!workflow?.stop
+            hasStop: !!workflow?.stop,
+            unifiedMicStream: _useUnified,
+            sharedStreamTracks: sharedStream?.getTracks().length ?? 0
           }, 'GEMINI');
           // #endregion
 
           geminiWorkflowRef.current = workflow;
-
-          // Start audio recording with chunk callback for Gemini
-          let chunkCount = 0;
-          await startRecording(async (chunk: Blob, _chunkIndex: number) => {
-            chunkCount++;
-            // Convert Blob to ArrayBuffer and send to Gemini
-            const arrayBuffer = await chunk.arrayBuffer();
-            const mimeType = chunk.type || 'audio/webm'; // Get actual mime type from Blob
-            
-            // #region agent log
-            if (chunkCount <= 5 || chunkCount % 10 === 0) {
-              debugLog('record.tsx:geminiChunk', '📤 SENDING AUDIO CHUNK', {
-                chunkNumber: chunkCount,
-                chunkSizeBytes: arrayBuffer.byteLength,
-                mimeType: mimeType,
-                hasWorkflow: !!geminiWorkflowRef.current
-              }, 'GEMINI');
-            }
-            // #endregion
-            
-            await workflow.sendChunk(arrayBuffer, mimeType);
-          });
 
         } catch (geminiError) {
           console.error('[record] ❌ Gemini Live failed, falling back to batch mode:', geminiError);

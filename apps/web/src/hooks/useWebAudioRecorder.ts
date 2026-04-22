@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { getVisibilityResumeDelayMs } from '../lib/platform';
 
 // 🆕 Type pour le callback de chunk live
@@ -35,7 +35,7 @@ export function useWebAudioRecorder() {
   const [isPaused, setIsPaused] = useState(false);
   const [duration, setDuration] = useState(0);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
-  
+
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -48,6 +48,8 @@ export function useWebAudioRecorder() {
   const wasInterruptedRef = useRef<boolean>(false);
   // 🔧 FIX: Track if pause was initiated manually (to prevent auto-resume)
   const manualPauseRef = useRef<boolean>(false);
+  // 🎙️ Phase 10: Store the active MediaStream so it can be shared with other consumers
+  const activeMediaStreamRef = useRef<MediaStream | null>(null);
 
   // Properly managed Object URL — revoked when blob changes or on unmount.
   const audioUrl = useAudioBlobUrl(audioBlob);
@@ -63,7 +65,9 @@ export function useWebAudioRecorder() {
       console.log(`[useWebAudioRecorder] Live streaming: ${onChunkReady ? '✅ ENABLED (chunks every 10s)' : '❌ DISABLED (single blob)'}`);
       
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      
+      // 🎙️ Phase 10: Expose the stream so it can be shared with other consumers (e.g. Gemini PCM capture)
+      activeMediaStreamRef.current = stream;
+
       // 🔧 Detect best audio format for current browser
       // iOS Safari: audio/mp4, Chrome/Android: audio/webm
       let mimeType = 'audio/webm';
@@ -227,6 +231,8 @@ export function useWebAudioRecorder() {
         setIsPaused(false);
         wasInterruptedRef.current = false;
         manualPauseRef.current = false;
+        // 🎙️ Phase 10: Release stream ref — tracks are already stopped above
+        activeMediaStreamRef.current = null;
         if (timerRef.current) clearInterval(timerRef.current);
         console.log('[useWebAudioRecorder] ⏹️ Recording stopped and microphone released');
       } else {
@@ -296,6 +302,7 @@ export function useWebAudioRecorder() {
     setDuration(0);
     wasInterruptedRef.current = false;
     manualPauseRef.current = false; // 🔧 FIX: Reset manual pause flag
+    activeMediaStreamRef.current = null; // 🎙️ Phase 10
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
@@ -369,5 +376,8 @@ export function useWebAudioRecorder() {
     };
   }, []);
 
-  return { isRecording, isPaused, duration, audioBlob, audioUrl, startRecording, stopRecording, pauseRecording, resumeRecording, resetRecorder };
+  // 🎙️ Phase 10: Stable getter — returns the active MediaStream without changing startRecording's signature
+  const getActiveMediaStream = useCallback(() => activeMediaStreamRef.current, []);
+
+  return { isRecording, isPaused, duration, audioBlob, audioUrl, startRecording, stopRecording, pauseRecording, resumeRecording, resetRecorder, getActiveMediaStream };
 }; 
