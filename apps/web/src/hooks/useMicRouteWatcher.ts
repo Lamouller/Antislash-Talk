@@ -15,8 +15,8 @@ import {
   getActiveDeviceId,
   devicesChanged,
   type MicDevice,
-} from '@/lib/mediaDevices';
-import { readEnvFlags, resolveFlag } from '@/lib/featureFlags';
+} from '../lib/mediaDevices';
+import { readEnvFlags, resolveFlag } from '../lib/featureFlags';
 
 export interface MicRouteChange {
   /** deviceId de la piste audio active au moment du changement */
