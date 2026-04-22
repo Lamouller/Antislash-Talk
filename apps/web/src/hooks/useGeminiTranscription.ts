@@ -15,6 +15,8 @@ import { segmentHash } from '../lib/segmentHash';
 import { readEnvFlags, resolveFlag } from '../lib/featureFlags';
 import { createReconnectStrategy, defaultShouldRetry } from '../lib/wsReconnect';
 import type { ReconnectStrategy } from '../lib/wsReconnect';
+import { createRmsVad, computeRmsDb } from '../lib/rmsVad';
+import type { RmsVad } from '../lib/rmsVad';
 
 // #region agent log
 const debugLog = (loc: string, msg: string, data: any, hyp: string) => {
@@ -125,6 +127,12 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
     const workletNodeRef = useRef<AudioWorkletNode | null>(null);
     const mediaStreamRef = useRef<MediaStream | null>(null);
     const pcmChunkCountRef = useRef<number>(0);
+
+    // ─── Phase 9: clientVAD refs ───────────────────────────────────────────
+    const vadRef = useRef<RmsVad | null>(null);
+    const analyserRef = useRef<AnalyserNode | null>(null);
+    const vadDropCountRef = useRef<number>(0);
+    // ────────────────────────────────────────────────────────────────────────
 
     // Get API key
     const getApiKey = async (): Promise<string | null> => {
@@ -1019,18 +1027,62 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
             
             // Create source from microphone
             const source = audioContextRef.current.createMediaStreamSource(stream);
-            
+
+            // ─── Phase 9: clientVAD setup ──────────────────────────────────
+            const _envFlags = readEnvFlags();
+            const _useVad = resolveFlag('clientVAD', { envFlags: _envFlags }).value;
+
+            if (_useVad) {
+                const thresholdDb = parseFloat(
+                    (import.meta.env.VITE_VAD_THRESHOLD_DB as string | undefined) ?? '-40'
+                );
+                const silenceMs = parseInt(
+                    (import.meta.env.VITE_VAD_SILENCE_MS as string | undefined) ?? '400',
+                    10
+                );
+
+                // AnalyserNode is connected IN PARALLEL (not in series) with the workletNode.
+                // Both receive audio from the same source node.
+                analyserRef.current = audioContextRef.current.createAnalyser();
+                analyserRef.current.fftSize = 512;
+                analyserRef.current.smoothingTimeConstant = 0.2;
+                source.connect(analyserRef.current);
+
+                vadRef.current = createRmsVad({
+                    thresholdDb,
+                    silenceMs,
+                    hangoverMs: 200,
+                });
+
+                vadDropCountRef.current = 0;
+            }
+            // ────────────────────────────────────────────────────────────────
+
             // Create worklet node
             workletNodeRef.current = new AudioWorkletNode(audioContextRef.current, 'pcm-processor');
-            
-            // Handle PCM data from worklet - send directly to WebSocket
+
+            // Handle PCM data from worklet - send directly to WebSocket.
+            // When clientVAD is ON, evaluate each frame against the VAD before sending.
             workletNodeRef.current.port.onmessage = (event) => {
-                if (event.data.type === 'pcm') {
-                    sendPCMToWebSocket(event.data.data);
+                if (event.data?.type !== 'pcm') return;
+
+                if (_useVad && vadRef.current && analyserRef.current) {
+                    // Read the current frame from the AnalyserNode (parallel tap into the stream).
+                    const buf = new Float32Array(analyserRef.current.fftSize);
+                    analyserRef.current.getFloatTimeDomainData(buf);
+                    const rmsDb = computeRmsDb(buf);
+                    const decision = vadRef.current.process(rmsDb, performance.now());
+
+                    if (!decision.shouldSend) {
+                        vadDropCountRef.current++;
+                        return; // Drop silent frame — do not send to WebSocket
+                    }
                 }
+
+                sendPCMToWebSocket(event.data.data);
             };
-            
-            // Connect: microphone -> worklet
+
+            // Connect: microphone -> worklet (AnalyserNode already connected above in parallel)
             source.connect(workletNodeRef.current);
             
             // #region agent log
@@ -1056,6 +1108,13 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
             workletNodeRef.current.disconnect();
             workletNodeRef.current = null;
         }
+        // ─── Phase 9: disconnect AnalyserNode and clear VAD refs ──────────
+        if (analyserRef.current) {
+            try { analyserRef.current.disconnect(); } catch { /* ignore */ }
+            analyserRef.current = null;
+        }
+        vadRef.current = null;
+        // ─────────────────────────────────────────────────────────────────
         if (audioContextRef.current) {
             audioContextRef.current.close();
             audioContextRef.current = null;
@@ -1064,7 +1123,7 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
             mediaStreamRef.current.getTracks().forEach(track => track.stop());
             mediaStreamRef.current = null;
         }
-        
+
         debugLog('useGeminiTranscription:stopPCMCapture', '🔇 PCM CAPTURE STOPPED', {
             totalPCMChunks: pcmChunkCountRef.current
         }, 'LIVE');
@@ -1514,6 +1573,14 @@ ${existingText || '(aucune transcription préalable - analyse uniquement l\'audi
         }, 'LIVE');
     }, []);
 
+    // ─── Phase 9: VAD metrics (for telemetry / debug — phase 14) ──────────
+    const getVadMetrics = useCallback(() => ({
+        enabled: !!vadRef.current,
+        state: vadRef.current?.state ?? ('silence' as const),
+        droppedChunks: vadDropCountRef.current,
+    }), []);
+    // ────────────────────────────────────────────────────────────────────────
+
     // Cleanup on unmount: release refs that would otherwise stay in closure.
     // reset() also clears these, but navigation-back can unmount without reset().
     useEffect(() => {
@@ -1538,6 +1605,12 @@ ${existingText || '(aucune transcription préalable - analyse uniquement l\'audi
                 }
                 wsRef.current = null;
             }
+            // Phase 9: disconnect AnalyserNode and clear VAD refs on unmount
+            if (analyserRef.current) {
+                try { analyserRef.current.disconnect(); } catch { /* ignore */ }
+                analyserRef.current = null;
+            }
+            vadRef.current = null;
             if (audioContextRef.current) {
                 try {
                     audioContextRef.current.close();
@@ -1593,6 +1666,9 @@ ${existingText || '(aucune transcription préalable - analyse uniquement l\'audi
         setSpeakerName: (speakerId: string, name: string) => {
             speakerNamesRef.current.set(speakerId, name);
             console.log(`%c[SPEAKER MEMORY] ✏️ MANUAL SET: ${speakerId} → "${name}"`, 'color: #f59e0b; font-weight: bold');
-        }
+        },
+
+        // 🎙️ Phase 9: VAD metrics (enabled, state, droppedChunks)
+        getVadMetrics,
     };
 }
