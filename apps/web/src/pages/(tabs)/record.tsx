@@ -17,6 +17,11 @@ import { useWakeLock } from '../../hooks/useWakeLock';
 import { useDisplayMode } from '../../hooks/useDisplayMode';
 import { getAdaptivePrompts, getWhisperOptimizedPrompts, requiresSpecialPrompts } from '../../lib/adaptive-prompts';
 import { readEnvFlags, resolveFlag } from '../../lib/featureFlags';
+import {
+  createTranscriptionOrchestrator,
+  type TranscriptionOrchestrator,
+  type ProviderAdapter,
+} from '../../lib/transcriptionOrchestrator';
 import { processStreamingSegment, SpeakerMapping, SpeakerSegment } from '../../lib/speaker-name-detector';
 import toast from 'react-hot-toast';
 import { Button } from '../../components/ui/Button';
@@ -265,6 +270,12 @@ export default function RecordingScreen() {
     stop: () => void;
     finalize: (audioBlob: Blob) => Promise<any>;
   } | null>(null);
+
+  // 🔒 Phase 11: Provider mutex orchestrator (feature-flagged — OFF by default)
+  // Tracks the preferred provider used when the orchestrator was last created so we
+  // know when to rebuild it (preferred changes between renders).
+  const orchestratorRef = useRef<TranscriptionOrchestrator | null>(null);
+  const lastPreferredForOrchRef = useRef<string | null>(null);
 
   // 🔄 Sync Gemini live segments with UI (for retroactive speaker name updates)
   useEffect(() => {
@@ -775,6 +786,174 @@ export default function RecordingScreen() {
       setIsStreamingActive(false);
       geminiTranscription.reset();
 
+      // ─────────────────────────────────────────────────────────────────────
+      // 🔒 Phase 11: Provider mutex — feature flag providerMutex
+      //
+      // When ON: a TranscriptionOrchestrator enforces the invariant that
+      //   exactly 1 provider is active at any time, with automatic fallback.
+      // When OFF (default): the existing if/else if/else branches below are
+      //   used unchanged — no behaviour change.
+      // ─────────────────────────────────────────────────────────────────────
+      const _envFlagsP11 = readEnvFlags();
+      const _useProviderMutex = resolveFlag('providerMutex', { envFlags: _envFlagsP11 }).value;
+
+      if (_useProviderMutex) {
+        // Map userPreferences provider key to our Provider type
+        const _preferredProvider = isGeminiProvider
+          ? ('gemini' as const)
+          : isLocalWithDiarization
+            ? ('whisperx' as const)
+            : ('local-transformers' as const);
+
+        // Rebuild orchestrator if preferred provider changed (e.g. user swapped in settings)
+        if (
+          !orchestratorRef.current ||
+          lastPreferredForOrchRef.current !== _preferredProvider
+        ) {
+          lastPreferredForOrchRef.current = _preferredProvider;
+
+          // ── Gemini adapter ─────────────────────────────────────────────
+          const _geminiAdapter: ProviderAdapter = {
+            id: 'gemini',
+            async start(stream, options) {
+              setIsStreamingActive(true);
+
+              // Connect Pyannote in parallel (best-effort)
+              try {
+                const _pyannoteOk = await liveDiarization.connect();
+                if (_pyannoteOk) {
+                  geminiTranscription.setOnPCMChunk((pcmData: ArrayBuffer) => {
+                    liveDiarization.sendAudioChunk(pcmData);
+                  });
+                }
+              } catch {
+                // Pyannote unavailable — continue without diarization
+              }
+
+              // Retrieve the shared stream if unifiedMicStream is ON
+              const _envFlagsGemini = readEnvFlags();
+              const _useUnified = resolveFlag('unifiedMicStream', { envFlags: _envFlagsGemini }).value;
+              const _sharedStream: MediaStream | undefined =
+                _useUnified ? (getActiveMediaStream() ?? undefined) : undefined;
+
+              let _chunkCount = 0;
+              await startRecording(async (chunk: Blob, _chunkIndex: number) => {
+                _chunkCount++;
+                const arrayBuffer = await chunk.arrayBuffer();
+                const mimeType = chunk.type || 'audio/webm';
+                await geminiWorkflowRef.current?.sendChunk(arrayBuffer, mimeType);
+              });
+
+              const workflow = await geminiTranscription.startFullWorkflow({
+                onLiveSegment: (segment) => {
+                  setGeminiLiveSegments(prev => [...prev, segment]);
+                  options.onSegment(segment);
+                },
+                onEnhancedResult: () => { /* enhancement handled in handleStopRecording */ },
+                externalStream: _sharedStream ?? stream,
+              });
+              geminiWorkflowRef.current = workflow;
+            },
+            async stop() {
+              geminiWorkflowRef.current?.stop();
+              geminiWorkflowRef.current = null;
+              setIsStreamingActive(false);
+              if (liveDiarization.isConnected) {
+                liveDiarization.disconnect();
+                geminiTranscription.setOnPCMChunk(null);
+              }
+            },
+            isActive() {
+              return geminiTranscription.isLiveActive;
+            },
+          };
+
+          // ── WhisperX (local diarization) adapter ───────────────────────
+          const _whisperxAdapter: ProviderAdapter = {
+            id: 'whisperx',
+            async start(_stream, options) {
+              setIsStreamingActive(true);
+              await startRecording(async (chunk: Blob, chunkIndex: number) => {
+                transcribeChunkLive(chunk, chunkIndex, (segment) => {
+                  const newSegment: SpeakerSegment = {
+                    text: segment.text,
+                    speaker: segment.speaker,
+                    start: segment.start,
+                    end: segment.end,
+                  };
+                  const { updatedSegments, updatedMapping } = processStreamingSegment(
+                    newSegment,
+                    liveTranscriptionSegments,
+                    speakerMappingRef.current
+                  );
+                  if (updatedMapping !== speakerMappingRef.current) {
+                    speakerMappingRef.current = updatedMapping;
+                    setSpeakerMapping(updatedMapping);
+                  }
+                  setLiveTranscriptionSegments(updatedSegments);
+                  options.onSegment(segment);
+                }).catch((err: Error) => {
+                  console.error('[Orchestrator/whisperx] chunk error:', err);
+                });
+              });
+            },
+            async stop() {
+              setIsStreamingActive(false);
+            },
+            isActive() {
+              return isTranscribing;
+            },
+          };
+
+          // ── Local Transformers (batch) adapter ─────────────────────────
+          const _localAdapter: ProviderAdapter = {
+            id: 'local-transformers',
+            async start(_stream, _options) {
+              await startRecording();
+            },
+            async stop() {
+              // No-op: recording stopped separately via handleStopRecording
+            },
+            isActive() {
+              // Batch mode: active as long as the recorder is running
+              return isRecording;
+            },
+          };
+
+          orchestratorRef.current = createTranscriptionOrchestrator({
+            preferred: _preferredProvider,
+            fallbackOrder: ['whisperx', 'local-transformers'],
+            fallbackTimeoutMs: 5000,
+            enableFallback: true,
+            adapters: {
+              gemini: _geminiAdapter,
+              whisperx: _whisperxAdapter,
+              'local-transformers': _localAdapter,
+            },
+            onTransition: (from, to, provider) => {
+              console.debug(`[Orchestrator] ${from} → ${to} (provider: ${provider ?? 'none'})`);
+            },
+          });
+        }
+
+        // Start via orchestrator
+        const _activeStream = getActiveMediaStream();
+        // For non-Gemini paths startRecording is called inside the adapter.
+        // We pass a dummy stream if no active stream yet — adapters that don't
+        // need it (whisperx, local-transformers) ignore it.
+        const _dummyStream = _activeStream ?? ({} as MediaStream);
+
+        const _activated = await orchestratorRef.current!.start(_dummyStream, {
+          onSegment: (seg) => console.debug('[Orchestrator] segment:', seg),
+          onError: (err) => console.error('[Orchestrator] provider error:', err),
+        });
+        console.debug(`[Orchestrator] Active provider: ${_activated}`);
+
+      } else {
+      // ──────────────────────────────────────────────────────────────────
+      // LEGACY PATH (providerMutex OFF) — preserved unchanged from phase 10
+      // ──────────────────────────────────────────────────────────────────
+
       // 🚀 OPTION 1: Gemini Live Transcription (Google provider)
       if (isGeminiProvider && enableStreamingTranscription) {
         console.log('%c[record] 🚀 GEMINI LIVE TRANSCRIPTION MODE ACTIVATED!', 'color: #10b981; font-weight: bold; font-size: 16px; background: #ecfdf5; padding: 8px 16px; border-radius: 8px');
@@ -966,6 +1145,8 @@ export default function RecordingScreen() {
         console.log('[record] 📦 BATCH MODE - Recording without live transcription');
         await startRecording();
       }
+
+      } // end of legacy path else-block (providerMutex OFF)
 
       setPageState('recording');
       toast.success(t('record.recordingInProgress') + ' 🎙️');
