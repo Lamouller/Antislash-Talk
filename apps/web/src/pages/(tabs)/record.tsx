@@ -1697,9 +1697,6 @@ export default function RecordingScreen() {
             } else {
               // Non-Google provider: trigger webhook or mark completed
               console.log('📡 Non-Google provider, marking as pending for webhook...');
-              // #region agent log
-              fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'record.tsx:bg:notGoogle',message:'NOT Google provider - skipping enhancement',data:{provider:userPreferences.transcription_provider},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
-              // #endregion
               await supabase
                 .from('meetings')
                 .update({ status: 'pending' })

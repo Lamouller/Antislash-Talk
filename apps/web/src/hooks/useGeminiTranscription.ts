@@ -196,14 +196,7 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
         onSegment?: (segment: TranscriptSegment) => void,
         resumeContext: string = ''
     ) => {
-        // #region agent log
-        fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:startLive',message:'START_LIVE_CALLED',data:{enableLiveTranscription,liveModel:LIVE_MODEL,enhancementModel:model,language},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,D'})}).catch(()=>{});
-        // #endregion
-
         if (!enableLiveTranscription) {
-            // #region agent log
-            fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:startLive',message:'LIVE_DISABLED_EARLY_RETURN',data:{enableLiveTranscription},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
-            // #endregion
             return;
         }
 
@@ -251,7 +244,6 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
 
             wsRef.current.onopen = () => {
                 // #region agent log
-                fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:onopen',message:'WS_CONNECTED',data:{liveModel:LIVE_MODEL},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
                 debugLog('useGeminiTranscription:startLive', '✅ WEBSOCKET CONNECTED', {}, 'LIVE');
                 // #endregion
 
@@ -322,8 +314,7 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                     const hasModelTurn = !!data.serverContent?.modelTurn;
                     const modelTurnText = data.serverContent?.modelTurn?.parts?.[0]?.text?.substring(0, 50);
                     const inputTranscriptionText = data.serverContent?.inputTranscription?.text?.substring(0, 50);
-                    
-                    fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:onmessage',message:'WS_MESSAGE_DETAIL',data:{hasInputTranscription,hasModelTurn,inputTranscriptionText,modelTurnText,serverContentKeys},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B,C'})}).catch(()=>{});
+
                     debugLog('useGeminiTranscription:onMessage', '📥 WS MESSAGE RECEIVED', {
                         hasSetupComplete: !!data.setupComplete,
                         hasServerContent: !!data.serverContent,
@@ -338,16 +329,13 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                     // Check for setup completion
                     if (data.setupComplete) {
                         // #region agent log
-                        fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:onmessage',message:'SETUP_COMPLETE',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
-                        // #endregion
                         debugLog('useGeminiTranscription:onMessage', '✅ SETUP COMPLETE - Ready for audio', {}, 'LIVE');
+                        // #endregion
                     }
 
                     // Check for errors
                     if (data.error) {
                         // #region agent log
-                        fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:onmessage',message:'SERVER_ERROR',data:{errorMsg:data.error?.message||'unknown'},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
-                        // #endregion
                         debugLog('useGeminiTranscription:onMessage', '❌ SERVER ERROR', {
                             error: data.error
                         }, 'LIVE');
@@ -763,12 +751,6 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                     // modelTurn often contains hallucinations like "Focusing on Transcription"
                     // We only log for debugging purposes
                     if (data.serverContent?.modelTurn?.parts) {
-                        const modelText = data.serverContent.modelTurn.parts[0]?.text || '';
-                        // #region agent log
-                        if (modelText.length > 0 && modelText.length < 100) {
-                            fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:modelTurn',message:'MODEL_TURN_SKIPPED',data:{textPreview:modelText.substring(0,50),reason:'Using inputTranscription as primary source'},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
-                        }
-                        // #endregion
                         // Don't create segments from modelTurn - inputTranscription is more reliable
                     }
 
@@ -789,7 +771,6 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
 
             wsRef.current.onclose = (event) => {
                 // #region agent log
-                fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:onclose',message:'WS_CLOSED',data:{code:event.code,reason:event.reason||'none',wasClean:event.wasClean},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
                 debugLog('useGeminiTranscription:startLive', '🔌 WEBSOCKET CLOSED', {
                     segmentsCount: liveSegments.length,
                     code: event.code,
@@ -1004,7 +985,6 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
             
             // #region agent log
             if (chunkIndex <= 5 || chunkIndex % 20 === 0) {
-                fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:sendPCM',message:'SENDING_RAW_PCM',data:{chunkIndex,pcmSizeBytes:pcmData.byteLength},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
                 debugLog('useGeminiTranscription:sendPCM', '📤 SENDING RAW PCM', {
                     chunkIndex,
                     pcmSizeBytes: pcmData.byteLength
@@ -1137,17 +1117,13 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
             source.connect(workletNodeRef.current);
             
             // #region agent log
-            fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:startPCMCapture',message:'PCM_CAPTURE_STARTED',data:{sampleRate:audioContextRef.current.sampleRate},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
             debugLog('useGeminiTranscription:startPCMCapture', '🎤 PCM CAPTURE STARTED', {
                 sampleRate: audioContextRef.current.sampleRate
             }, 'LIVE');
             // #endregion
-            
+
             return true;
         } catch (err) {
-            // #region agent log
-            fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:startPCMCapture',message:'PCM_CAPTURE_ERROR',data:{error:(err as Error).message},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
-            // #endregion
             console.error('Failed to start PCM capture:', err);
             return false;
         }
@@ -1321,10 +1297,6 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                 `[${sanitizeSpeakerName(s.speaker)}]: ${sanitizeSegmentForPrompt(s.text)}`
             ).join('\n');
 
-            // #region agent log
-            fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:enhance:buildPrompt',message:'Building enhancement prompt',data:{existingTextLength:existingText.length,segmentCount:(existingSegments||liveSegments).length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4'})}).catch(()=>{});
-            // #endregion
-
             const enhancementPrompt = `Tu es un expert en transcription et diarization audio (identification des locuteurs par leur voix).
 
 ## AUDIO À ANALYSER
@@ -1431,9 +1403,6 @@ ${existingText || '(aucune transcription préalable - analyse uniquement l\'audi
             const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
             
             // #region agent log
-            fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:enhance:rawResponse',message:'Raw text from Gemini',data:{length:rawText.length,preview:rawText.substring(0,300),hasContent:!!rawText},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'})}).catch(()=>{});
-
-            // #region agent log
             debugLog('useGeminiTranscription:enhance', '📥 GEMINI RESPONSE', {
                 rawTextLength: rawText.length,
                 preview: rawText.substring(0, 200)
@@ -1452,15 +1421,7 @@ ${existingText || '(aucune transcription préalable - analyse uniquement l\'audi
                 if (cleanedText.endsWith('```')) cleanedText = cleanedText.slice(0, -3);
                 cleanedText = cleanedText.trim();
 
-                // #region agent log
-                fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:enhance:cleanedText',message:'Cleaned text for parsing',data:{length:cleanedText.length,preview:cleanedText.substring(0,200)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
-                // #endregion
-
                 const parsed = JSON.parse(cleanedText);
-
-                // #region agent log
-                fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:enhance:parsed',message:'JSON parsed successfully',data:{speakersDetected:parsed.speakers_detected,segmentCount:parsed.segments?.length,speakerNames:parsed.speaker_names},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
-                // #endregion
 
                 const enhancedSegs: TranscriptSegment[] = (parsed.segments || []).map((s: any) =>
                     normalizeSegment({
@@ -1482,17 +1443,12 @@ ${existingText || '(aucune transcription préalable - analyse uniquement l\'audi
                     phase: 'enhanced'
                 };
 
-                // #region agent log
-                fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:enhance:success',message:'Enhancement complete',data:{segmentCount:enhancedSegs.length,speakers:[...new Set(enhancedSegs.map(s=>s.speaker))],phase:'enhanced'},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H5'})}).catch(()=>{});
-                // #endregion
-
             } catch (parseError) {
                 // Fallback to live segments if parsing fails
                 // #region agent log
                 debugLog('useGeminiTranscription:enhance', '⚠️ JSON PARSE FAILED', {
                     error: (parseError as Error).message
                 }, 'ENHANCE');
-                fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:enhance:parseError',message:'JSON parse FAILED',data:{error:(parseError as Error).message,rawTextPreview:rawText.substring(0,300)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
                 // #endregion
 
                 result = {
@@ -1582,7 +1538,6 @@ ${existingText || '(aucune transcription préalable - analyse uniquement l\'audi
         const pcmStarted = await startPCMCapture({ externalStream });
         
         // #region agent log
-        fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:fullWorkflow',message:'PCM_CAPTURE_STATUS',data:{pcmStarted,wsState:wsRef.current?.readyState},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
         debugLog('useGeminiTranscription:fullWorkflow', '🎤 PCM CAPTURE STATUS', {
             pcmStarted,
             wsState: wsRef.current?.readyState
