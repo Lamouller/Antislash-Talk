@@ -17,7 +17,8 @@ import { useWakeLock } from '../../hooks/useWakeLock';
 import { useDisplayMode } from '../../hooks/useDisplayMode';
 import { useMicRouteWatcher } from '../../hooks/useMicRouteWatcher';
 import { getAdaptivePrompts, getWhisperOptimizedPrompts, requiresSpecialPrompts } from '../../lib/adaptive-prompts';
-import { readEnvFlags, resolveFlag } from '../../lib/featureFlags';
+import { readEnvFlags, resolveFlag, resolveAllFlags } from '../../lib/featureFlags';
+import { startTelemetrySession, endTelemetrySession, logEvent } from '../../lib/telemetry';
 import {
   createTranscriptionOrchestrator,
   type TranscriptionOrchestrator,
@@ -289,6 +290,10 @@ export default function RecordingScreen() {
   // know when to rebuild it (preferred changes between renders).
   const orchestratorRef = useRef<TranscriptionOrchestrator | null>(null);
   const lastPreferredForOrchRef = useRef<string | null>(null);
+
+  // Phase 14: telemetry session ID ref (UUID generated per recording, not tied to meeting ID
+  // because the meeting row may not exist yet at recording start).
+  const telemetrySessionIdRef = useRef<string>(crypto.randomUUID());
 
   // 🔄 Sync Gemini live segments with UI (for retroactive speaker name updates)
   useEffect(() => {
@@ -799,6 +804,17 @@ export default function RecordingScreen() {
       setIsStreamingActive(false);
       geminiTranscription.reset();
 
+      // Phase 14: start telemetry session with a fresh UUID
+      telemetrySessionIdRef.current = crypto.randomUUID();
+      startTelemetrySession(telemetrySessionIdRef.current);
+      const _flagSnapshot = resolveAllFlags({ envFlags: readEnvFlags() });
+      logEvent({
+        type: 'flag_state_snapshot',
+        payload: Object.fromEntries(
+          Object.entries(_flagSnapshot).map(([k, v]) => [k, v.value])
+        ),
+      });
+
       // ─────────────────────────────────────────────────────────────────────
       // 🔒 Phase 11: Provider mutex — feature flag providerMutex
       //
@@ -945,6 +961,7 @@ export default function RecordingScreen() {
             },
             onTransition: (from, to, provider) => {
               console.debug(`[Orchestrator] ${from} → ${to} (provider: ${provider ?? 'none'})`);
+              logEvent({ type: 'provider_transition', payload: { from, to, activated: provider ?? null } });
             },
           });
         }
@@ -1193,6 +1210,9 @@ export default function RecordingScreen() {
       geminiSegmentsCount: geminiLiveSegments.length
     }, 'STOP');
     // #endregion
+
+    // Phase 14: close telemetry session before any async work
+    endTelemetrySession();
 
     // Stop the audio recorder and wait for blob
     // 🔧 FIX: stopRecording now returns a Promise with the blob

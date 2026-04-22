@@ -69,6 +69,7 @@ docs/
 !docs/screenshots/
 !docs/DOMAIN_CONFIGURATION.md
 !docs/SMOKE_TEST_TRANSCRIPTION.md
+!docs/ROLLOUT_TRANSCRIPTION_FLOW.md
 
 # Dossiers obsolètes archivés
 .old/

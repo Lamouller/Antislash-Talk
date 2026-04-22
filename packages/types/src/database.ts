@@ -26,6 +26,44 @@ export type Database = {
   }
   public: {
     Tables: {
+      transcription_events: {
+        Row: {
+          id: string
+          user_id: string | null
+          session_id: string
+          event_type: string
+          payload: Json
+          client_meta: Json
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id?: string | null
+          session_id: string
+          event_type: string
+          payload?: Json
+          client_meta?: Json
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string | null
+          session_id?: string
+          event_type?: string
+          payload?: Json
+          client_meta?: Json
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transcription_events_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       api_keys: {
         Row: {
           created_at: string | null

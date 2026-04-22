@@ -16,6 +16,7 @@ import { readEnvFlags, resolveFlag } from '../lib/featureFlags';
 import { createReconnectStrategy, defaultShouldRetry } from '../lib/wsReconnect';
 import type { ReconnectStrategy } from '../lib/wsReconnect';
 import { createRmsVad, computeRmsDb } from '../lib/rmsVad';
+import { logEvent } from '../lib/telemetry';
 import type { RmsVad } from '../lib/rmsVad';
 
 // #region agent log
@@ -102,6 +103,8 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
     const speakerMappingRef = useRef<Map<string, string>>(new Map());
     // connectionGenerationRef: incremented on each WS open to invalidate stale callbacks
     const connectionGenerationRef = useRef<number>(0);
+    // Phase 14: pending dedup hit counter — batched by 10 before emitting telemetry
+    const dedupHitCountRef = useRef<number>(0);
     // ────────────────────────────────────────────────────────────────────────
 
     // ─── Phase 8: wsReconnect refs ─────────────────────────────────────────
@@ -135,6 +138,8 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
     const vadRef = useRef<RmsVad | null>(null);
     const analyserRef = useRef<AnalyserNode | null>(null);
     const vadDropCountRef = useRef<number>(0);
+    // Phase 14: periodic 30s interval to emit vad_drop_batch telemetry without hot-loop logging
+    const vadTelemetryIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     // ────────────────────────────────────────────────────────────────────────
 
     // Get API key
@@ -251,6 +256,11 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                 // #endregion
 
                 // Phase 8: successful (re)connect — reset backoff counter.
+                const _prevAttempts = reconnectStrategyRef.current.attempts;
+                if (_prevAttempts > 0) {
+                    // This was a reconnect (not the initial open).
+                    logEvent({ type: 'ws_reconnect_success', payload: { attempts: _prevAttempts } });
+                }
                 reconnectStrategyRef.current.reset();
 
                 // Setup message for live transcription
@@ -630,6 +640,11 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                                 // Already seen — drop silently
                                 accumulatedTextRef.current = '';
                                 setStreamingText('');
+                                // Phase 14: batch dedup hits, emit telemetry every 10
+                                dedupHitCountRef.current++;
+                                if (dedupHitCountRef.current % 10 === 0) {
+                                    logEvent({ type: 'segment_dedup_hit', payload: { count: dedupHitCountRef.current } });
+                                }
                                 return;
                             }
                             seenHashesRef.current.add(_hash);
@@ -830,6 +845,7 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                 const _delay = reconnectStrategyRef.current.next();
                 if (_delay === null) {
                     // Backoff exhausted.
+                    logEvent({ type: 'ws_reconnect_exhausted', payload: { attempts: reconnectStrategyRef.current.attempts } });
                     setIsLiveActive(false);
                     sessionStateRef.current.isReconnecting = false;
                     setError('Connection lost — please restart recording');
@@ -837,6 +853,7 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                 }
 
                 sessionStateRef.current.isReconnecting = true;
+                logEvent({ type: 'ws_reconnect_attempt', payload: { attempt: reconnectStrategyRef.current.attempts, delayMs: _delay } });
                 console.debug(`[WS Reconnect] attempt ${reconnectStrategyRef.current.attempts}/6 in ${_delay}ms (code ${event.code})`);
 
                 reconnectTimeoutRef.current = setTimeout(() => {
@@ -1081,6 +1098,14 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                 });
 
                 vadDropCountRef.current = 0;
+                // Phase 14: emit vad_drop_batch every 30s (batcher — not in hot loop)
+                if (vadTelemetryIntervalRef.current) clearInterval(vadTelemetryIntervalRef.current);
+                vadTelemetryIntervalRef.current = setInterval(() => {
+                    if (vadDropCountRef.current > 0) {
+                        logEvent({ type: 'vad_drop_batch', payload: { dropped: vadDropCountRef.current } });
+                        vadDropCountRef.current = 0;
+                    }
+                }, 30_000);
             }
             // ────────────────────────────────────────────────────────────────
 
@@ -1611,6 +1636,12 @@ ${existingText || '(aucune transcription préalable - analyse uniquement l\'audi
         // Phase 7: clear dedup/mapping refs on reset
         seenHashesRef.current.clear();
         speakerMappingRef.current.clear();
+        dedupHitCountRef.current = 0;
+        // Phase 14: clear VAD telemetry interval on reset
+        if (vadTelemetryIntervalRef.current) {
+            clearInterval(vadTelemetryIntervalRef.current);
+            vadTelemetryIntervalRef.current = null;
+        }
     }, []);
 
     // 🎭 Set external speaker (from Pyannote Live or other source)
@@ -1669,6 +1700,11 @@ ${existingText || '(aucune transcription préalable - analyse uniquement l\'audi
                 analyserRef.current = null;
             }
             vadRef.current = null;
+            // Phase 14: clear VAD telemetry interval on unmount
+            if (vadTelemetryIntervalRef.current) {
+                clearInterval(vadTelemetryIntervalRef.current);
+                vadTelemetryIntervalRef.current = null;
+            }
             if (audioContextRef.current) {
                 try {
                     audioContextRef.current.close();
