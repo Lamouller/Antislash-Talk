@@ -1204,6 +1204,12 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
         
         // Stop PCM capture first
         stopPCMCapture();
+        // Phase 9: clear VAD telemetry interval — on rapid iOS back-button navigation,
+        // unmount may not fire before a restart. Explicit clear here prevents stale intervals.
+        if (vadTelemetryIntervalRef.current) {
+            clearInterval(vadTelemetryIntervalRef.current);
+            vadTelemetryIntervalRef.current = null;
+        }
         if (wsRef.current) {
             wsRef.current.send(JSON.stringify({ clientContent: { turnComplete: true } }));
             setTimeout(() => {
