@@ -6,7 +6,7 @@
  * 2. ENHANCEMENT PHASE: Post-processing with full diarization (accurate, speaker detection)
  */
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 
 // #region agent log
@@ -1189,6 +1189,35 @@ ${existingText || '(aucune transcription préalable - analyse uniquement l\'audi
         debugLog('useGeminiTranscription:setOnPCMChunk', '🎭 PCM CALLBACK SET', {
             hasCallback: !!callback
         }, 'LIVE');
+    }, []);
+
+    // Cleanup on unmount: release refs that would otherwise stay in closure.
+    // reset() also clears these, but navigation-back can unmount without reset().
+    useEffect(() => {
+        return () => {
+            speakerNamesRef.current.clear();
+            audioChunksRef.current = [];
+            if (wsRef.current) {
+                try {
+                    wsRef.current.close(1000, 'unmount');
+                } catch {
+                    // ignore — socket may already be closing
+                }
+                wsRef.current = null;
+            }
+            if (audioContextRef.current) {
+                try {
+                    audioContextRef.current.close();
+                } catch {
+                    // ignore
+                }
+                audioContextRef.current = null;
+            }
+            if (mediaStreamRef.current) {
+                mediaStreamRef.current.getTracks().forEach(t => t.stop());
+                mediaStreamRef.current = null;
+            }
+        };
     }, []);
 
     return {
