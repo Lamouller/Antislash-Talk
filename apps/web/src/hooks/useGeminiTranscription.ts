@@ -10,6 +10,9 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { sanitizeSpeakerName, sanitizeSegmentForPrompt } from '../lib/sanitize';
 import { normalizeSegment } from '../lib/timestamp';
+import { detectName } from '../lib/nameDetectionPatterns';
+import { segmentHash } from '../lib/segmentHash';
+import { readEnvFlags, resolveFlag } from '../lib/featureFlags';
 
 // #region agent log
 const debugLog = (loc: string, msg: string, data: any, hyp: string) => {
@@ -87,7 +90,16 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
     
     // Speaker name mapping: Speaker_XX -> Real name (when detected)
     const speakerNamesRef = useRef<Map<string, string>>(new Map());
-    
+
+    // ─── Phase 7: speakerLockDedup refs ────────────────────────────────────
+    // seenHashesRef: dedup set — hash(speaker, text) → prevents duplicate segments
+    const seenHashesRef = useRef<Set<string>>(new Set());
+    // speakerMappingRef: pyannoteId → displayName (immutable-style, replaced atomically)
+    const speakerMappingRef = useRef<Map<string, string>>(new Map());
+    // connectionGenerationRef: incremented on each WS open to invalidate stale callbacks
+    const connectionGenerationRef = useRef<number>(0);
+    // ────────────────────────────────────────────────────────────────────────
+
     // 🎭 External speaker source (e.g., Pyannote Live)
     const externalSpeakerRef = useRef<string | null>(null);
     
@@ -169,9 +181,13 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
         onSegmentCallbackRef.current = onSegment || null; // Store callback for timeout-based creation
 
         try {
+            // Phase 7: increment generation so any pending callbacks from a
+            // previous connection are automatically ignored.
+            connectionGenerationRef.current++;
+
             // Always use gemini-2.0-flash-live-001 for Live WebSocket API
             const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${apiKey}`;
-            
+
             wsRef.current = new WebSocket(wsUrl);
 
             wsRef.current.onopen = () => {
@@ -292,7 +308,7 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                         // Helper function to create and emit segment
                         const createSegment = (reason: string) => {
                             const fullText = accumulatedTextRef.current;
-                            
+
                             // Avoid duplicates
                             if (fullText === lastTextRef.current || fullText.trim().length === 0) {
                                 accumulatedTextRef.current = '';
@@ -301,11 +317,24 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                             }
                             lastTextRef.current = fullText;
 
+                            // ─────────────────────────────────────────────────────────────
+                            // Phase 7: speakerLockDedup flag branching
+                            // Flag OFF (default) → ANCIEN CODE (préservé bit-à-bit)
+                            // Flag ON            → NOUVEAU CODE (atomique + dedup)
+                            // ─────────────────────────────────────────────────────────────
+                            const _envFlags = readEnvFlags();
+                            const _useLockDedup = resolveFlag('speakerLockDedup', { envFlags: _envFlags }).value;
+
+                            if (!_useLockDedup) {
+                            // ═══════════════════════════════════════════════════════════════
+                            // ANCIEN CODE (FLAG OFF) — préservé sans modification
+                            // ═══════════════════════════════════════════════════════════════
+
                             // ═══════════════════════════════════════════════════════════════
                             // 🎭 SPEAKER IDENTIFICATION (Lightweight)
                             // Priority: 1. Name from text, 2. External (Pyannote), 3. Default
                             // ═══════════════════════════════════════════════════════════════
-                            
+
                             // 🎯 Lightweight name detection from self-introductions
                             // Patterns for self-introduction (detect speaker name)
                             const selfIntroPatterns = [
@@ -330,7 +359,7 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                                 // NEW: Simple "c'est [Name]" at end of sentence
                                 /c'est\s+([A-Z][a-zà-ÿ]{2,})[.,!?]?\s*$/i,
                             ];
-                            
+
                             // Common words to exclude from name detection (expanded list)
                             const EXCLUDED_WORDS = new Set([
                                 // Greetings & common expressions
@@ -350,9 +379,9 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                                 // Adjectives/words that sound like names (transcription errors)
                                 'triste', 'content', 'heureux', 'désolé', 'certain', 'vrai'
                             ]);
-                            
+
                             let detectedName: string | null = null;
-                            
+
                             // Try each pattern
                             for (const pattern of selfIntroPatterns) {
                                 const match = fullText.match(pattern);
@@ -363,7 +392,7 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                                         candidateName = `${match[1]} ${match[2]}`;
                                     }
                                     // Validate: not a common word, min 3 chars
-                                    if (!EXCLUDED_WORDS.has(candidateName.toLowerCase()) && 
+                                    if (!EXCLUDED_WORDS.has(candidateName.toLowerCase()) &&
                                         candidateName.length >= 3) {
                                         detectedName = candidateName;
                                         console.log(`%c[GEMINI] 🎭 NAME DETECTED: "${detectedName}"`, 'color: #7c3aed; font-weight: bold');
@@ -371,23 +400,23 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                                     }
                                 }
                             }
-                            
+
                             // 🎭 SPEAKER NAME MEMORY SYSTEM (VOICE-FIRST)
                             // Priority: 1. Pyannote voice ID (trust the voice!), 2. Text-based name for NEW speakers only
                             const pyannoteSpeaker = externalSpeakerRef.current; // e.g., "SPEAKER_01"
-                            
+
                             if (detectedName && pyannoteSpeaker) {
                                 // Name detected in text - BUT only use it if:
                                 // 1. This Pyannote speaker has NO name yet (first introduction)
                                 // 2. OR this is a NEW Pyannote speaker (speaker change detected by voice)
                                 const existingMapping = speakerNamesRef.current.get(pyannoteSpeaker);
-                                
+
                                 if (!existingMapping) {
                                     // ✅ FIRST INTRODUCTION: Accept the name for this voice
                                     speakerNamesRef.current.set(pyannoteSpeaker, detectedName);
                                     currentSpeakerRef.current = detectedName;
                                     console.log(`%c[SPEAKER MEMORY] 🧠 FIRST MAPPING: ${pyannoteSpeaker} → "${detectedName}"`, 'color: #8b5cf6; font-weight: bold');
-                                    
+
                                     // 🔄 RETROACTIVE UPDATE: Update past segments with this Pyannote ID
                                     setLiveSegments(prev => {
                                         const updated = prev.map(seg => {
@@ -462,10 +491,10 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                                             const combinedLength = lastSegment.text.length + cleanText.length + 1;
                                             // Count sentences in last segment (by terminal punctuation)
                                             const sentenceCount = (lastSegment.text.match(/[.!?]+/g) || []).length;
-                                            
+
                                             // Merge only if: under 400 chars AND under 3 sentences
                                             const shouldMerge = combinedLength < 400 && sentenceCount < 3;
-                                            
+
                                             if (shouldMerge) {
                                                 const updatedSegments = [...prev];
                                                 updatedSegments[prev.length - 1] = {
@@ -497,10 +526,139 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                                 });
                                 onSegmentCallbackRef.current?.(segment);
                             }
-                            
+
                             // Reset for next segment
                             accumulatedTextRef.current = '';
                             setStreamingText('');
+
+                            // ═══════════════════════════════════════════════════════════════
+                            // END ANCIEN CODE (FLAG OFF)
+                            // ═══════════════════════════════════════════════════════════════
+                            } else {
+                            // ═══════════════════════════════════════════════════════════════
+                            // NOUVEAU CODE (FLAG ON) — atomique + dedup
+                            // ═══════════════════════════════════════════════════════════════
+
+                            // Guard: stale connection callback check
+                            const _myGeneration = connectionGenerationRef.current;
+                            if (_myGeneration !== connectionGenerationRef.current) {
+                                accumulatedTextRef.current = '';
+                                setStreamingText('');
+                                return;
+                            }
+
+                            const _pyannoteSpeaker = externalSpeakerRef.current; // e.g. "SPEAKER_01"
+
+                            // Pure name detection (no side effects)
+                            const _detected = detectName(fullText);
+
+                            // Compute next mapping immutably
+                            const _nextMapping = new Map(speakerMappingRef.current);
+                            if (_detected && _pyannoteSpeaker && !_nextMapping.has(_pyannoteSpeaker)) {
+                                _nextMapping.set(_pyannoteSpeaker, _detected.name);
+                                console.log(`%c[SPEAKER LOCK] FIRST MAPPING: ${_pyannoteSpeaker} → "${_detected.name}" (${_detected.patternId})`, 'color: #8b5cf6; font-weight: bold');
+                            }
+
+                            // Resolve display name
+                            const _resolvedSpeaker = _pyannoteSpeaker
+                                ? (_nextMapping.get(_pyannoteSpeaker) ?? _pyannoteSpeaker)
+                                : (_detected?.name ?? speakerNamesRef.current.get('_lastDetected') ?? 'Live');
+
+                            // Dedup check
+                            const _hash = segmentHash(_resolvedSpeaker, fullText);
+                            if (seenHashesRef.current.has(_hash)) {
+                                // Already seen — drop silently
+                                accumulatedTextRef.current = '';
+                                setStreamingText('');
+                                return;
+                            }
+                            seenHashesRef.current.add(_hash);
+
+                            // Commit mapping ref AFTER dedup check (avoids polluting ref on skip)
+                            speakerMappingRef.current = _nextMapping;
+                            // Keep legacy speakerNamesRef in sync for getSpeakerNameMap() API
+                            if (_detected && _pyannoteSpeaker) {
+                                speakerNamesRef.current.set(_pyannoteSpeaker, _detected.name);
+                                speakerNamesRef.current.set('_lastDetected', _detected.name);
+                            }
+
+                            // Clean text (same rules as legacy path)
+                            const _cleanText = fullText
+                                .replace(/\[SPEAKER_CHANGE\]/gi, '')
+                                .replace(/\(nom détecté:[^)]+\)/gi, '')
+                                .replace(/\(speaker change\)/gi, '')
+                                .replace(/\*\*[^*]+\*\*/g, '')
+                                .replace(/\([^)]*transcri[^)]*\)/gi, '')
+                                .replace(/\([^)]*clari[^)]*\)/gi, '')
+                                .replace(/I've successfully.*/gi, '')
+                                .replace(/My focus remains.*/gi, '')
+                                .replace(/I'm having trouble.*/gi, '')
+                                .trim();
+
+                            if (_cleanText) {
+                                debugLog('useGeminiTranscription:onSegment', '[P7] SEGMENT CREATED (atomique)', {
+                                    reason,
+                                    speaker: _resolvedSpeaker,
+                                    textPreview: _cleanText.substring(0, 40),
+                                    patternId: _detected?.patternId ?? null,
+                                }, 'LIVE');
+
+                                // Atomic setState: retroactive rename + new segment in ONE call
+                                setLiveSegments(prev => {
+                                    // Retroactive rename if a new name was detected
+                                    const renamed = (_detected && _pyannoteSpeaker)
+                                        ? prev.map(seg =>
+                                            seg.speaker === _pyannoteSpeaker
+                                                ? { ...seg, speaker: _detected.name }
+                                                : seg
+                                          )
+                                        : prev;
+
+                                    // Aggregate: merge if same speaker and within limits
+                                    if (renamed.length > 0) {
+                                        const _last = renamed[renamed.length - 1];
+                                        if (_last.speaker === _resolvedSpeaker) {
+                                            const _combined = _last.text.length + _cleanText.length + 1;
+                                            const _sentences = (_last.text.match(/[.!?]+/g) || []).length;
+                                            if (_combined < 400 && _sentences < 3) {
+                                                const _updated = [...renamed];
+                                                _updated[renamed.length - 1] = {
+                                                    ..._last,
+                                                    text: _last.text + ' ' + _cleanText,
+                                                    confidence: isFinal ? 0.9 : 0.75,
+                                                };
+                                                return _updated;
+                                            }
+                                        }
+                                    }
+
+                                    // New segment
+                                    return [...renamed, normalizeSegment({
+                                        speaker: _resolvedSpeaker,
+                                        text: _cleanText,
+                                        isLive: true,
+                                        confidence: isFinal ? 0.9 : 0.75,
+                                    })];
+                                });
+
+                                // Callback
+                                const _segment: TranscriptSegment = normalizeSegment({
+                                    speaker: _resolvedSpeaker,
+                                    text: _cleanText,
+                                    isLive: true,
+                                    confidence: isFinal ? 0.9 : 0.75,
+                                });
+                                onSegmentCallbackRef.current?.(_segment);
+                            }
+
+                            // Reset for next segment
+                            accumulatedTextRef.current = '';
+                            setStreamingText('');
+
+                            // ═══════════════════════════════════════════════════════════════
+                            // END NOUVEAU CODE (FLAG ON)
+                            // ═══════════════════════════════════════════════════════════════
+                            } // end if (!_useLockDedup) / else
                         };
 
                         // Decide when to create segment:
@@ -1179,6 +1337,9 @@ ${existingText || '(aucune transcription préalable - analyse uniquement l\'audi
         accumulatedTextRef.current = '';
         onSegmentCallbackRef.current = null;
         speakerNamesRef.current.clear();
+        // Phase 7: clear dedup/mapping refs on reset
+        seenHashesRef.current.clear();
+        speakerMappingRef.current.clear();
     }, []);
 
     // 🎭 Set external speaker (from Pyannote Live or other source)
@@ -1204,6 +1365,9 @@ ${existingText || '(aucune transcription préalable - analyse uniquement l\'audi
     useEffect(() => {
         return () => {
             speakerNamesRef.current.clear();
+            // Phase 7: clear dedup/mapping refs on unmount
+            seenHashesRef.current.clear();
+            speakerMappingRef.current.clear();
             audioChunksRef.current = [];
             if (wsRef.current) {
                 try {
