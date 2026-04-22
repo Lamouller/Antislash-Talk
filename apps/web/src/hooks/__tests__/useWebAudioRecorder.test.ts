@@ -1,5 +1,5 @@
 import { renderHook, act } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { useWebAudioRecorder } from '../useWebAudioRecorder';
 
 describe('useWebAudioRecorder - baseline API', () => {
@@ -14,6 +14,7 @@ describe('useWebAudioRecorder - baseline API', () => {
     expect(result.current).toHaveProperty('resetRecorder');
     expect(result.current).toHaveProperty('duration');
     expect(result.current).toHaveProperty('audioBlob');
+    expect(result.current).toHaveProperty('audioUrl');
   });
 
   it('initial state is idle', () => {
@@ -22,6 +23,7 @@ describe('useWebAudioRecorder - baseline API', () => {
     expect(result.current.isPaused).toBe(false);
     expect(result.current.duration).toBe(0);
     expect(result.current.audioBlob).toBeNull();
+    expect(result.current.audioUrl).toBeNull();
   });
 
   it('startRecording transitions to recording', async () => {
@@ -31,5 +33,31 @@ describe('useWebAudioRecorder - baseline API', () => {
     });
     expect(result.current.isRecording).toBe(true);
     expect(result.current.isPaused).toBe(false);
+  });
+});
+
+describe('useWebAudioRecorder - audioUrl blob URL lifecycle (phase 2)', () => {
+  it('creates an audioUrl when audioBlob is set and revokes it on unmount', async () => {
+    const fakeUrl = 'blob:http://localhost/fake-1234';
+    const createSpy = vi.spyOn(URL, 'createObjectURL').mockReturnValue(fakeUrl);
+    const revokeSpy = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+
+    const { result, unmount } = renderHook(() => useWebAudioRecorder());
+
+    // Start and stop recording to produce an audioBlob via onstop
+    await act(async () => {
+      await result.current.startRecording();
+    });
+    await act(async () => {
+      await result.current.stopRecording();
+    });
+
+    // audioUrl should have been created
+    expect(createSpy).toHaveBeenCalled();
+    expect(result.current.audioUrl).toBe(fakeUrl);
+
+    // Unmount → cleanup should revoke the URL
+    unmount();
+    expect(revokeSpy).toHaveBeenCalledWith(fakeUrl);
   });
 });

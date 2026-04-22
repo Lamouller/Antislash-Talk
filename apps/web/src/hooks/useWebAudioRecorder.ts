@@ -3,6 +3,28 @@ import { useState, useRef, useEffect } from 'react';
 // 🆕 Type pour le callback de chunk live
 export type OnChunkReadyCallback = (chunk: Blob, chunkIndex: number) => void;
 
+/**
+ * Manages a stable Object URL for a Blob, revoking the previous URL whenever
+ * the blob changes and revoking on unmount.  Fixes the leak where the old code
+ * created a throw-away URL (create → revoke immediately) instead of tracking
+ * the URL actually exposed to the UI.
+ */
+function useAudioBlobUrl(blob: Blob | null): string | null {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!blob) {
+      setUrl(null);
+      return;
+    }
+    const u = URL.createObjectURL(blob);
+    setUrl(u);
+    return () => {
+      URL.revokeObjectURL(u);
+    };
+  }, [blob]);
+  return url;
+}
+
 // #region agent log - localStorage based for mobile debugging
 const debugLog = (loc: string, msg: string, data: any, hyp: string) => { try { const logs = JSON.parse(localStorage.getItem('__debug_logs__') || '[]'); logs.push({location:loc,message:msg,data,timestamp:Date.now(),hypothesisId:hyp}); if(logs.length > 100) logs.shift(); localStorage.setItem('__debug_logs__', JSON.stringify(logs)); console.log(`[DEBUG:${hyp}] ${loc}: ${msg}`, data); } catch(e){} };
 // #endregion
@@ -26,14 +48,8 @@ export function useWebAudioRecorder() {
   // 🔧 FIX: Track if pause was initiated manually (to prevent auto-resume)
   const manualPauseRef = useRef<boolean>(false);
 
-  useEffect(() => {
-    // Clean up audio blob URL
-    return () => {
-      if (audioBlob) {
-        URL.revokeObjectURL(URL.createObjectURL(audioBlob));
-      }
-    };
-  }, [audioBlob]);
+  // Properly managed Object URL — revoked when blob changes or on unmount.
+  const audioUrl = useAudioBlobUrl(audioBlob);
 
   const startRecording = async (onChunkReady?: OnChunkReadyCallback) => {
     try {
@@ -344,5 +360,5 @@ export function useWebAudioRecorder() {
     };
   }, []);
 
-  return { isRecording, isPaused, duration, audioBlob, startRecording, stopRecording, pauseRecording, resumeRecording, resetRecorder };
+  return { isRecording, isPaused, duration, audioBlob, audioUrl, startRecording, stopRecording, pauseRecording, resumeRecording, resetRecorder };
 }; 
