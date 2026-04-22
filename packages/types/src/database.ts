@@ -296,6 +296,7 @@ export type Database = {
           created_at: string | null
           email: string
           enable_streaming_transcription: boolean | null
+          feature_flags: Json
           full_name: string | null
           hide_marketing_pages: boolean | null
           id: string
@@ -319,6 +320,7 @@ export type Database = {
           created_at?: string | null
           email: string
           enable_streaming_transcription?: boolean | null
+          feature_flags?: Json
           full_name?: string | null
           hide_marketing_pages?: boolean | null
           id: string
@@ -342,6 +344,7 @@ export type Database = {
           created_at?: string | null
           email?: string
           enable_streaming_transcription?: boolean | null
+          feature_flags?: Json
           full_name?: string | null
           hide_marketing_pages?: boolean | null
           id?: string
