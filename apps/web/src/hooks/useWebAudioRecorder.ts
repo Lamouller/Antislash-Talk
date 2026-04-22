@@ -1,7 +1,30 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { getVisibilityResumeDelayMs } from '../lib/platform';
 
 // 🆕 Type pour le callback de chunk live
 export type OnChunkReadyCallback = (chunk: Blob, chunkIndex: number) => void;
+
+/**
+ * Manages a stable Object URL for a Blob, revoking the previous URL whenever
+ * the blob changes and revoking on unmount.  Fixes the leak where the old code
+ * created a throw-away URL (create → revoke immediately) instead of tracking
+ * the URL actually exposed to the UI.
+ */
+function useAudioBlobUrl(blob: Blob | null): string | null {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!blob) {
+      setUrl(null);
+      return;
+    }
+    const u = URL.createObjectURL(blob);
+    setUrl(u);
+    return () => {
+      URL.revokeObjectURL(u);
+    };
+  }, [blob]);
+  return url;
+}
 
 // #region agent log - localStorage based for mobile debugging
 const debugLog = (loc: string, msg: string, data: any, hyp: string) => { try { const logs = JSON.parse(localStorage.getItem('__debug_logs__') || '[]'); logs.push({location:loc,message:msg,data,timestamp:Date.now(),hypothesisId:hyp}); if(logs.length > 100) logs.shift(); localStorage.setItem('__debug_logs__', JSON.stringify(logs)); console.log(`[DEBUG:${hyp}] ${loc}: ${msg}`, data); } catch(e){} };
@@ -12,7 +35,7 @@ export function useWebAudioRecorder() {
   const [isPaused, setIsPaused] = useState(false);
   const [duration, setDuration] = useState(0);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
-  
+
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -25,15 +48,16 @@ export function useWebAudioRecorder() {
   const wasInterruptedRef = useRef<boolean>(false);
   // 🔧 FIX: Track if pause was initiated manually (to prevent auto-resume)
   const manualPauseRef = useRef<boolean>(false);
+  // 🎙️ Phase 10: Store the active MediaStream so it can be shared with other consumers
+  const activeMediaStreamRef = useRef<MediaStream | null>(null);
 
-  useEffect(() => {
-    // Clean up audio blob URL
-    return () => {
-      if (audioBlob) {
-        URL.revokeObjectURL(URL.createObjectURL(audioBlob));
-      }
-    };
-  }, [audioBlob]);
+  // Properly managed Object URL — revoked when blob changes or on unmount.
+  const audioUrl = useAudioBlobUrl(audioBlob);
+
+  // Delay before attempting auto-resume after a visibility/focus change.
+  // Resolved per-platform: 1500ms on Android (WebView background throttle),
+  // 500ms on iOS/web.  Provided by lib/platform.ts (phase 12).
+  const VISIBILITY_RESUME_DELAY_MS = getVisibilityResumeDelayMs();
 
   const startRecording = async (onChunkReady?: OnChunkReadyCallback) => {
     try {
@@ -41,7 +65,9 @@ export function useWebAudioRecorder() {
       console.log(`[useWebAudioRecorder] Live streaming: ${onChunkReady ? '✅ ENABLED (chunks every 10s)' : '❌ DISABLED (single blob)'}`);
       
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      
+      // 🎙️ Phase 10: Expose the stream so it can be shared with other consumers (e.g. Gemini PCM capture)
+      activeMediaStreamRef.current = stream;
+
       // 🔧 Detect best audio format for current browser
       // iOS Safari: audio/mp4, Chrome/Android: audio/webm
       let mimeType = 'audio/webm';
@@ -72,7 +98,10 @@ export function useWebAudioRecorder() {
         debugLog('useWebAudioRecorder.ts:onpause', 'MediaRecorder PAUSED', { state: mediaRecorderRef.current?.state, manualPause: manualPauseRef.current, tracksState: stream.getTracks().map(t => ({ kind: t.kind, enabled: t.enabled, readyState: t.readyState, muted: t.muted })) }, 'A');
         // #endregion
         
-        // 🔧 FIX: Only mark as interrupted if NOT a manual pause
+        // 🔧 FIX: Only mark as interrupted if NOT a manual pause.
+        // manualPauseRef is intentionally NOT reset here — it is reset only in
+        // resumeRecording() and stopRecording() so that the polling/visibility
+        // auto-resume logic always sees the correct intent.
         if (!manualPauseRef.current) {
           // 📞 System-initiated pause (phone call, etc.) - mark for auto-resume
           wasInterruptedRef.current = true;
@@ -82,10 +111,7 @@ export function useWebAudioRecorder() {
           wasInterruptedRef.current = false;
           console.log('[useWebAudioRecorder] ⏸️ Recording paused MANUALLY by user');
         }
-        
-        // Reset the manual pause flag after processing
-        manualPauseRef.current = false;
-        
+
         setIsPaused(true);
         if (timerRef.current) clearInterval(timerRef.current);
       };
@@ -205,6 +231,8 @@ export function useWebAudioRecorder() {
         setIsPaused(false);
         wasInterruptedRef.current = false;
         manualPauseRef.current = false;
+        // 🎙️ Phase 10: Release stream ref — tracks are already stopped above
+        activeMediaStreamRef.current = null;
         if (timerRef.current) clearInterval(timerRef.current);
         console.log('[useWebAudioRecorder] ⏹️ Recording stopped and microphone released');
       } else {
@@ -240,12 +268,15 @@ export function useWebAudioRecorder() {
     debugLog('useWebAudioRecorder.ts:resumeRecording', 'RESUME called', { isPaused, wasInterrupted: wasInterruptedRef.current, mediaRecorderState: mediaRecorderRef.current?.state, timestamp: Date.now() }, 'A');
     // #endregion
     if (mediaRecorderRef.current && isPaused) {
+      // 🔧 FIX: Reset manualPauseRef here (not in onpause) so the polling loop
+      // sees the correct value before this explicit resume clears it.
+      manualPauseRef.current = false;
       mediaRecorderRef.current.resume();
       setIsPaused(false);
       timerRef.current = setInterval(() => {
         setDuration(prev => prev + 1);
       }, 1000);
-      // Manual resume, clear interruption flag
+      // Explicit resume, clear interruption flag
       wasInterruptedRef.current = false;
       // #region agent log - Hypothesis A,B,E: Confirm resume executed
       debugLog('useWebAudioRecorder.ts:resumeRecording:done', 'RESUME executed', { newIsPaused: false, wasInterruptedNow: false, mediaRecorderState: mediaRecorderRef.current?.state }, 'A');
@@ -271,6 +302,7 @@ export function useWebAudioRecorder() {
     setDuration(0);
     wasInterruptedRef.current = false;
     manualPauseRef.current = false; // 🔧 FIX: Reset manual pause flag
+    activeMediaStreamRef.current = null; // 🎙️ Phase 10
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
@@ -299,8 +331,8 @@ export function useWebAudioRecorder() {
         
         if (wasInterruptedRef.current) {
           console.log('[useWebAudioRecorder] 👁️ Page visible again after interruption - attempting auto-resume');
-          // Small delay to ensure system has released audio
-          setTimeout(attemptAutoResume, 500);
+          // Delay accounts for Android WebView background throttle
+          setTimeout(attemptAutoResume, VISIBILITY_RESUME_DELAY_MS);
         }
       }
     };
@@ -309,7 +341,7 @@ export function useWebAudioRecorder() {
       console.log('[useWebAudioRecorder] 🔍 Window focused');
       if (wasInterruptedRef.current) {
         console.log('[useWebAudioRecorder] 🔍 Focus detected after interruption - attempting auto-resume');
-        setTimeout(attemptAutoResume, 500);
+        setTimeout(attemptAutoResume, VISIBILITY_RESUME_DELAY_MS);
       }
     };
 
@@ -344,5 +376,8 @@ export function useWebAudioRecorder() {
     };
   }, []);
 
-  return { isRecording, isPaused, duration, audioBlob, startRecording, stopRecording, pauseRecording, resumeRecording, resetRecorder };
+  // 🎙️ Phase 10: Stable getter — returns the active MediaStream without changing startRecording's signature
+  const getActiveMediaStream = useCallback(() => activeMediaStreamRef.current, []);
+
+  return { isRecording, isPaused, duration, audioBlob, audioUrl, startRecording, stopRecording, pauseRecording, resumeRecording, resetRecorder, getActiveMediaStream };
 }; 

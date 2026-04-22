@@ -26,7 +26,7 @@ export function useMarketingPagesConfig() {
       // 1. Check global environment variable (highest priority)
       const globalHideSetting = import.meta.env.VITE_HIDE_MARKETING_PAGES;
       
-      if (globalHideSetting === 'true' || globalHideSetting === true) {
+      if (globalHideSetting === 'true') {
         setShouldHideMarketingPages(true);
         setIsGloballyForced(true);
         setLoading(false);

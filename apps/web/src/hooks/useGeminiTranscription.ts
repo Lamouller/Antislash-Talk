@@ -6,8 +6,18 @@
  * 2. ENHANCEMENT PHASE: Post-processing with full diarization (accurate, speaker detection)
  */
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { sanitizeSpeakerName, sanitizeSegmentForPrompt } from '../lib/sanitize';
+import { normalizeSegment } from '../lib/timestamp';
+import { detectName } from '../lib/nameDetectionPatterns';
+import { segmentHash } from '../lib/segmentHash';
+import { readEnvFlags, resolveFlag } from '../lib/featureFlags';
+import { createReconnectStrategy, defaultShouldRetry } from '../lib/wsReconnect';
+import type { ReconnectStrategy } from '../lib/wsReconnect';
+import { createRmsVad, computeRmsDb } from '../lib/rmsVad';
+import { logEvent } from '../lib/telemetry';
+import type { RmsVad } from '../lib/rmsVad';
 
 // #region agent log
 const debugLog = (loc: string, msg: string, data: any, hyp: string) => {
@@ -24,8 +34,10 @@ const debugLog = (loc: string, msg: string, data: any, hyp: string) => {
 export interface TranscriptSegment {
     speaker: string;
     text: string;
-    start?: string;
-    end?: string;
+    start?: string | number;   // legacy — kept as-is for backward compat
+    end?: string | number;     // legacy — kept as-is for backward compat
+    startSec?: number;         // phase 5: always numeric seconds (normalised)
+    endSec?: number;           // phase 5: always numeric seconds (normalised)
     confidence?: number;
     isLive?: boolean; // true = from live phase, false = from enhancement
 }
@@ -83,7 +95,30 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
     
     // Speaker name mapping: Speaker_XX -> Real name (when detected)
     const speakerNamesRef = useRef<Map<string, string>>(new Map());
-    
+
+    // ─── Phase 7: speakerLockDedup refs ────────────────────────────────────
+    // seenHashesRef: dedup set — hash(speaker, text) → prevents duplicate segments
+    const seenHashesRef = useRef<Set<string>>(new Set());
+    // speakerMappingRef: pyannoteId → displayName (immutable-style, replaced atomically)
+    const speakerMappingRef = useRef<Map<string, string>>(new Map());
+    // connectionGenerationRef: incremented on each WS open to invalidate stale callbacks
+    const connectionGenerationRef = useRef<number>(0);
+    // Phase 14: pending dedup hit counter — batched by 10 before emitting telemetry
+    const dedupHitCountRef = useRef<number>(0);
+    // ────────────────────────────────────────────────────────────────────────
+
+    // ─── Phase 8: wsReconnect refs ─────────────────────────────────────────
+    const reconnectStrategyRef = useRef<ReconnectStrategy>(createReconnectStrategy());
+    const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const sessionStateRef = useRef<{
+        startedAt: number;
+        lastSegments: TranscriptSegment[]; // rolling last 60s of segments
+        isReconnecting: boolean;
+    }>({ startedAt: 0, lastSegments: [], isReconnecting: false });
+    // Stable ref to the reconnect function — avoids circular useCallback deps.
+    const _doReconnectRef = useRef<() => void>(() => { /* assigned below */ });
+    // ────────────────────────────────────────────────────────────────────────
+
     // 🎭 External speaker source (e.g., Pyannote Live)
     const externalSpeakerRef = useRef<string | null>(null);
     
@@ -95,6 +130,17 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
     const workletNodeRef = useRef<AudioWorkletNode | null>(null);
     const mediaStreamRef = useRef<MediaStream | null>(null);
     const pcmChunkCountRef = useRef<number>(0);
+    // 🎙️ Phase 10: Track whether we own the PCM stream (i.e. we created it via getUserMedia).
+    // If false, the stream was provided externally and we must NOT stop its tracks on cleanup.
+    const ownsPCMStreamRef = useRef<boolean>(false);
+
+    // ─── Phase 9: clientVAD refs ───────────────────────────────────────────
+    const vadRef = useRef<RmsVad | null>(null);
+    const analyserRef = useRef<AnalyserNode | null>(null);
+    const vadDropCountRef = useRef<number>(0);
+    // Phase 14: periodic 30s interval to emit vad_drop_batch telemetry without hot-loop logging
+    const vadTelemetryIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    // ────────────────────────────────────────────────────────────────────────
 
     // Get API key
     const getApiKey = async (): Promise<string | null> => {
@@ -123,20 +169,34 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
     };
 
     // ═══════════════════════════════════════════════════════════════════════════
+    // PHASE 8: Session segment rolling window (60s, for reconnect context)
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Push a segment into the rolling 60-second window kept in sessionStateRef.
+     * Called from both the legacy (speakerLockDedup OFF) and the new (ON) paths
+     * so that session context is always available for reconnection.
+     */
+    const pushSessionSegment = useCallback((seg: TranscriptSegment) => {
+        const nowMs = (seg.endSec ?? seg.startSec ?? 0) * 1000;
+        const cutoffMs = nowMs - 60_000;
+        sessionStateRef.current.lastSegments = [
+            ...sessionStateRef.current.lastSegments.filter(
+                s => ((s.endSec ?? 0) * 1000) > cutoffMs
+            ),
+            seg,
+        ];
+    }, []);
+
+    // ═══════════════════════════════════════════════════════════════════════════
     // PHASE 1: LIVE TRANSCRIPTION (during recording)
     // ═══════════════════════════════════════════════════════════════════════════
 
     const startLiveTranscription = useCallback(async (
-        onSegment?: (segment: TranscriptSegment) => void
+        onSegment?: (segment: TranscriptSegment) => void,
+        resumeContext: string = ''
     ) => {
-        // #region agent log
-        fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:startLive',message:'START_LIVE_CALLED',data:{enableLiveTranscription,liveModel:LIVE_MODEL,enhancementModel:model,language},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,D'})}).catch(()=>{});
-        // #endregion
-
         if (!enableLiveTranscription) {
-            // #region agent log
-            fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:startLive',message:'LIVE_DISABLED_EARLY_RETURN',data:{enableLiveTranscription},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
-            // #endregion
             return;
         }
 
@@ -165,16 +225,38 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
         onSegmentCallbackRef.current = onSegment || null; // Store callback for timeout-based creation
 
         try {
+            // Phase 7: increment generation so any pending callbacks from a
+            // previous connection are automatically ignored.
+            connectionGenerationRef.current++;
+            // Capture the current generation in closure so onmessage/createSegment
+            // can compare against it and drop callbacks from stale connections.
+            const myGeneration = connectionGenerationRef.current;
+
+            // Phase 8: initialise session state for a fresh start (not for reconnects).
+            // For reconnects, startedAt is preserved; lastSegments accumulate across reconnects.
+            if (!sessionStateRef.current.isReconnecting) {
+                sessionStateRef.current.startedAt = Date.now();
+                sessionStateRef.current.lastSegments = [];
+            }
+            sessionStateRef.current.isReconnecting = false;
+
             // Always use gemini-2.0-flash-live-001 for Live WebSocket API
             const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${apiKey}`;
-            
+
             wsRef.current = new WebSocket(wsUrl);
 
             wsRef.current.onopen = () => {
                 // #region agent log
-                fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:onopen',message:'WS_CONNECTED',data:{liveModel:LIVE_MODEL},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
                 debugLog('useGeminiTranscription:startLive', '✅ WEBSOCKET CONNECTED', {}, 'LIVE');
                 // #endregion
+
+                // Phase 8: successful (re)connect — reset backoff counter.
+                const _prevAttempts = reconnectStrategyRef.current.attempts;
+                if (_prevAttempts > 0) {
+                    // This was a reconnect (not the initial open).
+                    logEvent({ type: 'ws_reconnect_success', payload: { attempts: _prevAttempts } });
+                }
+                reconnectStrategyRef.current.reset();
 
                 // Setup message for live transcription
                 // Native-audio models require AUDIO output + speech_config + input_audio_transcription
@@ -193,7 +275,7 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                         },
                         system_instruction: {
                             parts: [{
-                                text: `TRANSCRIPTION ONLY. Output ONLY the exact words spoken, nothing else. No comments, no formatting, no asterisks, no explanations. Just the spoken words in ${language}.`
+                                text: `TRANSCRIPTION ONLY. Output ONLY the exact words spoken, nothing else. No comments, no formatting, no asterisks, no explanations. Just the spoken words in ${language}.${resumeContext}`
                             }]
                         },
                         // Enable input audio transcription - this is the key feature!
@@ -235,8 +317,7 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                     const hasModelTurn = !!data.serverContent?.modelTurn;
                     const modelTurnText = data.serverContent?.modelTurn?.parts?.[0]?.text?.substring(0, 50);
                     const inputTranscriptionText = data.serverContent?.inputTranscription?.text?.substring(0, 50);
-                    
-                    fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:onmessage',message:'WS_MESSAGE_DETAIL',data:{hasInputTranscription,hasModelTurn,inputTranscriptionText,modelTurnText,serverContentKeys},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B,C'})}).catch(()=>{});
+
                     debugLog('useGeminiTranscription:onMessage', '📥 WS MESSAGE RECEIVED', {
                         hasSetupComplete: !!data.setupComplete,
                         hasServerContent: !!data.serverContent,
@@ -251,16 +332,13 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                     // Check for setup completion
                     if (data.setupComplete) {
                         // #region agent log
-                        fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:onmessage',message:'SETUP_COMPLETE',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
-                        // #endregion
                         debugLog('useGeminiTranscription:onMessage', '✅ SETUP COMPLETE - Ready for audio', {}, 'LIVE');
+                        // #endregion
                     }
 
                     // Check for errors
                     if (data.error) {
                         // #region agent log
-                        fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:onmessage',message:'SERVER_ERROR',data:{errorMsg:data.error?.message||'unknown'},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
-                        // #endregion
                         debugLog('useGeminiTranscription:onMessage', '❌ SERVER ERROR', {
                             error: data.error
                         }, 'LIVE');
@@ -288,7 +366,7 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                         // Helper function to create and emit segment
                         const createSegment = (reason: string) => {
                             const fullText = accumulatedTextRef.current;
-                            
+
                             // Avoid duplicates
                             if (fullText === lastTextRef.current || fullText.trim().length === 0) {
                                 accumulatedTextRef.current = '';
@@ -297,11 +375,24 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                             }
                             lastTextRef.current = fullText;
 
+                            // ─────────────────────────────────────────────────────────────
+                            // Phase 7: speakerLockDedup flag branching
+                            // Flag OFF (default) → ANCIEN CODE (préservé bit-à-bit)
+                            // Flag ON            → NOUVEAU CODE (atomique + dedup)
+                            // ─────────────────────────────────────────────────────────────
+                            const _envFlags = readEnvFlags();
+                            const _useLockDedup = resolveFlag('speakerLockDedup', { envFlags: _envFlags }).value;
+
+                            if (!_useLockDedup) {
+                            // ═══════════════════════════════════════════════════════════════
+                            // ANCIEN CODE (FLAG OFF) — préservé sans modification
+                            // ═══════════════════════════════════════════════════════════════
+
                             // ═══════════════════════════════════════════════════════════════
                             // 🎭 SPEAKER IDENTIFICATION (Lightweight)
                             // Priority: 1. Name from text, 2. External (Pyannote), 3. Default
                             // ═══════════════════════════════════════════════════════════════
-                            
+
                             // 🎯 Lightweight name detection from self-introductions
                             // Patterns for self-introduction (detect speaker name)
                             const selfIntroPatterns = [
@@ -326,7 +417,7 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                                 // NEW: Simple "c'est [Name]" at end of sentence
                                 /c'est\s+([A-Z][a-zà-ÿ]{2,})[.,!?]?\s*$/i,
                             ];
-                            
+
                             // Common words to exclude from name detection (expanded list)
                             const EXCLUDED_WORDS = new Set([
                                 // Greetings & common expressions
@@ -346,9 +437,9 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                                 // Adjectives/words that sound like names (transcription errors)
                                 'triste', 'content', 'heureux', 'désolé', 'certain', 'vrai'
                             ]);
-                            
+
                             let detectedName: string | null = null;
-                            
+
                             // Try each pattern
                             for (const pattern of selfIntroPatterns) {
                                 const match = fullText.match(pattern);
@@ -359,7 +450,7 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                                         candidateName = `${match[1]} ${match[2]}`;
                                     }
                                     // Validate: not a common word, min 3 chars
-                                    if (!EXCLUDED_WORDS.has(candidateName.toLowerCase()) && 
+                                    if (!EXCLUDED_WORDS.has(candidateName.toLowerCase()) &&
                                         candidateName.length >= 3) {
                                         detectedName = candidateName;
                                         console.log(`%c[GEMINI] 🎭 NAME DETECTED: "${detectedName}"`, 'color: #7c3aed; font-weight: bold');
@@ -367,23 +458,23 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                                     }
                                 }
                             }
-                            
+
                             // 🎭 SPEAKER NAME MEMORY SYSTEM (VOICE-FIRST)
                             // Priority: 1. Pyannote voice ID (trust the voice!), 2. Text-based name for NEW speakers only
                             const pyannoteSpeaker = externalSpeakerRef.current; // e.g., "SPEAKER_01"
-                            
+
                             if (detectedName && pyannoteSpeaker) {
                                 // Name detected in text - BUT only use it if:
                                 // 1. This Pyannote speaker has NO name yet (first introduction)
                                 // 2. OR this is a NEW Pyannote speaker (speaker change detected by voice)
                                 const existingMapping = speakerNamesRef.current.get(pyannoteSpeaker);
-                                
+
                                 if (!existingMapping) {
                                     // ✅ FIRST INTRODUCTION: Accept the name for this voice
                                     speakerNamesRef.current.set(pyannoteSpeaker, detectedName);
                                     currentSpeakerRef.current = detectedName;
                                     console.log(`%c[SPEAKER MEMORY] 🧠 FIRST MAPPING: ${pyannoteSpeaker} → "${detectedName}"`, 'color: #8b5cf6; font-weight: bold');
-                                    
+
                                     // 🔄 RETROACTIVE UPDATE: Update past segments with this Pyannote ID
                                     setLiveSegments(prev => {
                                         const updated = prev.map(seg => {
@@ -458,10 +549,10 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                                             const combinedLength = lastSegment.text.length + cleanText.length + 1;
                                             // Count sentences in last segment (by terminal punctuation)
                                             const sentenceCount = (lastSegment.text.match(/[.!?]+/g) || []).length;
-                                            
+
                                             // Merge only if: under 400 chars AND under 3 sentences
                                             const shouldMerge = combinedLength < 400 && sentenceCount < 3;
-                                            
+
                                             if (shouldMerge) {
                                                 const updatedSegments = [...prev];
                                                 updatedSegments[prev.length - 1] = {
@@ -474,29 +565,175 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                                         }
                                     }
                                     // Different speaker, first segment, or limits exceeded: create new
-                                    return [...prev, {
+                                    return [...prev, normalizeSegment({
                                         speaker: newSpeaker,
                                         text: cleanText,
                                         isLive: true,
                                         confidence: isFinal ? 0.9 : 0.75
-                                    }];
+                                    })];
                                 });
 
                                 // Callback with full segment info for UI
                                 // NOTE: Only use onSegmentCallbackRef (from startFullWorkflow), NOT onSegment
                                 // to avoid duplicate callbacks
-                                const segment: TranscriptSegment = {
+                                const segment: TranscriptSegment = normalizeSegment({
                                     speaker: newSpeaker,
                                     text: cleanText,
                                     isLive: true,
                                     confidence: isFinal ? 0.9 : 0.75
-                                };
+                                });
                                 onSegmentCallbackRef.current?.(segment);
+
+                                // Phase 8: keep rolling 60s window for reconnect context.
+                                pushSessionSegment(segment);
                             }
-                            
+
                             // Reset for next segment
                             accumulatedTextRef.current = '';
                             setStreamingText('');
+
+                            // ═══════════════════════════════════════════════════════════════
+                            // END ANCIEN CODE (FLAG OFF)
+                            // ═══════════════════════════════════════════════════════════════
+                            } else {
+                            // ═══════════════════════════════════════════════════════════════
+                            // NOUVEAU CODE (FLAG ON) — atomique + dedup
+                            // ═══════════════════════════════════════════════════════════════
+
+                            // Guard: stale connection callback check — discard segment
+                            // if this onmessage fires after a newer connection was opened.
+                            if (myGeneration !== connectionGenerationRef.current) {
+                                accumulatedTextRef.current = '';
+                                setStreamingText('');
+                                return;
+                            }
+
+                            const _pyannoteSpeaker = externalSpeakerRef.current; // e.g. "SPEAKER_01"
+
+                            // Pure name detection (no side effects)
+                            const _detected = detectName(fullText);
+
+                            // Compute next mapping immutably
+                            const _nextMapping = new Map(speakerMappingRef.current);
+                            if (_detected && _pyannoteSpeaker && !_nextMapping.has(_pyannoteSpeaker)) {
+                                _nextMapping.set(_pyannoteSpeaker, _detected.name);
+                                console.log(`%c[SPEAKER LOCK] FIRST MAPPING: ${_pyannoteSpeaker} → "${_detected.name}" (${_detected.patternId})`, 'color: #8b5cf6; font-weight: bold');
+                            }
+
+                            // Resolve display name
+                            const _resolvedSpeaker = _pyannoteSpeaker
+                                ? (_nextMapping.get(_pyannoteSpeaker) ?? _pyannoteSpeaker)
+                                : (_detected?.name ?? speakerNamesRef.current.get('_lastDetected') ?? 'Live');
+
+                            // Dedup check
+                            const _hash = segmentHash(_resolvedSpeaker, fullText);
+                            if (seenHashesRef.current.has(_hash)) {
+                                // Already seen — drop silently
+                                accumulatedTextRef.current = '';
+                                setStreamingText('');
+                                // Phase 14: batch dedup hits, emit telemetry every 10
+                                dedupHitCountRef.current++;
+                                if (dedupHitCountRef.current % 10 === 0) {
+                                    logEvent({ type: 'segment_dedup_hit', payload: { count: dedupHitCountRef.current } });
+                                }
+                                return;
+                            }
+                            seenHashesRef.current.add(_hash);
+                            // FIFO cap: keep at most 1000 hashes (~30-40 min of unique segments).
+                            // Prevents unbounded memory growth on long meetings.
+                            if (seenHashesRef.current.size > 1000) {
+                                const first = seenHashesRef.current.values().next().value;
+                                if (first !== undefined) seenHashesRef.current.delete(first);
+                            }
+
+                            // Commit mapping ref AFTER dedup check (avoids polluting ref on skip)
+                            speakerMappingRef.current = _nextMapping;
+                            // Keep legacy speakerNamesRef in sync for getSpeakerNameMap() API
+                            if (_detected && _pyannoteSpeaker) {
+                                speakerNamesRef.current.set(_pyannoteSpeaker, _detected.name);
+                                speakerNamesRef.current.set('_lastDetected', _detected.name);
+                            }
+
+                            // Clean text (same rules as legacy path)
+                            const _cleanText = fullText
+                                .replace(/\[SPEAKER_CHANGE\]/gi, '')
+                                .replace(/\(nom détecté:[^)]+\)/gi, '')
+                                .replace(/\(speaker change\)/gi, '')
+                                .replace(/\*\*[^*]+\*\*/g, '')
+                                .replace(/\([^)]*transcri[^)]*\)/gi, '')
+                                .replace(/\([^)]*clari[^)]*\)/gi, '')
+                                .replace(/I've successfully.*/gi, '')
+                                .replace(/My focus remains.*/gi, '')
+                                .replace(/I'm having trouble.*/gi, '')
+                                .trim();
+
+                            if (_cleanText) {
+                                debugLog('useGeminiTranscription:onSegment', '[P7] SEGMENT CREATED (atomique)', {
+                                    reason,
+                                    speaker: _resolvedSpeaker,
+                                    textPreview: _cleanText.substring(0, 40),
+                                    patternId: _detected?.patternId ?? null,
+                                }, 'LIVE');
+
+                                // Atomic setState: retroactive rename + new segment in ONE call
+                                setLiveSegments(prev => {
+                                    // Retroactive rename if a new name was detected
+                                    const renamed = (_detected && _pyannoteSpeaker)
+                                        ? prev.map(seg =>
+                                            seg.speaker === _pyannoteSpeaker
+                                                ? { ...seg, speaker: _detected.name }
+                                                : seg
+                                          )
+                                        : prev;
+
+                                    // Aggregate: merge if same speaker and within limits
+                                    if (renamed.length > 0) {
+                                        const _last = renamed[renamed.length - 1];
+                                        if (_last.speaker === _resolvedSpeaker) {
+                                            const _combined = _last.text.length + _cleanText.length + 1;
+                                            const _sentences = (_last.text.match(/[.!?]+/g) || []).length;
+                                            if (_combined < 400 && _sentences < 3) {
+                                                const _updated = [...renamed];
+                                                _updated[renamed.length - 1] = {
+                                                    ..._last,
+                                                    text: _last.text + ' ' + _cleanText,
+                                                    confidence: isFinal ? 0.9 : 0.75,
+                                                };
+                                                return _updated;
+                                            }
+                                        }
+                                    }
+
+                                    // New segment
+                                    return [...renamed, normalizeSegment({
+                                        speaker: _resolvedSpeaker,
+                                        text: _cleanText,
+                                        isLive: true,
+                                        confidence: isFinal ? 0.9 : 0.75,
+                                    })];
+                                });
+
+                                // Callback
+                                const _segment: TranscriptSegment = normalizeSegment({
+                                    speaker: _resolvedSpeaker,
+                                    text: _cleanText,
+                                    isLive: true,
+                                    confidence: isFinal ? 0.9 : 0.75,
+                                });
+                                onSegmentCallbackRef.current?.(_segment);
+
+                                // Phase 8: keep rolling 60s window for reconnect context.
+                                pushSessionSegment(_segment);
+                            }
+
+                            // Reset for next segment
+                            accumulatedTextRef.current = '';
+                            setStreamingText('');
+
+                            // ═══════════════════════════════════════════════════════════════
+                            // END NOUVEAU CODE (FLAG ON)
+                            // ═══════════════════════════════════════════════════════════════
+                            } // end if (!_useLockDedup) / else
                         };
 
                         // Decide when to create segment:
@@ -523,12 +760,6 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                     // modelTurn often contains hallucinations like "Focusing on Transcription"
                     // We only log for debugging purposes
                     if (data.serverContent?.modelTurn?.parts) {
-                        const modelText = data.serverContent.modelTurn.parts[0]?.text || '';
-                        // #region agent log
-                        if (modelText.length > 0 && modelText.length < 100) {
-                            fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:modelTurn',message:'MODEL_TURN_SKIPPED',data:{textPreview:modelText.substring(0,50),reason:'Using inputTranscription as primary source'},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
-                        }
-                        // #endregion
                         // Don't create segments from modelTurn - inputTranscription is more reliable
                     }
 
@@ -549,7 +780,6 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
 
             wsRef.current.onclose = (event) => {
                 // #region agent log
-                fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:onclose',message:'WS_CLOSED',data:{code:event.code,reason:event.reason||'none',wasClean:event.wasClean},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
                 debugLog('useGeminiTranscription:startLive', '🔌 WEBSOCKET CLOSED', {
                     segmentsCount: liveSegments.length,
                     code: event.code,
@@ -557,23 +787,119 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                     wasClean: event.wasClean
                 }, 'LIVE');
                 // #endregion
-                setIsLiveActive(false);
-                
-                // Common close codes:
-                // 1000 = Normal closure
-                // 1001 = Going away
-                // 1006 = Abnormal closure (no close frame)
-                // 1011 = Server error
-                if (event.code !== 1000) {
-                    setError(`WebSocket closed: ${event.reason || `Code ${event.code}`}`);
+
+                const _envFlags = readEnvFlags();
+                const _useReconnect = resolveFlag('wsReconnect', { envFlags: _envFlags }).value;
+
+                if (!_useReconnect) {
+                    // ═══════════════════════════════════════════════════════════════
+                    // ANCIEN CODE (FLAG OFF) — préservé sans modification
+                    // Common close codes:
+                    // 1000 = Normal closure
+                    // 1001 = Going away
+                    // 1006 = Abnormal closure (no close frame)
+                    // 1011 = Server error
+                    // ═══════════════════════════════════════════════════════════════
+                    setIsLiveActive(false);
+                    if (event.code !== 1000) {
+                        setError(`WebSocket closed: ${event.reason || `Code ${event.code}`}`);
+                    }
+                    return;
                 }
+
+                // ═══════════════════════════════════════════════════════════════
+                // NOUVEAU CODE (FLAG ON) — exponential backoff reconnect
+                // ═══════════════════════════════════════════════════════════════
+
+                // Capture generation at the moment of close — used to detect if
+                // the user manually restarted between this close and the timeout.
+                const _myGeneration = connectionGenerationRef.current;
+
+                // Normal close or policy violation → no reconnect.
+                if (!defaultShouldRetry(event.code, event.reason ?? '')) {
+                    setIsLiveActive(false);
+                    sessionStateRef.current.isReconnecting = false;
+                    reconnectStrategyRef.current.reset();
+                    return;
+                }
+
+                // Session older than 5 minutes total → give up to avoid infinite loops.
+                const _sessionAge = Date.now() - sessionStateRef.current.startedAt;
+                if (_sessionAge > 5 * 60_000) {
+                    setIsLiveActive(false);
+                    sessionStateRef.current.isReconnecting = false;
+                    setError('Connection lost — please restart recording');
+                    return;
+                }
+
+                const _delay = reconnectStrategyRef.current.next();
+                if (_delay === null) {
+                    // Backoff exhausted.
+                    logEvent({ type: 'ws_reconnect_exhausted', payload: { attempts: reconnectStrategyRef.current.attempts } });
+                    setIsLiveActive(false);
+                    sessionStateRef.current.isReconnecting = false;
+                    setError('Connection lost — please restart recording');
+                    return;
+                }
+
+                sessionStateRef.current.isReconnecting = true;
+                logEvent({ type: 'ws_reconnect_attempt', payload: { attempt: reconnectStrategyRef.current.attempts, delayMs: _delay } });
+                console.debug(`[WS Reconnect] attempt ${reconnectStrategyRef.current.attempts}/6 in ${_delay}ms (code ${event.code})`);
+
+                reconnectTimeoutRef.current = setTimeout(() => {
+                    // If the user manually restarted (connectionGenerationRef incremented),
+                    // cancel this scheduled reconnect to avoid opening a duplicate socket.
+                    if (connectionGenerationRef.current !== _myGeneration) {
+                        console.debug('[WS Reconnect] generation changed — aborting scheduled reconnect');
+                        return;
+                    }
+                    _doReconnectRef.current();
+                }, _delay);
             };
 
         } catch (err) {
             setError((err as Error).message);
             setIsLiveActive(false);
         }
-    }, [model, language, enableLiveTranscription]);
+    }, [model, language, enableLiveTranscription, pushSessionSegment]);
+
+    // ─── Phase 8: reconnect function ───────────────────────────────────────
+
+    /**
+     * Reopens the WebSocket with the last 60s of segments as context in the
+     * systemInstruction, so Gemini can continue seamlessly.
+     *
+     * Called only when wsReconnect flag is ON and the backoff timer fires.
+     */
+    const reconnectLiveTranscription = useCallback(async () => {
+        if (!sessionStateRef.current.isReconnecting) return;
+
+        const lastSegs = sessionStateRef.current.lastSegments;
+        const resumeContext = lastSegs.length > 0
+            ? `\n\nSession resumed. Last transcribed segments:\n${lastSegs
+                  .map(s => `[${sanitizeSpeakerName(s.speaker)}]: ${sanitizeSegmentForPrompt(s.text)}`)
+                  .join('\n')}`
+            : '';
+
+        try {
+            await startLiveTranscription(onSegmentCallbackRef.current ?? undefined, resumeContext);
+            // On success, reset is already handled inside startLiveTranscription's onopen handler.
+        } catch (err) {
+            // Failure: the new WS attempt will fail and onclose will fire again,
+            // which will trigger the next backoff step automatically.
+            console.debug('[WS Reconnect] reconnectLiveTranscription failed', err);
+        }
+    }, [startLiveTranscription]);
+
+    // Keep the ref always pointing at the latest version of the function.
+    // This avoids stale-closure issues when the timeout fires after deps change.
+    useEffect(() => {
+        _doReconnectRef.current = () => {
+            reconnectLiveTranscription();
+        };
+    });
+
+    // ────────────────────────────────────────────────────────────────────────
 
     // Decode webm/opus to PCM using AudioContext
     const decodeAudioToPCM = useCallback(async (audioData: ArrayBuffer): Promise<ArrayBuffer | null> => {
@@ -668,7 +994,6 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
             
             // #region agent log
             if (chunkIndex <= 5 || chunkIndex % 20 === 0) {
-                fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:sendPCM',message:'SENDING_RAW_PCM',data:{chunkIndex,pcmSizeBytes:pcmData.byteLength},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
                 debugLog('useGeminiTranscription:sendPCM', '📤 SENDING RAW PCM', {
                     chunkIndex,
                     pcmSizeBytes: pcmData.byteLength
@@ -687,21 +1012,44 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
         }
     }, []);
 
+    // 🎙️ Phase 10: Options accepted by startPCMCapture
+    interface StartPCMCaptureOptions {
+        /** If provided, this stream is used instead of calling getUserMedia.
+         *  The hook will NOT stop the tracks on cleanup (ownsPCMStreamRef = false). */
+        externalStream?: MediaStream;
+    }
+
     // Start PCM audio capture using AudioWorklet
-    const startPCMCapture = useCallback(async () => {
+    const startPCMCapture = useCallback(async (options: StartPCMCaptureOptions = {}) => {
         try {
             pcmChunkCountRef.current = 0;
-            
-            // Request microphone access at 16kHz
-            const stream = await navigator.mediaDevices.getUserMedia({
-                audio: {
-                    sampleRate: 16000,
-                    channelCount: 1,
-                    echoCancellation: true,
-                    noiseSuppression: true
-                }
-            });
+
+            // 🎙️ Phase 10: Decide whether to use an external stream or create our own.
+            const _unifiedEnvFlags = readEnvFlags();
+            const _useUnified = resolveFlag('unifiedMicStream', { envFlags: _unifiedEnvFlags }).value;
+
+            let stream: MediaStream;
+            let ownsStream: boolean;
+
+            if (_useUnified && options.externalStream) {
+                stream = options.externalStream;
+                ownsStream = false;
+                console.debug('[PCM Capture] Using external stream (unifiedMicStream ON)');
+            } else {
+                // Legacy: create our own stream
+                stream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        sampleRate: 16000,
+                        channelCount: 1,
+                        echoCancellation: true,
+                        noiseSuppression: true
+                    }
+                });
+                ownsStream = true;
+            }
+
             mediaStreamRef.current = stream;
+            ownsPCMStreamRef.current = ownsStream;
 
             // Create AudioContext at 16kHz (required by Gemini)
             audioContextRef.current = new AudioContext({ sampleRate: 16000 });
@@ -711,32 +1059,80 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
             
             // Create source from microphone
             const source = audioContextRef.current.createMediaStreamSource(stream);
-            
+
+            // ─── Phase 9: clientVAD setup ──────────────────────────────────
+            const _envFlags = readEnvFlags();
+            const _useVad = resolveFlag('clientVAD', { envFlags: _envFlags }).value;
+
+            if (_useVad) {
+                const thresholdDb = parseFloat(
+                    (import.meta.env.VITE_VAD_THRESHOLD_DB as string | undefined) ?? '-40'
+                );
+                const silenceMs = parseInt(
+                    (import.meta.env.VITE_VAD_SILENCE_MS as string | undefined) ?? '400',
+                    10
+                );
+
+                // AnalyserNode is connected IN PARALLEL (not in series) with the workletNode.
+                // Both receive audio from the same source node.
+                analyserRef.current = audioContextRef.current.createAnalyser();
+                analyserRef.current.fftSize = 512;
+                analyserRef.current.smoothingTimeConstant = 0.2;
+                source.connect(analyserRef.current);
+
+                vadRef.current = createRmsVad({
+                    thresholdDb,
+                    silenceMs,
+                    hangoverMs: 200,
+                });
+
+                vadDropCountRef.current = 0;
+                // Phase 14: emit vad_drop_batch every 30s (batcher — not in hot loop)
+                if (vadTelemetryIntervalRef.current) clearInterval(vadTelemetryIntervalRef.current);
+                vadTelemetryIntervalRef.current = setInterval(() => {
+                    if (vadDropCountRef.current > 0) {
+                        logEvent({ type: 'vad_drop_batch', payload: { dropped: vadDropCountRef.current } });
+                        vadDropCountRef.current = 0;
+                    }
+                }, 30_000);
+            }
+            // ────────────────────────────────────────────────────────────────
+
             // Create worklet node
             workletNodeRef.current = new AudioWorkletNode(audioContextRef.current, 'pcm-processor');
-            
-            // Handle PCM data from worklet - send directly to WebSocket
+
+            // Handle PCM data from worklet - send directly to WebSocket.
+            // When clientVAD is ON, evaluate each frame against the VAD before sending.
             workletNodeRef.current.port.onmessage = (event) => {
-                if (event.data.type === 'pcm') {
-                    sendPCMToWebSocket(event.data.data);
+                if (event.data?.type !== 'pcm') return;
+
+                if (_useVad && vadRef.current && analyserRef.current) {
+                    // Read the current frame from the AnalyserNode (parallel tap into the stream).
+                    const buf = new Float32Array(analyserRef.current.fftSize);
+                    analyserRef.current.getFloatTimeDomainData(buf);
+                    const rmsDb = computeRmsDb(buf);
+                    const decision = vadRef.current.process(rmsDb, performance.now());
+
+                    if (!decision.shouldSend) {
+                        vadDropCountRef.current++;
+                        return; // Drop silent frame — do not send to WebSocket
+                    }
                 }
+
+                sendPCMToWebSocket(event.data.data);
             };
-            
-            // Connect: microphone -> worklet
+
+            // Connect: microphone -> worklet (AnalyserNode already connected above in parallel)
             source.connect(workletNodeRef.current);
             
             // #region agent log
-            fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:startPCMCapture',message:'PCM_CAPTURE_STARTED',data:{sampleRate:audioContextRef.current.sampleRate},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
             debugLog('useGeminiTranscription:startPCMCapture', '🎤 PCM CAPTURE STARTED', {
                 sampleRate: audioContextRef.current.sampleRate
             }, 'LIVE');
             // #endregion
-            
+
             return true;
         } catch (err) {
-            // #region agent log
-            fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:startPCMCapture',message:'PCM_CAPTURE_ERROR',data:{error:(err as Error).message},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
-            // #endregion
             console.error('Failed to start PCM capture:', err);
             return false;
         }
@@ -748,15 +1144,31 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
             workletNodeRef.current.disconnect();
             workletNodeRef.current = null;
         }
+        // ─── Phase 9: disconnect AnalyserNode and clear VAD refs ──────────
+        if (analyserRef.current) {
+            try { analyserRef.current.disconnect(); } catch { /* ignore */ }
+            analyserRef.current = null;
+        }
+        vadRef.current = null;
+        // ─────────────────────────────────────────────────────────────────
         if (audioContextRef.current) {
             audioContextRef.current.close();
             audioContextRef.current = null;
         }
+        // 🎙️ Phase 10: Only stop tracks if we created (own) the stream.
+        // If the stream was provided externally, the caller (record.tsx) owns it
+        // and will stop it when stopRecording() is called.
         if (mediaStreamRef.current) {
-            mediaStreamRef.current.getTracks().forEach(track => track.stop());
+            if (ownsPCMStreamRef.current) {
+                mediaStreamRef.current.getTracks().forEach(track => track.stop());
+                console.debug('[PCM Capture] Stopped owned stream tracks');
+            } else {
+                console.debug('[PCM Capture] External stream — tracks NOT stopped (not owned)');
+            }
             mediaStreamRef.current = null;
         }
-        
+        ownsPCMStreamRef.current = false;
+
         debugLog('useGeminiTranscription:stopPCMCapture', '🔇 PCM CAPTURE STOPPED', {
             totalPCMChunks: pcmChunkCountRef.current
         }, 'LIVE');
@@ -792,6 +1204,12 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
         
         // Stop PCM capture first
         stopPCMCapture();
+        // Phase 9: clear VAD telemetry interval — on rapid iOS back-button navigation,
+        // unmount may not fire before a restart. Explicit clear here prevents stale intervals.
+        if (vadTelemetryIntervalRef.current) {
+            clearInterval(vadTelemetryIntervalRef.current);
+            vadTelemetryIntervalRef.current = null;
+        }
         if (wsRef.current) {
             wsRef.current.send(JSON.stringify({ clientContent: { turnComplete: true } }));
             setTimeout(() => {
@@ -887,14 +1305,12 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
             }, 'ENHANCE');
             // #endregion
 
-            // Build enhancement prompt with existing transcription context
-            const existingText = (existingSegments || liveSegments).map(s => 
-                `[${s.speaker}]: ${s.text}`
+            // Build enhancement prompt with existing transcription context.
+            // Sanitize speaker names and segment text to prevent prompt injection
+            // (speaker names are user-/model-controlled and injected into the LLM prompt).
+            const existingText = (existingSegments || liveSegments).map(s =>
+                `[${sanitizeSpeakerName(s.speaker)}]: ${sanitizeSegmentForPrompt(s.text)}`
             ).join('\n');
-
-            // #region agent log
-            fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:enhance:buildPrompt',message:'Building enhancement prompt',data:{existingTextLength:existingText.length,segmentCount:(existingSegments||liveSegments).length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4'})}).catch(()=>{});
-            // #endregion
 
             const enhancementPrompt = `Tu es un expert en transcription et diarization audio (identification des locuteurs par leur voix).
 
@@ -1002,9 +1418,6 @@ ${existingText || '(aucune transcription préalable - analyse uniquement l\'audi
             const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
             
             // #region agent log
-            fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:enhance:rawResponse',message:'Raw text from Gemini',data:{length:rawText.length,preview:rawText.substring(0,300),hasContent:!!rawText},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'})}).catch(()=>{});
-
-            // #region agent log
             debugLog('useGeminiTranscription:enhance', '📥 GEMINI RESPONSE', {
                 rawTextLength: rawText.length,
                 preview: rawText.substring(0, 200)
@@ -1023,24 +1436,18 @@ ${existingText || '(aucune transcription préalable - analyse uniquement l\'audi
                 if (cleanedText.endsWith('```')) cleanedText = cleanedText.slice(0, -3);
                 cleanedText = cleanedText.trim();
 
-                // #region agent log
-                fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:enhance:cleanedText',message:'Cleaned text for parsing',data:{length:cleanedText.length,preview:cleanedText.substring(0,200)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
-                // #endregion
-
                 const parsed = JSON.parse(cleanedText);
 
-                // #region agent log
-                fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:enhance:parsed',message:'JSON parsed successfully',data:{speakersDetected:parsed.speakers_detected,segmentCount:parsed.segments?.length,speakerNames:parsed.speaker_names},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
-                // #endregion
-
-                const enhancedSegs: TranscriptSegment[] = (parsed.segments || []).map((s: any) => ({
-                    speaker: s.speaker || 'Speaker_01',
-                    text: s.text,
-                    start: s.start,
-                    end: s.end,
-                    confidence: s.confidence || 0.9,
-                    isLive: false
-                }));
+                const enhancedSegs: TranscriptSegment[] = (parsed.segments || []).map((s: any) =>
+                    normalizeSegment({
+                        speaker: s.speaker || 'Speaker_01',
+                        text: s.text,
+                        start: s.start,
+                        end: s.end,
+                        confidence: s.confidence || 0.9,
+                        isLive: false
+                    })
+                );
 
                 setEnhancedSegments(enhancedSegs);
 
@@ -1051,17 +1458,12 @@ ${existingText || '(aucune transcription préalable - analyse uniquement l\'audi
                     phase: 'enhanced'
                 };
 
-                // #region agent log
-                fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:enhance:success',message:'Enhancement complete',data:{segmentCount:enhancedSegs.length,speakers:[...new Set(enhancedSegs.map(s=>s.speaker))],phase:'enhanced'},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H5'})}).catch(()=>{});
-                // #endregion
-
             } catch (parseError) {
                 // Fallback to live segments if parsing fails
                 // #region agent log
                 debugLog('useGeminiTranscription:enhance', '⚠️ JSON PARSE FAILED', {
                     error: (parseError as Error).message
                 }, 'ENHANCE');
-                fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:enhance:parseError',message:'JSON parse FAILED',data:{error:(parseError as Error).message,rawTextPreview:rawText.substring(0,300)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
                 // #endregion
 
                 result = {
@@ -1107,28 +1509,50 @@ ${existingText || '(aucune transcription préalable - analyse uniquement l\'audi
     // FULL WORKFLOW: Start live → Stop → Enhance automatically
     // ═══════════════════════════════════════════════════════════════════════════
 
+    // 🎙️ Phase 10: Options for startFullWorkflow
+    interface StartFullWorkflowOptions {
+        onLiveSegment?: (segment: TranscriptSegment) => void;
+        onEnhancedResult?: (result: GeminiTranscriptionResult) => void;
+        /** If provided (and unifiedMicStream flag is ON), passed to startPCMCapture
+         *  to skip a second getUserMedia call. */
+        externalStream?: MediaStream;
+    }
+
     const startFullWorkflow = useCallback(async (
-        onLiveSegment?: (segment: TranscriptSegment) => void,
+        onLiveSegmentOrOptions?: ((segment: TranscriptSegment) => void) | StartFullWorkflowOptions,
         onEnhancedResult?: (result: GeminiTranscriptionResult) => void
     ) => {
+        // Support both legacy positional call and new options object
+        let onLiveSegment: ((segment: TranscriptSegment) => void) | undefined;
+        let externalStream: MediaStream | undefined;
+
+        if (typeof onLiveSegmentOrOptions === 'function') {
+            onLiveSegment = onLiveSegmentOrOptions;
+        } else if (onLiveSegmentOrOptions && typeof onLiveSegmentOrOptions === 'object') {
+            onLiveSegment = onLiveSegmentOrOptions.onLiveSegment;
+            onEnhancedResult = onLiveSegmentOrOptions.onEnhancedResult;
+            externalStream = onLiveSegmentOrOptions.externalStream;
+        }
+
         // #region agent log
         debugLog('useGeminiTranscription:fullWorkflow', '🚀 STARTING FULL WORKFLOW', {
             enableLive: enableLiveTranscription,
-            enableEnhance: enablePostEnhancement
+            enableEnhance: enablePostEnhancement,
+            hasExternalStream: !!externalStream
         }, 'WORKFLOW');
         // #endregion
 
         // Start live WebSocket connection
         await startLiveTranscription(onLiveSegment);
-        
+
         // Wait for WebSocket to be ready before sending audio
         await new Promise(r => setTimeout(r, 500));
-        
+
         // Start PCM capture via AudioWorklet (sends audio directly to WebSocket)
-        const pcmStarted = await startPCMCapture();
+        // 🎙️ Phase 10: pass externalStream so startPCMCapture can skip getUserMedia when flag is ON
+        const pcmStarted = await startPCMCapture({ externalStream });
         
         // #region agent log
-        fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:fullWorkflow',message:'PCM_CAPTURE_STATUS',data:{pcmStarted,wsState:wsRef.current?.readyState},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
         debugLog('useGeminiTranscription:fullWorkflow', '🎤 PCM CAPTURE STATUS', {
             pcmStarted,
             wsState: wsRef.current?.readyState
@@ -1158,6 +1582,14 @@ ${existingText || '(aucune transcription préalable - analyse uniquement l\'audi
             clearTimeout(pauseTimeoutRef.current);
             pauseTimeoutRef.current = null;
         }
+        // Phase 8: cancel any pending reconnect timer
+        if (reconnectTimeoutRef.current) {
+            clearTimeout(reconnectTimeoutRef.current);
+            reconnectTimeoutRef.current = null;
+        }
+        reconnectStrategyRef.current.reset();
+        sessionStateRef.current = { startedAt: 0, lastSegments: [], isReconnecting: false };
+
         setLiveSegments([]);
         setEnhancedSegments([]);
         setStreamingText('');
@@ -1171,6 +1603,15 @@ ${existingText || '(aucune transcription préalable - analyse uniquement l\'audi
         accumulatedTextRef.current = '';
         onSegmentCallbackRef.current = null;
         speakerNamesRef.current.clear();
+        // Phase 7: clear dedup/mapping refs on reset
+        seenHashesRef.current.clear();
+        speakerMappingRef.current.clear();
+        dedupHitCountRef.current = 0;
+        // Phase 14: clear VAD telemetry interval on reset
+        if (vadTelemetryIntervalRef.current) {
+            clearInterval(vadTelemetryIntervalRef.current);
+            vadTelemetryIntervalRef.current = null;
+        }
     }, []);
 
     // 🎭 Set external speaker (from Pyannote Live or other source)
@@ -1189,6 +1630,68 @@ ${existingText || '(aucune transcription préalable - analyse uniquement l\'audi
         debugLog('useGeminiTranscription:setOnPCMChunk', '🎭 PCM CALLBACK SET', {
             hasCallback: !!callback
         }, 'LIVE');
+    }, []);
+
+    // ─── Phase 9: VAD metrics (for telemetry / debug — phase 14) ──────────
+    const getVadMetrics = useCallback(() => ({
+        enabled: !!vadRef.current,
+        state: vadRef.current?.state ?? ('silence' as const),
+        droppedChunks: vadDropCountRef.current,
+    }), []);
+    // ────────────────────────────────────────────────────────────────────────
+
+    // Cleanup on unmount: release refs that would otherwise stay in closure.
+    // reset() also clears these, but navigation-back can unmount without reset().
+    useEffect(() => {
+        return () => {
+            speakerNamesRef.current.clear();
+            // Phase 7: clear dedup/mapping refs on unmount
+            seenHashesRef.current.clear();
+            speakerMappingRef.current.clear();
+            audioChunksRef.current = [];
+            // Phase 8: cancel reconnect timer and clear session state on unmount
+            if (reconnectTimeoutRef.current) {
+                clearTimeout(reconnectTimeoutRef.current);
+                reconnectTimeoutRef.current = null;
+            }
+            reconnectStrategyRef.current.reset();
+            sessionStateRef.current = { startedAt: 0, lastSegments: [], isReconnecting: false };
+            if (wsRef.current) {
+                try {
+                    wsRef.current.close(1000, 'unmount');
+                } catch {
+                    // ignore — socket may already be closing
+                }
+                wsRef.current = null;
+            }
+            // Phase 9: disconnect AnalyserNode and clear VAD refs on unmount
+            if (analyserRef.current) {
+                try { analyserRef.current.disconnect(); } catch { /* ignore */ }
+                analyserRef.current = null;
+            }
+            vadRef.current = null;
+            // Phase 14: clear VAD telemetry interval on unmount
+            if (vadTelemetryIntervalRef.current) {
+                clearInterval(vadTelemetryIntervalRef.current);
+                vadTelemetryIntervalRef.current = null;
+            }
+            if (audioContextRef.current) {
+                try {
+                    audioContextRef.current.close();
+                } catch {
+                    // ignore
+                }
+                audioContextRef.current = null;
+            }
+            if (mediaStreamRef.current) {
+                // 🎙️ Phase 10: Only stop tracks if we own the stream
+                if (ownsPCMStreamRef.current) {
+                    mediaStreamRef.current.getTracks().forEach(t => t.stop());
+                }
+                mediaStreamRef.current = null;
+            }
+            ownsPCMStreamRef.current = false;
+        };
     }, []);
 
     return {
@@ -1231,6 +1734,9 @@ ${existingText || '(aucune transcription préalable - analyse uniquement l\'audi
         setSpeakerName: (speakerId: string, name: string) => {
             speakerNamesRef.current.set(speakerId, name);
             console.log(`%c[SPEAKER MEMORY] ✏️ MANUAL SET: ${speakerId} → "${name}"`, 'color: #f59e0b; font-weight: bold');
-        }
+        },
+
+        // 🎙️ Phase 9: VAD metrics (enabled, state, droppedChunks)
+        getVadMetrics,
     };
 }
