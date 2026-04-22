@@ -13,6 +13,8 @@ import { normalizeSegment } from '../lib/timestamp';
 import { detectName } from '../lib/nameDetectionPatterns';
 import { segmentHash } from '../lib/segmentHash';
 import { readEnvFlags, resolveFlag } from '../lib/featureFlags';
+import { createReconnectStrategy, defaultShouldRetry } from '../lib/wsReconnect';
+import type { ReconnectStrategy } from '../lib/wsReconnect';
 
 // #region agent log
 const debugLog = (loc: string, msg: string, data: any, hyp: string) => {
@@ -100,6 +102,18 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
     const connectionGenerationRef = useRef<number>(0);
     // ────────────────────────────────────────────────────────────────────────
 
+    // ─── Phase 8: wsReconnect refs ─────────────────────────────────────────
+    const reconnectStrategyRef = useRef<ReconnectStrategy>(createReconnectStrategy());
+    const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const sessionStateRef = useRef<{
+        startedAt: number;
+        lastSegments: TranscriptSegment[]; // rolling last 60s of segments
+        isReconnecting: boolean;
+    }>({ startedAt: 0, lastSegments: [], isReconnecting: false });
+    // Stable ref to the reconnect function — avoids circular useCallback deps.
+    const _doReconnectRef = useRef<() => void>(() => { /* assigned below */ });
+    // ────────────────────────────────────────────────────────────────────────
+
     // 🎭 External speaker source (e.g., Pyannote Live)
     const externalSpeakerRef = useRef<string | null>(null);
     
@@ -139,11 +153,32 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
     };
 
     // ═══════════════════════════════════════════════════════════════════════════
+    // PHASE 8: Session segment rolling window (60s, for reconnect context)
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Push a segment into the rolling 60-second window kept in sessionStateRef.
+     * Called from both the legacy (speakerLockDedup OFF) and the new (ON) paths
+     * so that session context is always available for reconnection.
+     */
+    const pushSessionSegment = useCallback((seg: TranscriptSegment) => {
+        const nowMs = (seg.endSec ?? seg.startSec ?? 0) * 1000;
+        const cutoffMs = nowMs - 60_000;
+        sessionStateRef.current.lastSegments = [
+            ...sessionStateRef.current.lastSegments.filter(
+                s => ((s.endSec ?? 0) * 1000) > cutoffMs
+            ),
+            seg,
+        ];
+    }, []);
+
+    // ═══════════════════════════════════════════════════════════════════════════
     // PHASE 1: LIVE TRANSCRIPTION (during recording)
     // ═══════════════════════════════════════════════════════════════════════════
 
     const startLiveTranscription = useCallback(async (
-        onSegment?: (segment: TranscriptSegment) => void
+        onSegment?: (segment: TranscriptSegment) => void,
+        resumeContext: string = ''
     ) => {
         // #region agent log
         fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:startLive',message:'START_LIVE_CALLED',data:{enableLiveTranscription,liveModel:LIVE_MODEL,enhancementModel:model,language},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,D'})}).catch(()=>{});
@@ -185,6 +220,14 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
             // previous connection are automatically ignored.
             connectionGenerationRef.current++;
 
+            // Phase 8: initialise session state for a fresh start (not for reconnects).
+            // For reconnects, startedAt is preserved; lastSegments accumulate across reconnects.
+            if (!sessionStateRef.current.isReconnecting) {
+                sessionStateRef.current.startedAt = Date.now();
+                sessionStateRef.current.lastSegments = [];
+            }
+            sessionStateRef.current.isReconnecting = false;
+
             // Always use gemini-2.0-flash-live-001 for Live WebSocket API
             const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${apiKey}`;
 
@@ -195,6 +238,9 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                 fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:onopen',message:'WS_CONNECTED',data:{liveModel:LIVE_MODEL},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
                 debugLog('useGeminiTranscription:startLive', '✅ WEBSOCKET CONNECTED', {}, 'LIVE');
                 // #endregion
+
+                // Phase 8: successful (re)connect — reset backoff counter.
+                reconnectStrategyRef.current.reset();
 
                 // Setup message for live transcription
                 // Native-audio models require AUDIO output + speech_config + input_audio_transcription
@@ -213,7 +259,7 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                         },
                         system_instruction: {
                             parts: [{
-                                text: `TRANSCRIPTION ONLY. Output ONLY the exact words spoken, nothing else. No comments, no formatting, no asterisks, no explanations. Just the spoken words in ${language}.`
+                                text: `TRANSCRIPTION ONLY. Output ONLY the exact words spoken, nothing else. No comments, no formatting, no asterisks, no explanations. Just the spoken words in ${language}.${resumeContext}`
                             }]
                         },
                         // Enable input audio transcription - this is the key feature!
@@ -525,6 +571,9 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                                     confidence: isFinal ? 0.9 : 0.75
                                 });
                                 onSegmentCallbackRef.current?.(segment);
+
+                                // Phase 8: keep rolling 60s window for reconnect context.
+                                pushSessionSegment(segment);
                             }
 
                             // Reset for next segment
@@ -649,6 +698,9 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                                     confidence: isFinal ? 0.9 : 0.75,
                                 });
                                 onSegmentCallbackRef.current?.(_segment);
+
+                                // Phase 8: keep rolling 60s window for reconnect context.
+                                pushSessionSegment(_segment);
                             }
 
                             // Reset for next segment
@@ -719,23 +771,117 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                     wasClean: event.wasClean
                 }, 'LIVE');
                 // #endregion
-                setIsLiveActive(false);
-                
-                // Common close codes:
-                // 1000 = Normal closure
-                // 1001 = Going away
-                // 1006 = Abnormal closure (no close frame)
-                // 1011 = Server error
-                if (event.code !== 1000) {
-                    setError(`WebSocket closed: ${event.reason || `Code ${event.code}`}`);
+
+                const _envFlags = readEnvFlags();
+                const _useReconnect = resolveFlag('wsReconnect', { envFlags: _envFlags }).value;
+
+                if (!_useReconnect) {
+                    // ═══════════════════════════════════════════════════════════════
+                    // ANCIEN CODE (FLAG OFF) — préservé sans modification
+                    // Common close codes:
+                    // 1000 = Normal closure
+                    // 1001 = Going away
+                    // 1006 = Abnormal closure (no close frame)
+                    // 1011 = Server error
+                    // ═══════════════════════════════════════════════════════════════
+                    setIsLiveActive(false);
+                    if (event.code !== 1000) {
+                        setError(`WebSocket closed: ${event.reason || `Code ${event.code}`}`);
+                    }
+                    return;
                 }
+
+                // ═══════════════════════════════════════════════════════════════
+                // NOUVEAU CODE (FLAG ON) — exponential backoff reconnect
+                // ═══════════════════════════════════════════════════════════════
+
+                // Capture generation at the moment of close — used to detect if
+                // the user manually restarted between this close and the timeout.
+                const _myGeneration = connectionGenerationRef.current;
+
+                // Normal close or policy violation → no reconnect.
+                if (!defaultShouldRetry(event.code, event.reason ?? '')) {
+                    setIsLiveActive(false);
+                    sessionStateRef.current.isReconnecting = false;
+                    reconnectStrategyRef.current.reset();
+                    return;
+                }
+
+                // Session older than 5 minutes total → give up to avoid infinite loops.
+                const _sessionAge = Date.now() - sessionStateRef.current.startedAt;
+                if (_sessionAge > 5 * 60_000) {
+                    setIsLiveActive(false);
+                    sessionStateRef.current.isReconnecting = false;
+                    setError('Connection lost — please restart recording');
+                    return;
+                }
+
+                const _delay = reconnectStrategyRef.current.next();
+                if (_delay === null) {
+                    // Backoff exhausted.
+                    setIsLiveActive(false);
+                    sessionStateRef.current.isReconnecting = false;
+                    setError('Connection lost — please restart recording');
+                    return;
+                }
+
+                sessionStateRef.current.isReconnecting = true;
+                console.debug(`[WS Reconnect] attempt ${reconnectStrategyRef.current.attempts}/6 in ${_delay}ms (code ${event.code})`);
+
+                reconnectTimeoutRef.current = setTimeout(() => {
+                    // If the user manually restarted (connectionGenerationRef incremented),
+                    // cancel this scheduled reconnect to avoid opening a duplicate socket.
+                    if (connectionGenerationRef.current !== _myGeneration) {
+                        console.debug('[WS Reconnect] generation changed — aborting scheduled reconnect');
+                        return;
+                    }
+                    _doReconnectRef.current();
+                }, _delay);
             };
 
         } catch (err) {
             setError((err as Error).message);
             setIsLiveActive(false);
         }
-    }, [model, language, enableLiveTranscription]);
+    }, [model, language, enableLiveTranscription, pushSessionSegment]);
+
+    // ─── Phase 8: reconnect function ───────────────────────────────────────
+
+    /**
+     * Reopens the WebSocket with the last 60s of segments as context in the
+     * systemInstruction, so Gemini can continue seamlessly.
+     *
+     * Called only when wsReconnect flag is ON and the backoff timer fires.
+     */
+    const reconnectLiveTranscription = useCallback(async () => {
+        if (!sessionStateRef.current.isReconnecting) return;
+
+        const lastSegs = sessionStateRef.current.lastSegments;
+        const resumeContext = lastSegs.length > 0
+            ? `\n\nSession resumed. Last transcribed segments:\n${lastSegs
+                  .map(s => `[${sanitizeSpeakerName(s.speaker)}]: ${sanitizeSegmentForPrompt(s.text)}`)
+                  .join('\n')}`
+            : '';
+
+        try {
+            await startLiveTranscription(onSegmentCallbackRef.current ?? undefined, resumeContext);
+            // On success, reset is already handled inside startLiveTranscription's onopen handler.
+        } catch (err) {
+            // Failure: the new WS attempt will fail and onclose will fire again,
+            // which will trigger the next backoff step automatically.
+            console.debug('[WS Reconnect] reconnectLiveTranscription failed', err);
+        }
+    }, [startLiveTranscription]);
+
+    // Keep the ref always pointing at the latest version of the function.
+    // This avoids stale-closure issues when the timeout fires after deps change.
+    useEffect(() => {
+        _doReconnectRef.current = () => {
+            reconnectLiveTranscription();
+        };
+    });
+
+    // ────────────────────────────────────────────────────────────────────────
 
     // Decode webm/opus to PCM using AudioContext
     const decodeAudioToPCM = useCallback(async (audioData: ArrayBuffer): Promise<ArrayBuffer | null> => {
@@ -1324,6 +1470,14 @@ ${existingText || '(aucune transcription préalable - analyse uniquement l\'audi
             clearTimeout(pauseTimeoutRef.current);
             pauseTimeoutRef.current = null;
         }
+        // Phase 8: cancel any pending reconnect timer
+        if (reconnectTimeoutRef.current) {
+            clearTimeout(reconnectTimeoutRef.current);
+            reconnectTimeoutRef.current = null;
+        }
+        reconnectStrategyRef.current.reset();
+        sessionStateRef.current = { startedAt: 0, lastSegments: [], isReconnecting: false };
+
         setLiveSegments([]);
         setEnhancedSegments([]);
         setStreamingText('');
@@ -1369,6 +1523,13 @@ ${existingText || '(aucune transcription préalable - analyse uniquement l\'audi
             seenHashesRef.current.clear();
             speakerMappingRef.current.clear();
             audioChunksRef.current = [];
+            // Phase 8: cancel reconnect timer and clear session state on unmount
+            if (reconnectTimeoutRef.current) {
+                clearTimeout(reconnectTimeoutRef.current);
+                reconnectTimeoutRef.current = null;
+            }
+            reconnectStrategyRef.current.reset();
+            sessionStateRef.current = { startedAt: 0, lastSegments: [], isReconnecting: false };
             if (wsRef.current) {
                 try {
                     wsRef.current.close(1000, 'unmount');
