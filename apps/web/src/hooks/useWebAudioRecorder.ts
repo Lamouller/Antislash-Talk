@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { getVisibilityResumeDelayMs } from '../lib/platform';
 
 // 🆕 Type pour le callback de chunk live
 export type OnChunkReadyCallback = (chunk: Blob, chunkIndex: number) => void;
@@ -52,10 +53,9 @@ export function useWebAudioRecorder() {
   const audioUrl = useAudioBlobUrl(audioBlob);
 
   // Delay before attempting auto-resume after a visibility/focus change.
-  // Android WebView applies a longer background throttle, so 1500 ms gives the
-  // system enough time to release the audio focus before we call .resume().
-  // (Will be superseded by getVisibilityResumeDelayMs() in phase 12.)
-  const VISIBILITY_RESUME_DELAY_MS = 1500;
+  // Resolved per-platform: 1500ms on Android (WebView background throttle),
+  // 500ms on iOS/web.  Provided by lib/platform.ts (phase 12).
+  const VISIBILITY_RESUME_DELAY_MS = getVisibilityResumeDelayMs();
 
   const startRecording = async (onChunkReady?: OnChunkReadyCallback) => {
     try {
