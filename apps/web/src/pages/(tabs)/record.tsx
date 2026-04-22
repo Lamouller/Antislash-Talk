@@ -15,6 +15,7 @@ import { useGeminiTranscription, TranscriptSegment } from '../../hooks/useGemini
 import { useLiveDiarization } from '../../hooks/useLiveDiarization';
 import { useWakeLock } from '../../hooks/useWakeLock';
 import { useDisplayMode } from '../../hooks/useDisplayMode';
+import { useMicRouteWatcher } from '../../hooks/useMicRouteWatcher';
 import { getAdaptivePrompts, getWhisperOptimizedPrompts, requiresSpecialPrompts } from '../../lib/adaptive-prompts';
 import { readEnvFlags, resolveFlag } from '../../lib/featureFlags';
 import {
@@ -230,6 +231,18 @@ export default function RecordingScreen() {
     resetRecorder,
     getActiveMediaStream,  // 🎙️ Phase 10: stream getter for unified mic
   } = useWebAudioRecorder();
+
+  // 🎙️ Phase 12.5: Détection changement route audio (AirPods, BT, USB-C)
+  // Gated par feature flag `micRouteHandling` (OFF par défaut).
+  useMicRouteWatcher({
+    activeStream: getActiveMediaStream(),
+    isRecording,
+    onRouteChange: (change) => {
+      const label = change.newDevices.find(d => d.isDefault)?.label ?? 'nouveau micro';
+      toast(`Micro changé : ${label}`);
+      console.debug('[MicRouteWatcher]', change);
+    },
+  });
 
   const {
     transcribe,
