@@ -51,6 +51,12 @@ export function useWebAudioRecorder() {
   // Properly managed Object URL — revoked when blob changes or on unmount.
   const audioUrl = useAudioBlobUrl(audioBlob);
 
+  // Delay before attempting auto-resume after a visibility/focus change.
+  // Android WebView applies a longer background throttle, so 1500 ms gives the
+  // system enough time to release the audio focus before we call .resume().
+  // (Will be superseded by getVisibilityResumeDelayMs() in phase 12.)
+  const VISIBILITY_RESUME_DELAY_MS = 1500;
+
   const startRecording = async (onChunkReady?: OnChunkReadyCallback) => {
     try {
       console.log(`%c[useWebAudioRecorder] 🎙️ STARTING RECORDING`, 'color: #10b981; font-weight: bold');
@@ -88,7 +94,10 @@ export function useWebAudioRecorder() {
         debugLog('useWebAudioRecorder.ts:onpause', 'MediaRecorder PAUSED', { state: mediaRecorderRef.current?.state, manualPause: manualPauseRef.current, tracksState: stream.getTracks().map(t => ({ kind: t.kind, enabled: t.enabled, readyState: t.readyState, muted: t.muted })) }, 'A');
         // #endregion
         
-        // 🔧 FIX: Only mark as interrupted if NOT a manual pause
+        // 🔧 FIX: Only mark as interrupted if NOT a manual pause.
+        // manualPauseRef is intentionally NOT reset here — it is reset only in
+        // resumeRecording() and stopRecording() so that the polling/visibility
+        // auto-resume logic always sees the correct intent.
         if (!manualPauseRef.current) {
           // 📞 System-initiated pause (phone call, etc.) - mark for auto-resume
           wasInterruptedRef.current = true;
@@ -98,10 +107,7 @@ export function useWebAudioRecorder() {
           wasInterruptedRef.current = false;
           console.log('[useWebAudioRecorder] ⏸️ Recording paused MANUALLY by user');
         }
-        
-        // Reset the manual pause flag after processing
-        manualPauseRef.current = false;
-        
+
         setIsPaused(true);
         if (timerRef.current) clearInterval(timerRef.current);
       };
@@ -256,12 +262,15 @@ export function useWebAudioRecorder() {
     debugLog('useWebAudioRecorder.ts:resumeRecording', 'RESUME called', { isPaused, wasInterrupted: wasInterruptedRef.current, mediaRecorderState: mediaRecorderRef.current?.state, timestamp: Date.now() }, 'A');
     // #endregion
     if (mediaRecorderRef.current && isPaused) {
+      // 🔧 FIX: Reset manualPauseRef here (not in onpause) so the polling loop
+      // sees the correct value before this explicit resume clears it.
+      manualPauseRef.current = false;
       mediaRecorderRef.current.resume();
       setIsPaused(false);
       timerRef.current = setInterval(() => {
         setDuration(prev => prev + 1);
       }, 1000);
-      // Manual resume, clear interruption flag
+      // Explicit resume, clear interruption flag
       wasInterruptedRef.current = false;
       // #region agent log - Hypothesis A,B,E: Confirm resume executed
       debugLog('useWebAudioRecorder.ts:resumeRecording:done', 'RESUME executed', { newIsPaused: false, wasInterruptedNow: false, mediaRecorderState: mediaRecorderRef.current?.state }, 'A');
@@ -315,8 +324,8 @@ export function useWebAudioRecorder() {
         
         if (wasInterruptedRef.current) {
           console.log('[useWebAudioRecorder] 👁️ Page visible again after interruption - attempting auto-resume');
-          // Small delay to ensure system has released audio
-          setTimeout(attemptAutoResume, 500);
+          // Delay accounts for Android WebView background throttle
+          setTimeout(attemptAutoResume, VISIBILITY_RESUME_DELAY_MS);
         }
       }
     };
@@ -325,7 +334,7 @@ export function useWebAudioRecorder() {
       console.log('[useWebAudioRecorder] 🔍 Window focused');
       if (wasInterruptedRef.current) {
         console.log('[useWebAudioRecorder] 🔍 Focus detected after interruption - attempting auto-resume');
-        setTimeout(attemptAutoResume, 500);
+        setTimeout(attemptAutoResume, VISIBILITY_RESUME_DELAY_MS);
       }
     };
 

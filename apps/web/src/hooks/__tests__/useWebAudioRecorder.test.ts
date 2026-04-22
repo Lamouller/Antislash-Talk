@@ -36,6 +36,35 @@ describe('useWebAudioRecorder - baseline API', () => {
   });
 });
 
+describe('useWebAudioRecorder - manual pause does not auto-resume (phase 3)', () => {
+  it('stays paused after manual pause even after polling delay elapses', async () => {
+    vi.useFakeTimers();
+    const { result } = renderHook(() => useWebAudioRecorder());
+
+    // Start recording
+    await act(async () => {
+      await result.current.startRecording();
+    });
+    expect(result.current.isRecording).toBe(true);
+
+    // Manual pause
+    act(() => {
+      result.current.pauseRecording();
+    });
+    expect(result.current.isPaused).toBe(true);
+
+    // Advance well past the 2s polling interval and the 1500ms visibility delay
+    act(() => {
+      vi.advanceTimersByTime(10_000);
+    });
+
+    // Must still be paused — auto-resume should NOT have fired
+    expect(result.current.isPaused).toBe(true);
+
+    vi.useRealTimers();
+  });
+});
+
 describe('useWebAudioRecorder - audioUrl blob URL lifecycle (phase 2)', () => {
   it('creates an audioUrl when audioBlob is set and revokes it on unmount', async () => {
     const fakeUrl = 'blob:http://localhost/fake-1234';
