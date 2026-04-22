@@ -228,6 +228,9 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
             // Phase 7: increment generation so any pending callbacks from a
             // previous connection are automatically ignored.
             connectionGenerationRef.current++;
+            // Capture the current generation in closure so onmessage/createSegment
+            // can compare against it and drop callbacks from stale connections.
+            const myGeneration = connectionGenerationRef.current;
 
             // Phase 8: initialise session state for a fresh start (not for reconnects).
             // For reconnects, startedAt is preserved; lastSegments accumulate across reconnects.
@@ -597,9 +600,9 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                             // NOUVEAU CODE (FLAG ON) — atomique + dedup
                             // ═══════════════════════════════════════════════════════════════
 
-                            // Guard: stale connection callback check
-                            const _myGeneration = connectionGenerationRef.current;
-                            if (_myGeneration !== connectionGenerationRef.current) {
+                            // Guard: stale connection callback check — discard segment
+                            // if this onmessage fires after a newer connection was opened.
+                            if (myGeneration !== connectionGenerationRef.current) {
                                 accumulatedTextRef.current = '';
                                 setStreamingText('');
                                 return;
@@ -636,6 +639,12 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                                 return;
                             }
                             seenHashesRef.current.add(_hash);
+                            // FIFO cap: keep at most 1000 hashes (~30-40 min of unique segments).
+                            // Prevents unbounded memory growth on long meetings.
+                            if (seenHashesRef.current.size > 1000) {
+                                const first = seenHashesRef.current.values().next().value;
+                                if (first !== undefined) seenHashesRef.current.delete(first);
+                            }
 
                             // Commit mapping ref AFTER dedup check (avoids polluting ref on skip)
                             speakerMappingRef.current = _nextMapping;
