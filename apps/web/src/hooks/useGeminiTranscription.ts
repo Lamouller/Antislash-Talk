@@ -9,6 +9,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { sanitizeSpeakerName, sanitizeSegmentForPrompt } from '../lib/sanitize';
+import { normalizeSegment } from '../lib/timestamp';
 
 // #region agent log
 const debugLog = (loc: string, msg: string, data: any, hyp: string) => {
@@ -25,8 +26,10 @@ const debugLog = (loc: string, msg: string, data: any, hyp: string) => {
 export interface TranscriptSegment {
     speaker: string;
     text: string;
-    start?: string;
-    end?: string;
+    start?: string | number;   // legacy — kept as-is for backward compat
+    end?: string | number;     // legacy — kept as-is for backward compat
+    startSec?: number;         // phase 5: always numeric seconds (normalised)
+    endSec?: number;           // phase 5: always numeric seconds (normalised)
     confidence?: number;
     isLive?: boolean; // true = from live phase, false = from enhancement
 }
@@ -475,23 +478,23 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
                                         }
                                     }
                                     // Different speaker, first segment, or limits exceeded: create new
-                                    return [...prev, {
+                                    return [...prev, normalizeSegment({
                                         speaker: newSpeaker,
                                         text: cleanText,
                                         isLive: true,
                                         confidence: isFinal ? 0.9 : 0.75
-                                    }];
+                                    })];
                                 });
 
                                 // Callback with full segment info for UI
                                 // NOTE: Only use onSegmentCallbackRef (from startFullWorkflow), NOT onSegment
                                 // to avoid duplicate callbacks
-                                const segment: TranscriptSegment = {
+                                const segment: TranscriptSegment = normalizeSegment({
                                     speaker: newSpeaker,
                                     text: cleanText,
                                     isLive: true,
                                     confidence: isFinal ? 0.9 : 0.75
-                                };
+                                });
                                 onSegmentCallbackRef.current?.(segment);
                             }
                             
@@ -1036,14 +1039,16 @@ ${existingText || '(aucune transcription préalable - analyse uniquement l\'audi
                 fetch('http://127.0.0.1:7245/ingest/046bf818-ee35-424f-9e7e-36ad7fbe78a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGeminiTranscription.ts:enhance:parsed',message:'JSON parsed successfully',data:{speakersDetected:parsed.speakers_detected,segmentCount:parsed.segments?.length,speakerNames:parsed.speaker_names},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
                 // #endregion
 
-                const enhancedSegs: TranscriptSegment[] = (parsed.segments || []).map((s: any) => ({
-                    speaker: s.speaker || 'Speaker_01',
-                    text: s.text,
-                    start: s.start,
-                    end: s.end,
-                    confidence: s.confidence || 0.9,
-                    isLive: false
-                }));
+                const enhancedSegs: TranscriptSegment[] = (parsed.segments || []).map((s: any) =>
+                    normalizeSegment({
+                        speaker: s.speaker || 'Speaker_01',
+                        text: s.text,
+                        start: s.start,
+                        end: s.end,
+                        confidence: s.confidence || 0.9,
+                        isLive: false
+                    })
+                );
 
                 setEnhancedSegments(enhancedSegs);
 

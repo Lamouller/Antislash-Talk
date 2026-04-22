@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { useOllama } from './useOllama';
 import { useAI } from './useAI';
+import { normalizeSegment } from '../lib/timestamp';
 import {
   checkWhisperXAvailability,
   transcribeWithWhisperX as transcribeWithWhisperXClient,
@@ -209,7 +210,7 @@ Switch to "Local" provider and choose Whisper or Moonshine models!`);
     // Convert Mistral API response to our format
     const transcriptionResult: LocalTranscriptionResult = {
       text: cleanHallucinations(result.text || ''),
-      chunks: result.segments?.map((segment: any, index: number) => ({
+      chunks: result.segments?.map((segment: any, index: number) => normalizeSegment({
         start: segment.start || 0,
         end: segment.end || 0,
         speaker: `Speaker_${index + 1}`,
@@ -482,7 +483,7 @@ export function useLocalTranscription(): UseLocalTranscriptionReturn {
               // Convert to our format
               const transcriptionResult: LocalTranscriptionResult = {
                 text: cleanHallucinations(result.text || ''),
-                chunks: result.segments?.map((seg) => ({
+                chunks: result.segments?.map((seg) => normalizeSegment({
                   start: seg.start || 0,
                   end: seg.end || 0,
                   speaker: seg.speaker || `Locuteur_01`,
@@ -578,7 +579,7 @@ export function useLocalTranscription(): UseLocalTranscriptionReturn {
             // Convert PyTorch response to our format
             const transcriptionResult: LocalTranscriptionResult = {
               text: cleanHallucinations(result.transcript || ''),
-              chunks: result.segments?.map((seg: any, idx: number) => ({
+              chunks: result.segments?.map((seg: any, idx: number) => normalizeSegment({
                 start: seg.start || 0,
                 end: seg.end || 0,
                 speaker: result.speakers?.find((s: any) =>
@@ -795,17 +796,17 @@ export function useLocalTranscription(): UseLocalTranscriptionReturn {
             // Format result to match our expected structure
             const formattedResult: LocalTranscriptionResult = {
               text: cleanHallucinations(result.text || ''),
-              chunks: result.chunks ? result.chunks.map((chunk: any, index: number) => ({
+              chunks: result.chunks ? result.chunks.map((chunk: any, index: number) => normalizeSegment({
                 start: chunk.timestamp?.[0] || 0,
                 end: chunk.timestamp?.[1] || 0,
                 speaker: `Locuteur_${String((index % 3) + 1).padStart(2, '0')}`,
                 text: cleanHallucinations(chunk.text || '')
-              })) : [{
+              })) : [normalizeSegment({
                 start: 0,
                 end: 0,
                 speaker: 'Locuteur_01',
                 text: cleanHallucinations(result.text || '')
-              }]
+              })]
             };
 
             setProgress(100);
@@ -877,17 +878,17 @@ export function useLocalTranscription(): UseLocalTranscriptionReturn {
                 // Format result
                 const formattedResult: LocalTranscriptionResult = {
                   text: cleanHallucinations((result as any).text || ''),
-                  chunks: (result as any).chunks ? (result as any).chunks.map((chunk: any, index: number) => ({
+                  chunks: (result as any).chunks ? (result as any).chunks.map((chunk: any, index: number) => normalizeSegment({
                     start: chunk.timestamp?.[0] || 0,
                     end: chunk.timestamp?.[1] || 0,
                     speaker: `Locuteur_${String((index % 3) + 1).padStart(2, '0')}`,
                     text: cleanHallucinations(chunk.text || '')
-                  })) : [{
+                  })) : [normalizeSegment({
                     start: 0,
                     end: 0,
                     speaker: 'Locuteur_01',
                     text: cleanHallucinations((result as any).text || '')
-                  }]
+                  })]
                 };
 
                 setProgress(100);
@@ -1216,7 +1217,7 @@ RÉSUMÉ: [résumé des points clés et actions]`
           // Formater le résultat
           const transcriptionResult: LocalTranscriptionResult = {
             text: cleanHallucinations(result.text || ''),
-            chunks: result.segments?.map((seg) => ({
+            chunks: result.segments?.map((seg) => normalizeSegment({
               start: seg.start || 0,
               end: seg.end || 0,
               speaker: seg.speaker || `Locuteur_01`,
@@ -1311,12 +1312,12 @@ RÉSUMÉ: [résumé des points clés et actions]`
         (segment: WhisperXSegment) => {
           segmentCount++;
           // Ajuster les timestamps avec l'offset du chunk
-          const adjustedSegment = {
+          const adjustedSegment = normalizeSegment({
             text: segment.text,
             start: segment.start + timeOffset,
             end: segment.end + timeOffset,
             speaker: segment.speaker
-          };
+          });
 
           const segmentReceivedTime = Date.now();
           const elapsedSinceChunkStart = segmentReceivedTime - chunkStartTime;
