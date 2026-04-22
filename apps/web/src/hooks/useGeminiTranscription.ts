@@ -8,6 +8,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { sanitizeSpeakerName, sanitizeSegmentForPrompt } from '../lib/sanitize';
 
 // #region agent log
 const debugLog = (loc: string, msg: string, data: any, hyp: string) => {
@@ -887,9 +888,11 @@ export function useGeminiTranscription(options: UseGeminiTranscriptionOptions = 
             }, 'ENHANCE');
             // #endregion
 
-            // Build enhancement prompt with existing transcription context
-            const existingText = (existingSegments || liveSegments).map(s => 
-                `[${s.speaker}]: ${s.text}`
+            // Build enhancement prompt with existing transcription context.
+            // Sanitize speaker names and segment text to prevent prompt injection
+            // (speaker names are user-/model-controlled and injected into the LLM prompt).
+            const existingText = (existingSegments || liveSegments).map(s =>
+                `[${sanitizeSpeakerName(s.speaker)}]: ${sanitizeSegmentForPrompt(s.text)}`
             ).join('\n');
 
             // #region agent log
