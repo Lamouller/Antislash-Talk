@@ -82,7 +82,6 @@ function buildClientMeta(): Record<string, unknown> {
   const envFlags = readEnvFlags();
   return {
     platform: getPlatform(),
-    userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown',
     ts: Date.now(),
     flags: envFlags,
   };
