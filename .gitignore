@@ -68,6 +68,7 @@ $RECYCLE.BIN/
 docs/
 !docs/screenshots/
 !docs/DOMAIN_CONFIGURATION.md
+!docs/SMOKE_TEST_TRANSCRIPTION.md
 
 # Dossiers obsolètes archivés
 .old/

@@ -35,8 +35,12 @@ export interface FlagContext {
 /** Converts a FlagKey to its corresponding VITE_FLAG_* env var name. */
 export function flagKeyToEnvName(key: FlagKey): string {
   // camelCase → SCREAMING_SNAKE_CASE, then prefix with VITE_FLAG_
+  // Two-pass replacement handles acronyms like "VAD" (clientVAD → CLIENT_VAD):
+  //   pass 1: insert _ before an uppercase letter that follows a lowercase  (camelCase boundary)
+  //   pass 2: insert _ before an uppercase letter that is followed by lowercase (acronymEnd boundary)
   const screaming = key
-    .replace(/([A-Z])/g, '_$1')
+    .replace(/([a-z])([A-Z])/g, '$1_$2')       // e.g. client|VAD, new|Transcription
+    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1_$2') // e.g. NE|W_Transcription stays clean
     .toUpperCase();
   return `VITE_FLAG_${screaming}`;
 }
