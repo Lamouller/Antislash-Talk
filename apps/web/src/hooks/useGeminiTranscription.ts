@@ -1562,6 +1562,16 @@ ${existingText || '(aucune transcription préalable - analyse uniquement l\'audi
         return {
             sendChunk: sendAudioChunk, // Also stores chunks for enhancement phase
             stop: stopLiveTranscription,
+            resumeAudioContext: async () => {
+                try {
+                    if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
+                        await audioContextRef.current.resume();
+                        console.log('[Gemini] AudioContext resumed after suspension');
+                    }
+                } catch (err) {
+                    console.error('[Gemini] Failed to resume AudioContext:', err);
+                }
+            },
             finalize: async (audioBlob: Blob) => {
                 stopLiveTranscription();
                 
@@ -1738,5 +1748,17 @@ ${existingText || '(aucune transcription préalable - analyse uniquement l\'audi
 
         // 🎙️ Phase 9: VAD metrics (enabled, state, droppedChunks)
         getVadMetrics,
+
+        // 📞 iOS AudioContext resume after phone call interruption
+        resumeAudioContext: async () => {
+            try {
+                if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
+                    await audioContextRef.current.resume();
+                    console.log('[Gemini] AudioContext resumed after suspension');
+                }
+            } catch (err) {
+                console.error('[Gemini] Failed to resume AudioContext:', err);
+            }
+        },
     };
 }

@@ -30,7 +30,14 @@ function useAudioBlobUrl(blob: Blob | null): string | null {
 const debugLog = (loc: string, msg: string, data: any, hyp: string) => { try { const logs = JSON.parse(localStorage.getItem('__debug_logs__') || '[]'); logs.push({location:loc,message:msg,data,timestamp:Date.now(),hypothesisId:hyp}); if(logs.length > 100) logs.shift(); localStorage.setItem('__debug_logs__', JSON.stringify(logs)); console.log(`[DEBUG:${hyp}] ${loc}: ${msg}`, data); } catch(e){} };
 // #endregion
 
-export function useWebAudioRecorder() {
+// 📞 Options for useWebAudioRecorder — all optional (backward compatible)
+export interface UseWebAudioRecorderOptions {
+  /** Called when auto-resume after an interruption fails on iOS (allows caller to
+   *  attempt an AudioContext-level resume as a safety net). */
+  onAutoResumeFailed?: () => void;
+}
+
+export function useWebAudioRecorder(options?: UseWebAudioRecorderOptions) {
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [duration, setDuration] = useState(0);
@@ -50,6 +57,9 @@ export function useWebAudioRecorder() {
   const manualPauseRef = useRef<boolean>(false);
   // 🎙️ Phase 10: Store the active MediaStream so it can be shared with other consumers
   const activeMediaStreamRef = useRef<MediaStream | null>(null);
+  // 📞 Stable ref for options — avoids re-creating polling interval on every render
+  const optionsRef = useRef<UseWebAudioRecorderOptions | undefined>(options);
+  optionsRef.current = options;
 
   // Properly managed Object URL — revoked when blob changes or on unmount.
   const audioUrl = useAudioBlobUrl(audioBlob);
@@ -319,6 +329,8 @@ export function useWebAudioRecorder() {
           mediaRecorderRef.current.resume();
         } catch (error) {
           console.error('[useWebAudioRecorder] ❌ Failed to auto-resume:', error);
+          // 📞 Safety net: let the caller attempt an AudioContext-level resume (iOS)
+          optionsRef.current?.onAutoResumeFailed?.();
         }
       }
     };

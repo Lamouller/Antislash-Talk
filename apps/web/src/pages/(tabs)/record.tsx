@@ -231,7 +231,14 @@ export default function RecordingScreen() {
     resumeRecording,
     resetRecorder,
     getActiveMediaStream,  // 🎙️ Phase 10: stream getter for unified mic
-  } = useWebAudioRecorder();
+  } = useWebAudioRecorder({
+    // 📞 iOS safety net: if MediaRecorder.resume() fails after a phone call,
+    // try to re-activate the Gemini AudioContext which owns the AVAudioSession.
+    onAutoResumeFailed: () => {
+      console.warn('[record] 🔁 MediaRecorder auto-resume failed — trying Gemini AudioContext resume');
+      geminiTranscription.resumeAudioContext();
+    },
+  });
 
   // 🎙️ Phase 12.5: Détection changement route audio (AirPods, BT, USB-C)
   // Gated par feature flag `micRouteHandling` (OFF par défaut).
@@ -859,12 +866,24 @@ export default function RecordingScreen() {
                 // Pyannote unavailable — continue without diarization
               }
 
-              // Retrieve the shared stream if unifiedMicStream is ON
+              // Read the unifiedMicStream flag (externalStream only relevant when ON)
               const _envFlagsGemini = readEnvFlags();
               const _useUnified = resolveFlag('unifiedMicStream', { envFlags: _envFlagsGemini }).value;
-              const _sharedStream: MediaStream | undefined =
-                _useUnified ? (getActiveMediaStream() ?? undefined) : undefined;
 
+              // Start Gemini live workflow FIRST (owns AVAudioSession on iOS).
+              // externalStream: MediaRecorder hasn't started yet, so getActiveMediaStream()
+              // would return null anyway. Gemini opens its own stream (flag OFF = default).
+              const workflow = await geminiTranscription.startFullWorkflow({
+                onLiveSegment: (segment) => {
+                  setGeminiLiveSegments(prev => [...prev, segment]);
+                  options.onSegment(segment);
+                },
+                onEnhancedResult: () => { /* enhancement handled in handleStopRecording */ },
+                externalStream: _useUnified ? (stream ?? undefined) : undefined,
+              });
+              geminiWorkflowRef.current = workflow;
+
+              // Start MediaRecorder after Gemini AudioContext is active (correct iOS order)
               let _chunkCount = 0;
               await startRecording(async (chunk: Blob, _chunkIndex: number) => {
                 _chunkCount++;
@@ -872,16 +891,6 @@ export default function RecordingScreen() {
                 const mimeType = chunk.type || 'audio/webm';
                 await geminiWorkflowRef.current?.sendChunk(arrayBuffer, mimeType);
               });
-
-              const workflow = await geminiTranscription.startFullWorkflow({
-                onLiveSegment: (segment) => {
-                  setGeminiLiveSegments(prev => [...prev, segment]);
-                  options.onSegment(segment);
-                },
-                onEnhancedResult: () => { /* enhancement handled in handleStopRecording */ },
-                externalStream: _sharedStream ?? stream,
-              });
-              geminiWorkflowRef.current = workflow;
             },
             async stop() {
               geminiWorkflowRef.current?.stop();
@@ -1025,44 +1034,13 @@ export default function RecordingScreen() {
           }
 
           // 🎙️ Phase 10: Unified mic stream orchestration
-          // Step 1 — Start MediaRecorder (getUserMedia #1)
-          // We capture chunks here; we also expose getActiveMediaStream() for sharing.
-          let chunkCount = 0;
-          await startRecording(async (chunk: Blob, _chunkIndex: number) => {
-            chunkCount++;
-            // Convert Blob to ArrayBuffer and send to Gemini
-            const arrayBuffer = await chunk.arrayBuffer();
-            const mimeType = chunk.type || 'audio/webm';
-
-            // #region agent log
-            if (chunkCount <= 5 || chunkCount % 10 === 0) {
-              debugLog('record.tsx:geminiChunk', '📤 SENDING AUDIO CHUNK', {
-                chunkNumber: chunkCount,
-                chunkSizeBytes: arrayBuffer.byteLength,
-                mimeType,
-                hasWorkflow: !!geminiWorkflowRef.current
-              }, 'GEMINI');
-            }
-            // #endregion
-
-            await geminiWorkflowRef.current?.sendChunk(arrayBuffer, mimeType);
-          });
-
-          // Step 2 — If flag ON, retrieve the active stream to share with Gemini PCM capture
+          // Step 1 — Read the unifiedMicStream flag (externalStream only relevant when ON)
           const _envFlags = readEnvFlags();
           const _useUnified = resolveFlag('unifiedMicStream', { envFlags: _envFlags }).value;
 
-          let sharedStream: MediaStream | undefined;
-          if (_useUnified) {
-            sharedStream = getActiveMediaStream() ?? undefined;
-            if (sharedStream) {
-              console.debug('[record] 🎙️ unifiedMicStream ON — sharing MediaStream with Gemini PCM capture');
-            } else {
-              console.warn('[record] ⚠️ unifiedMicStream ON but getActiveMediaStream() returned null — Gemini will open its own stream');
-            }
-          }
-
-          // Step 3 — Start Gemini live workflow (passes externalStream so startPCMCapture skips getUserMedia when flag ON)
+          // Step 2 — Start Gemini live workflow FIRST (owns AVAudioSession on iOS)
+          // externalStream is undefined here because MediaRecorder hasn't started yet;
+          // when unifiedMicStream flag is OFF (default) Gemini opens its own stream anyway.
           const workflow = await geminiTranscription.startFullWorkflow({
             onLiveSegment: (segment) => {
               console.log(`%c[record] 🎤 GEMINI LIVE SEGMENT`, 'color: #10b981; font-weight: bold', segment);
@@ -1088,20 +1066,42 @@ export default function RecordingScreen() {
               }, 'GEMINI');
               // #endregion
             },
-            externalStream: sharedStream,
+            externalStream: undefined,
           });
 
+          geminiWorkflowRef.current = workflow;
+
           // #region agent log
-          debugLog('record.tsx:handleStartRecording', '✅ GEMINI WORKFLOW STARTED', {
+          debugLog('record.tsx:handleStartRecording', '✅ GEMINI WORKFLOW STARTED — now starting MediaRecorder', {
             hasWorkflow: !!workflow,
             hasSendChunk: !!workflow?.sendChunk,
             hasStop: !!workflow?.stop,
             unifiedMicStream: _useUnified,
-            sharedStreamTracks: sharedStream?.getTracks().length ?? 0
           }, 'GEMINI');
           // #endregion
 
-          geminiWorkflowRef.current = workflow;
+          // Step 3 — Start MediaRecorder (getUserMedia #2) and forward chunks to Gemini
+          // Gemini AudioContext is already active so AVAudioSession is owned correctly on iOS.
+          let chunkCount = 0;
+          await startRecording(async (chunk: Blob, _chunkIndex: number) => {
+            chunkCount++;
+            // Convert Blob to ArrayBuffer and send to Gemini
+            const arrayBuffer = await chunk.arrayBuffer();
+            const mimeType = chunk.type || 'audio/webm';
+
+            // #region agent log
+            if (chunkCount <= 5 || chunkCount % 10 === 0) {
+              debugLog('record.tsx:geminiChunk', '📤 SENDING AUDIO CHUNK', {
+                chunkNumber: chunkCount,
+                chunkSizeBytes: arrayBuffer.byteLength,
+                mimeType,
+                hasWorkflow: !!geminiWorkflowRef.current
+              }, 'GEMINI');
+            }
+            // #endregion
+
+            await geminiWorkflowRef.current?.sendChunk(arrayBuffer, mimeType);
+          });
 
         } catch (geminiError) {
           console.error('[record] ❌ Gemini Live failed, falling back to batch mode:', geminiError);
